@@ -1,0 +1,13 @@
+V1.0.6 version update:
+1. Fixed the problem of crashing after reporting an error after the network is disconnected (New)
+2. Added manual update function (useful when the automatic update prompt is turned off) (New)
+3. Fixed the problem that the update program would retry the connection indefinitely when the network was disconnected (the update failed after ten retry attempts) (New)
+4. Change the name of the screenshot folder from "1" or "4" to "App Screenshot Folder (DA)" (for all computers)
+5. exe file icon LOGO change (New)
+
+V1.0.6版本更新:
+1.修复了断网后报错闪退的问题（New）
+2.新增 手动更新 功能（当关闭自动更新提示时很有用）（New）
+3.修复了断网时更新程序无限重试连接的问题（重试十次后提示更新失败）（New）
+4.截图文件夹名字从“1”或“4”变更为“App截图文件夹（DA）”（以适用于所有计算机）
+5.exe文件图标LOGO变更（New）
