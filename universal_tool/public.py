@@ -1,6 +1,7 @@
 import ctypes,inspect
 import sys,os
 import subprocess
+import psutil
 
 
 def resource_path(relative_path):
@@ -47,3 +48,14 @@ def cmd_editor_disable():
     """
     kernel32 = ctypes.windll.kernel32
     kernel32.SetConsoleMode(kernel32.GetStdHandle(-10), 128)
+
+
+def get_pid(name):
+    '''
+     作用：根据进程名获取进程pid
+    '''
+    pids = psutil.process_iter()
+    print("[" + name + "]'s pid is:")
+    for pid in pids:
+        if(pid.name() == name):
+            print(pid.pid)

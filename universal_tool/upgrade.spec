@@ -5,9 +5,9 @@ block_cipher = None
 
 
 a = Analysis(['upgrade.py'],
-             pathex=['D:\\my_git\\little_tools'],
+             pathex=['.\\public.py', 'D:\\my_git\\little_tools\\DA_Tools\\universal_tool'],
              binaries=[],
-             datas=[('version','version'),('icon','icon'),('temp','temp')],
+             datas=[('version','version'),('icon','icon'),('temp','temp'),('upgrade_finally','upgrade_finally')],
              hiddenimports=[],
              hookspath=[],
              hooksconfig={},

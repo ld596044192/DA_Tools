@@ -1,7 +1,7 @@
 import datetime
 import re
 import time
-import tkinter,tkinter.ttk
+import tkinter,tkinter.ttk,win32api
 import tkinter.messagebox
 import threading
 import os,sys
@@ -11,13 +11,15 @@ import requests
 
 version_path = public.resource_path(os.path.join('version','version_history.txt'))
 LOGO_path = public.resource_path(os.path.join('icon', 'water.ico'))
-upgrade_path = public.resource_path(os.path.join('upgrade', 'upgrade.exe'))
+# upgrade_path = public.resource_path(os.path.join('upgrade', 'upgrade.exe'))
 users = getpass.getuser()
 dir_path = 'C:\\Users\\' + users + '\\Documents\\little_tools(DA)'
 minute_path = dir_path + '\\minute.log'
 target_path = dir_path + '\\target.log'
 state_path = dir_path + '\\state.log'
-exe_path = public.resource_path(os.path.join('background_program', 'time_main.exe'))
+install_path = dir_path + '\\install.log'
+pid_path = dir_path + '\\pid.log'
+# exe_path = public.resource_path(os.path.join('background_program', 'time_main.exe'))
 Processes = []
 # 同一修改版本号
 version = 'V1.0.4'
@@ -25,6 +27,12 @@ version_code = 104
 
 if not os.path.exists(dir_path):
     os.makedirs(dir_path)
+pwd = os.getcwd()
+pid = os.getpid()
+with open(install_path,'w') as fp:
+    fp.write(pwd)
+with open(pid_path,'w') as fp:
+    fp.write(str(pid))
 
 
 class MainForm(object):
@@ -197,6 +205,7 @@ class MainForm(object):
         version_read = open(version_path,'r',encoding='utf-8')
         for readline in version_read.readlines():
             s.version_listbox.insert(tkinter.END, readline)
+        version_read.close()
         s.verion_frame.pack(side='bottom')
 
     def stop_update(s):
@@ -265,7 +274,11 @@ class MainForm(object):
             #     else:
             #         break
             # os.system(exe_path)
-            public.execute_cmd(exe_path)
+
+            # 单独打包为一个exe时使用
+            # public.execute_cmd(exe_path)
+            # 不单独打包为一个exe文件时使用这个方法调用其他程序
+            win32api.ShellExecute(0, 'open',pwd + '/background_program/time_main.exe' , '', '', 1)
 
         t1 = threading.Thread(target=time_target)
         t1.setDaemon(True)
@@ -328,17 +341,20 @@ class MainForm(object):
         def t_upgrade():
             s.version_name.set('正在检测更新...')
             # 查看github最新版本/检查更新
-            response = requests.get("https://api.github.com/repos/ld596044192/Testing-tools_scattered/releases/latest")
+            response = requests.get("https://api.github.com/repos/ld596044192/DA_Tools/releases/latest")
             version_upgrade = response.json()["tag_name"]
+            s.version_name.set('最新版本号: ' + version_upgrade)
             version_split = ''.join(version_upgrade.split('V')).split('.')
             version_finally = ''.join(version_split)
-            if version_code > int(version_finally):
-                public.execute_cmd(upgrade_path)
+            if version_code < int(version_finally):
+                # 单独打包为一个exe时使用
+                # public.execute_cmd(upgrade_path)
+                # 不单独打包为一个exe文件时使用这个方法调用其他程序
+                win32api.ShellExecute(0, 'open',pwd + '/upgrade/upgrade.exe', '', '', 1)
             else:
                 s.version_name.set('当前版本为最新版！')
                 time.sleep(3)
                 s.version_name.set('当前版本号: ' + version)
-
 
         t_upgrade = threading.Thread(target=t_upgrade)
         t_upgrade.setDaemon(True)
