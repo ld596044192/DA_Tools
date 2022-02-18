@@ -14,7 +14,7 @@ def run_program():
 
     if is_admin():
         adb_form.root_form()
-    else:
+    else
         ctypes.windll.shell32.ShellExecuteW(None, 'runas', sys.executable, __file__, None, 1)
 
 

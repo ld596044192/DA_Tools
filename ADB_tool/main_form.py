@@ -10,15 +10,20 @@ username = getpass.getuser()
 LOGO_path = public.resource_path(os.path.join('icon', 'android.ico'))
 version_path = public.resource_path(os.path.join('version','version_history.txt'))
 adb_path = public.resource_path(os.path.join('adb-tools'))
+record_state = public.resource_path(os.path.join('temp','record_state.txt'))
 # 计数
 make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
 count_path = make_dir + 'screenshots_count.txt'
+# 录屏状态
+record_screen_state = make_dir + 'record_state.txt'
+# 录屏名称
+record_name = make_dir + 'record_name.txt'
 # 同一修改版本号
-version = 'V1.0.0.1'
-version_code = 1001
+version = 'V1.0.0.3'
+version_code = 1003
 # 同一修改frame的宽高
 width = 600
-height = 275
+height = 355
 # 统一按钮宽度
 width_button = 20
 
@@ -30,7 +35,7 @@ class MainForm(object):
         screenWidth = s.root.winfo_screenwidth()
         screenHeight = s.root.winfo_screenheight()
         w = 600
-        h = 320
+        h = 400
         x = (screenWidth - w) / 2
         y = (screenHeight - h) / 2
         s.root.geometry('%dx%d+%d+%d' % (w, h, x, y))
@@ -39,7 +44,8 @@ class MainForm(object):
         # s.root.attributes("-toolwindow", 2)  # 去掉窗口最大化最小化按钮，只保留关闭
         # s.root.overrideredirect(1)  # 隐藏标题栏 最大化最小化按钮
         # s.root.config(bg=bg)
-        # s.root.wm_attributes('-topmost', 1)
+        # 软件始终置顶
+        s.root.wm_attributes('-topmost', 1)
         # s.root.protocol('WM_DELETE_WINDOW', s.exit)  # 点击Tk窗口关闭时直接调用s.exit，不使用默认关闭
         s.main_menu_bar()
         s.quickly_frame()
@@ -66,12 +72,14 @@ class MainForm(object):
         s.verion_menu.place(x=120,y=0)
 
         # 连接设备功能
-        s.devices_state_label = tkinter.Label(s.root,text='设备连接状态：')
-        s.devices_state_label.config(command=s.devices_bind())
         s.devices_str = tkinter.StringVar()
+        s.devices_state_label = tkinter.Label(s.root,text='设备连接状态：')
+        s.devices_str.set('正在检测连接状态...')
+        s.devices_state_label.config(command=s.devices_bind())
         s.devices_null = tkinter.StringVar()
         s.devices_success = tkinter.Label(s.root,textvariable=s.devices_str,fg='green')
         s.devices_fail = tkinter.Label(s.root,textvariable=s.devices_null,fg='red')
+
         s.devices_state_label.place(x=370,y=0)
 
         # 检测本地adb服务（None则使用内置adb）
@@ -79,8 +87,8 @@ class MainForm(object):
         s.adb_state_label.config(command=s.adb_bind())
         s.adb_str = tkinter.StringVar()
         s.adb_success = tkinter.Label(s.root,textvariable=s.adb_str,fg='green')
-        s.adb_success.place(x=110,y=290)
-        s.adb_state_label.place(x=0,y=290)
+        s.adb_success.place(x=110,y=375)
+        s.adb_state_label.place(x=0,y=375)
 
     def display_main_frame(s):
         # 显示快捷模式主窗口
@@ -161,7 +169,7 @@ class MainForm(object):
         s.clear_button.place(x=20,y=100)
 
         # 终止（结束）程序
-        s.kill_button = tkinter.Button(s.quickly_frame1,text='终止（结束）程序',width=width_button)
+        s.kill_button = tkinter.Button(s.quickly_frame1,text='终止（结束）应用',width=width_button)
         s.kill_button.bind('<Button-1>',lambda x: s.kill_bind())
         s.kill_button_disable = tkinter.Button(s.quickly_frame1,text='正在结束...',width=width_button)
         s.kill_button_disable.config(state='disable')
@@ -217,7 +225,7 @@ class MainForm(object):
         # 截图按钮
         s.screen_button = tkinter.Button(s.screen_frame1,text='一键截图',width=width_button)
         s.screen_button.bind('<Button-1>', lambda x:s.screenshot_bind())
-        s.screen_button_disable = tkinter.Button(s.screen_frame1,text='正在截图',width=width_button)
+        s.screen_button_disable = tkinter.Button(s.screen_frame1,text='正在截图...',width=width_button)
         s.screen_button_disable.config(state='disable')
         s.screen_button.place(x=20,y=140)
 
@@ -228,13 +236,47 @@ class MainForm(object):
         s.open_screen_button_disable.config(state='disable')
         s.open_screen_button.place(x=200,y=140)
 
+        # 录屏状态栏
+        s.record_str = tkinter.StringVar()
+        s.record_label = tkinter.Label(s.screen_frame1, textvariable=s.record_str, bg='black', fg='#FFFFFF',
+                                           width=46, height=2)
+        s.record_label.place(x=20, y=180)
+        s.record_str.set('此处显示录屏状态')
+
+        # 录屏文件名
+        s.record_entry = tkinter.Entry(s.screen_frame1, width=35)
+        s.record_star = tkinter.Label(s.screen_frame1, text='*', fg='red', font=('宋体', 15))
+        s.record_entry.insert(tkinter.END, 'demo')
+        s.record_entry.place(x=50, y=230)
+        s.record_star.place(x=300, y=230)
+
+        # 录屏文件名说明
+        content = '''* 说明：此处可以修改录屏后生成的文件名称(默认demo)\n生成的文件保存在桌面上的“ADB工具-录屏（DA）”里面
+                        '''
+        s.record_readme_label = tkinter.Label(s.screen_frame1, text=content, fg='red', font=('宋体', 10))
+        s.record_readme_label.place(x=20, y=250)
+
+        # 录屏按钮
+        s.record_button = tkinter.Button(s.screen_frame1, text='开始录屏', width=width_button)
+        s.record_button.bind('<Button-1>', lambda x: s.record_bind())
+        s.record_button_disable = tkinter.Button(s.screen_frame1, text='正在录屏中', width=width_button)
+        s.record_button_disable.config(state='disable')
+        s.record_button.place(x=20, y=280)
+
+        # 停止录屏按钮
+        s.record_stop_button = tkinter.Button(s.screen_frame1, text='停止录屏', width=width_button)
+        s.record_stop_button.bind('<Button-1>', lambda x:s.record_stop_bind())
+        s.record_stop_button_disable = tkinter.Button(s.screen_frame1, text='停止录屏', width=width_button)
+        s.record_stop_button_disable.config(state='disable')
+        s.record_stop_button_disable.place(x=200, y=280)
+
         s.screen_frame1.place(y=20)
 
     def version_history_frame(s):
         # 历史版本信息窗口
         s.verion_frame = tkinter.Frame(s.root,width=width,height=height)
         s.scrollbar = tkinter.Scrollbar(s.verion_frame)
-        s.version_listbox = tkinter.Listbox(s.verion_frame, width=50, height=12,yscrollcommand=(s.scrollbar.set))
+        s.version_listbox = tkinter.Listbox(s.verion_frame, width=50, height=16,yscrollcommand=(s.scrollbar.set))
         s.version_listbox.bindtags((s.version_listbox,'all'))
         s.scrollbar.config(command=(s.version_listbox.yview))
         s.scrollbar.pack(side=(tkinter.RIGHT), fill=(tkinter.Y))
@@ -371,23 +413,37 @@ class MainForm(object):
         t_adb.setDaemon(True)
         t_adb.start()
 
+    def main_screenshot(s,touch_name):
+        # 截图功能核心逻辑代码
+        s.screen_str.set('正在截图中...')
+        screenshot_success = screen_record.main_screenshots(touch_name)
+        s.screen_str.set(screenshot_success)
+
     def screenshot_bind(s):
         def t_screenshot():
+            s.screen_button_disable.place(x=20, y=140)
             devices_state = public.device_connect()
             touch_name = s.screen_entry.get()
+            # 截图文件名长度检测
             if len(touch_name) <= 8:
+                # 检测安卓系统是否完全启动，未完全启动时设备本地sdcard没显示，则提示处理；正常显示后则启动截图
                 if not devices_state:
                     s.screen_str.set('请连接设备后再截图！')
                 else:
-                    s.screen_button_disable.place(x=20,y=140)
                     # 创建临时文件
-                    screen_record.cd_screenshots()
-                    s.screen_str.set('正在截图中...')
-                    screenshot_success = screen_record.main_screenshots(touch_name)
-                    s.screen_str.set(screenshot_success)
-                    s.screen_button_disable.place_forget()
+                    make_state = screen_record.cd_screenshots()
+                    if not make_state:
+                        s.main_screenshot(touch_name)
+                    else:
+                        make_state_finally = make_state.split(':')[-1]
+                        print(make_state_finally)
+                        if make_state_finally == ' No such file or directory\r\n':
+                            s.screen_str.set('别着急截图，系统都还没完全启动呢...')
+                        else:
+                            s.main_screenshot(touch_name)
             else:
                 s.screen_str.set('截图文件名过长，请重新输入！')
+            s.screen_button_disable.place_forget()
 
         t_screenshot = threading.Thread(target=t_screenshot)
         t_screenshot.setDaemon(True)
@@ -402,4 +458,45 @@ class MainForm(object):
         open_screen = threading.Thread(target=open_screen)
         open_screen.setDaemon(True)
         open_screen.start()
+
+    def record_stop_bind(s):
+        # 停止录屏标志
+        with open(record_state,'w') as fp:
+            fp.write('Stop recording screen')
+        with open(record_screen_state,'w') as fp:
+            fp.write('Stop recording screen')
+
+    def record_bind(s):
+        def t_record():
+            s.record_stop_button_disable.place_forget()
+            s.record_button_disable.place(x=20,y=280)
+            s.record_stop_button.place(x=200,y=280)
+            # 切换到内置adb-tools路径，使录屏命令生效
+            os.chdir(adb_path)
+            # 获取录屏名称
+            s.record_name = s.record_entry.get()
+            with open(record_name,'w') as fp:
+                fp.write(s.record_name)
+            s.record_str.set('正在启动录屏（自动获取权限）...')
+            screen_record.open_record_main()
+
+        def record_time():
+            with open(record_state, 'w') as fp:
+                fp.write('')
+            record_end_finally = screen_record.record_time(s.record_str)
+            s.record_str.set('正在保存录屏文件，请稍等...')
+            s.record_name = open(record_name,'r').read()
+            screen_record.record_pull(s.record_name)
+            s.record_str.set('录屏文件保存成功！录屏时间为：' + record_end_finally)
+            s.record_button_disable.place_forget()
+            s.record_stop_button.place_forget()
+            s.record_stop_button_disable.place(x=200, y=280)
+
+        t_record = threading.Thread(target=t_record)
+        t_record.setDaemon(True)
+        t_record.start()
+
+        record_time = threading.Thread(target=record_time)
+        record_time.setDaemon(True)
+        record_time.start()
 

@@ -15,11 +15,10 @@ def resource_path(relative_path):
 
 
 def _async_raise(tid, exctype):
-    """raises the exception, performs cleanup if needed"""
-    tid = ctypes.c_long(tid)
+    """Raises an exception in the threads with id tid"""
     if not inspect.isclass(exctype):
-        exctype = type(exctype)
-    res = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(exctype))
+        raise TypeError("Only types can be raised (not instances)")
+    res = ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(tid), ctypes.py_object(exctype))
     if res == 0:
         raise ValueError("invalid thread id")
     elif res != 1:
@@ -37,7 +36,10 @@ def execute_cmd(cmd):
     proc = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,stdin=subprocess.PIPE)
     proc.stdin.close()
     proc.wait()
-    result = proc.stdout.read().decode('utf-8')  # 注意你电脑cmd的输出编码（中文是gbk，但utf-8是国际通用编码，兼容中文）
+    try:
+        result = proc.stdout.read().decode('gbk')  # 注意你电脑cmd的输出编码（中文是gbk）
+    except UnicodeDecodeError:
+        result = proc.stdout.read().decode('utf-8')  # 适用于截图录屏功能，针对截图录屏文件名中文编码报错的异常处理
     proc.stdout.close()
     return result
 

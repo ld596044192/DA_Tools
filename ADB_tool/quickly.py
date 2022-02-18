@@ -28,7 +28,7 @@ def clear_cache():
 
 
 def terminate_program():
-    # 结束程序（不是初始化，不会清理缓存，单纯kill程序）
+    # 结束应用（不是初始化，不会清理缓存，单纯kill程序）
     package_name = public.found_packages()
     public.execute_cmd('adb shell am force-stop ' + package_name)
 
