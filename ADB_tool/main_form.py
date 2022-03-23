@@ -1,3 +1,4 @@
+import re
 import time
 import tkinter,tkinter.ttk
 import tkinter.messagebox
@@ -11,19 +12,30 @@ LOGO_path = public.resource_path(os.path.join('icon', 'android.ico'))
 version_path = public.resource_path(os.path.join('version','version_history.txt'))
 adb_path = public.resource_path(os.path.join('adb-tools'))
 record_state = public.resource_path(os.path.join('temp','record_state.txt'))
-# 计数
+# 创建临时文件夹
 make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
+if not os.path.exists(make_dir):
+    os.makedirs(make_dir)
 count_path = make_dir + 'screenshots_count.txt'
+# ------------------------------- 录屏功能
 # 录屏状态
 record_screen_state = make_dir + 'record_state.txt'
 # 录屏名称
 record_name = make_dir + 'record_name.txt'
-# 同一修改版本号
-version = 'V1.0.0.3'
-version_code = 1003
-# 同一修改frame的宽高
+# 录屏时间
+record_time_txt = make_dir + 'record_time.txt'
+# 记录程序位置
+exe_path = public.resource_path(os.path.join('temp','exe_path.log'))
+# 录屏模式
+record_model_log = make_dir + 'record_model.log'
+record_count = make_dir + 'record_count.txt'
+# ------------------------------- 录屏功能
+# 统一修改版本号
+version = 'V1.0.0.5'
+version_code = 1005
+# 统一修改frame的宽高
 width = 600
-height = 355
+height = 405
 # 统一按钮宽度
 width_button = 20
 
@@ -35,7 +47,7 @@ class MainForm(object):
         screenWidth = s.root.winfo_screenwidth()
         screenHeight = s.root.winfo_screenheight()
         w = 600
-        h = 400
+        h = 450
         x = (screenWidth - w) / 2
         y = (screenHeight - h) / 2
         s.root.geometry('%dx%d+%d+%d' % (w, h, x, y))
@@ -45,7 +57,7 @@ class MainForm(object):
         # s.root.overrideredirect(1)  # 隐藏标题栏 最大化最小化按钮
         # s.root.config(bg=bg)
         # 软件始终置顶
-        s.root.wm_attributes('-topmost', 1)
+        # s.root.wm_attributes('-topmost', 1)
         # s.root.protocol('WM_DELETE_WINDOW', s.exit)  # 点击Tk窗口关闭时直接调用s.exit，不使用默认关闭
         s.main_menu_bar()
         s.quickly_frame()
@@ -74,7 +86,6 @@ class MainForm(object):
         # 连接设备功能
         s.devices_str = tkinter.StringVar()
         s.devices_state_label = tkinter.Label(s.root,text='设备连接状态：')
-        s.devices_str.set('正在检测连接状态...')
         s.devices_state_label.config(command=s.devices_bind())
         s.devices_null = tkinter.StringVar()
         s.devices_success = tkinter.Label(s.root,textvariable=s.devices_str,fg='green')
@@ -87,8 +98,8 @@ class MainForm(object):
         s.adb_state_label.config(command=s.adb_bind())
         s.adb_str = tkinter.StringVar()
         s.adb_success = tkinter.Label(s.root,textvariable=s.adb_str,fg='green')
-        s.adb_success.place(x=110,y=375)
-        s.adb_state_label.place(x=0,y=375)
+        s.adb_success.place(x=110,y=425)
+        s.adb_state_label.place(x=0,y=425)
 
     def display_main_frame(s):
         # 显示快捷模式主窗口
@@ -251,24 +262,51 @@ class MainForm(object):
         s.record_star.place(x=300, y=230)
 
         # 录屏文件名说明
-        content = '''* 说明：此处可以修改录屏后生成的文件名称(默认demo)\n生成的文件保存在桌面上的“ADB工具-录屏（DA）”里面
+        content = '''* 说明：此处可以修改录屏后生成的文件名称(默认demo)\n生成的文件保存在桌面上的“ADB工具-录屏（DA）”里面\n录屏时请勿使用本地ADB服务，否则会中断录屏
                         '''
         s.record_readme_label = tkinter.Label(s.screen_frame1, text=content, fg='red', font=('宋体', 10))
         s.record_readme_label.place(x=20, y=250)
+
+        # 录屏时间说明
+        content = '''请选择录屏时间：'''
+        s.record_time_label = tkinter.Label(s.screen_frame1, text=content)
+        s.record_time_label.place(x=20, y=300)
+
+        # 录屏时间下拉框
+        s.record_time = tkinter.StringVar()
+        s.record_combobox = tkinter.ttk.Combobox(s.screen_frame1, state="readonly",width=5, textvariable=s.record_time)
+        # state：“正常”，“只读”或“禁用”之一。在“只读”状态下，可能无法直接编辑该值，并且用户只能从下拉列表中选择值。在“正常”状态下，文本字段可直接编辑。在“禁用”状态下，不可能进行交互。
+        s.record_combobox['value'] = ('180秒', '120秒', '60秒', '30秒', '10秒')
+        s.record_combobox.current(0)
+        s.record_combobox.place(x=120, y=300)
+
+        # 录屏模式单选按钮
+        s.record_model_str = tkinter.IntVar()
+        s.record_radio_button1 = tkinter.Radiobutton(s.screen_frame1,text='手动模式',variable=s.record_model_str,value=0)
+        s.record_radio_button1.place(x=200,y=300)
+        s.record_radio_button2 = tkinter.Radiobutton(s.screen_frame1, text='连续模式', variable=s.record_model_str, value=1)
+        s.record_radio_button2.place(x=270, y=300)
 
         # 录屏按钮
         s.record_button = tkinter.Button(s.screen_frame1, text='开始录屏', width=width_button)
         s.record_button.bind('<Button-1>', lambda x: s.record_bind())
         s.record_button_disable = tkinter.Button(s.screen_frame1, text='正在录屏中', width=width_button)
         s.record_button_disable.config(state='disable')
-        s.record_button.place(x=20, y=280)
+        s.record_button.place(x=20, y=330)
 
         # 停止录屏按钮
         s.record_stop_button = tkinter.Button(s.screen_frame1, text='停止录屏', width=width_button)
         s.record_stop_button.bind('<Button-1>', lambda x:s.record_stop_bind())
         s.record_stop_button_disable = tkinter.Button(s.screen_frame1, text='停止录屏', width=width_button)
         s.record_stop_button_disable.config(state='disable')
-        s.record_stop_button_disable.place(x=200, y=280)
+        s.record_stop_button_disable.place(x=200, y=330)
+
+        # 打开录屏文件夹按钮
+        s.open_record_button = tkinter.Button(s.screen_frame1, text='打开录屏文件夹', width=width_button)
+        s.open_record_button.bind('<Button-1>', lambda x: s.open_record_bind())
+        s.open_record_button_disable = tkinter.Button(s.screen_frame1, text='正在打开...', width=width_button)
+        s.open_record_button_disable.config(state='disable')
+        s.open_record_button.place(x=100, y=370)
 
         s.screen_frame1.place(y=20)
 
@@ -276,7 +314,7 @@ class MainForm(object):
         # 历史版本信息窗口
         s.verion_frame = tkinter.Frame(s.root,width=width,height=height)
         s.scrollbar = tkinter.Scrollbar(s.verion_frame)
-        s.version_listbox = tkinter.Listbox(s.verion_frame, width=50, height=16,yscrollcommand=(s.scrollbar.set))
+        s.version_listbox = tkinter.Listbox(s.verion_frame, width=50, height=19,yscrollcommand=(s.scrollbar.set))
         s.version_listbox.bindtags((s.version_listbox,'all'))
         s.scrollbar.config(command=(s.version_listbox.yview))
         s.scrollbar.pack(side=(tkinter.RIGHT), fill=(tkinter.Y))
@@ -380,6 +418,7 @@ class MainForm(object):
 
     def devices_bind(s):
         def t_devices():
+            s.devices_str.set('正在检测连接状态...')
             while True:
                 # 获取设备序列号
                 devices_finally = public.device_connect()
@@ -468,29 +507,82 @@ class MainForm(object):
 
     def record_bind(s):
         def t_record():
-            s.record_stop_button_disable.place_forget()
-            s.record_button_disable.place(x=20,y=280)
-            s.record_stop_button.place(x=200,y=280)
-            # 切换到内置adb-tools路径，使录屏命令生效
-            os.chdir(adb_path)
-            # 获取录屏名称
-            s.record_name = s.record_entry.get()
-            with open(record_name,'w') as fp:
-                fp.write(s.record_name)
-            s.record_str.set('正在启动录屏（自动获取权限）...')
-            screen_record.open_record_main()
+            devices_state = public.device_connect()
+            if not devices_state:
+                s.record_str.set('请连接设备后再录屏！')
+            else:
+                s.record_stop_button_disable.place_forget()
+                s.record_button_disable.place(x=20,y=330)
+                s.record_stop_button.place(x=200,y=330)
+                s.record_str.set('正在启动录屏（自动获取权限）...')
+
+                # 记录录屏模式
+                s.record_model_selected = s.record_model_str.get()
+                with open(record_model_log,'w') as fp:
+                    print('录屏模式：' + str(s.record_model_selected))
+                    fp.write(str(s.record_model_selected))
+
+                # 获取录屏时间
+                s.record_time_get = s.record_time.get()
+                s.record_time_re = re.findall('(.*?)秒',s.record_time_get)
+                s.record_time_selected = ''.join(s.record_time_re)
+                with open(record_time_txt,'w') as fp:
+                    fp.write(s.record_time_selected)
+
+                # 记录当前程序位置
+                now_path = os.getcwd()
+                print(now_path)
+                with open(exe_path,'w') as fp:
+                    fp.write(now_path)
+
+                # 切换到内置adb-tools路径，使录屏命令生效
+                os.chdir(adb_path)
+                # 响应内置ADB（防止切换到内置ADB时导致失效）
+                public.execute_cmd('adb start-server')
+                time.sleep(1)
+                # 获取录屏名称
+                s.record_name = s.record_entry.get()
+                with open(record_name,'w') as fp:
+                    fp.write(s.record_name)
+                screen_record.open_record_main()
 
         def record_time():
-            with open(record_state, 'w') as fp:
-                fp.write('')
-            record_end_finally = screen_record.record_time(s.record_str)
-            s.record_str.set('正在保存录屏文件，请稍等...')
-            s.record_name = open(record_name,'r').read()
-            screen_record.record_pull(s.record_name)
-            s.record_str.set('录屏文件保存成功！录屏时间为：' + record_end_finally)
-            s.record_button_disable.place_forget()
-            s.record_stop_button.place_forget()
-            s.record_stop_button_disable.place(x=200, y=280)
+            devices_state = public.device_connect()
+            if not devices_state:
+                pass
+            else:
+                with open(record_state, 'w') as fp:
+                    fp.write('')
+                record_end_finally = screen_record.record_time(s.record_str)
+                s.record_stop_button_disable.place(x=200, y=330)
+                record_no_devices = open(record_screen_state,'r').read()
+                record_model_get = open(record_model_log, 'r').read()
+                if record_model_get == '0':
+                    if record_no_devices == 'no devices':
+                        s.record_str.set('设备突然中断连接，录屏结束！')
+                    else:
+                        s.record_str.set('正在保存录屏文件，请稍等...')
+                        s.record_name = open(record_name,'r').read()
+                        screen_record.record_pull(s.record_name)
+                        s.record_str.set('注意：录屏时间仅供参考，具体查看文件时长\n录屏文件保存成功！录屏时间为：' + record_end_finally)
+                elif record_model_get == '1':
+
+                    # 返回原始地址，防止与本地ADB服务发生冲突导致无法使用
+                    original_path = open(exe_path, 'r').read()
+                    os.chdir(original_path)
+
+                    # 关闭ADB服务，以免影响本地ADB服务的开启
+                    public.execute_cmd('adb kill-server')
+
+                    # 连续模式计数
+                    r = int(open(record_count, 'r').read())
+                    r += 1
+                    with open(record_count, 'w') as fp:
+                        fp.write(str(r))
+
+                    s.record_str.set('连续模式已结束！（录屏文件已保存）')
+                s.record_button_disable.place_forget()
+                s.record_stop_button.place_forget()
 
         t_record = threading.Thread(target=t_record)
         t_record.setDaemon(True)
@@ -500,3 +592,12 @@ class MainForm(object):
         record_time.setDaemon(True)
         record_time.start()
 
+    def open_record_bind(s):
+        def open_record():
+            s.open_record_button_disable.place(x=100,y=370)
+            screen_record.open_screenrecords()
+            s.open_record_button_disable.place_forget()
+
+        open_record = threading.Thread(target=open_record)
+        open_record.setDaemon(True)
+        open_record.start()

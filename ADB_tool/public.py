@@ -29,6 +29,7 @@ def _async_raise(tid, exctype):
 
 
 def stop_thread(thread):
+    # 终止进程
     _async_raise(thread.ident, SystemExit)
 
 
@@ -86,3 +87,16 @@ def adb_connect():
     adb_list = adb_service.split()
     return adb_list
 
+
+def get_pid_name():
+    # 获取进程名
+    Processes = []
+    pids = psutil.pids()
+    try:
+        for pid in pids:
+            pid_names = psutil.Process(pid).name()
+            # 获取所有进程名称并添加到列表中
+            Processes.append(pid_names)
+    except psutil.NoSuchProcess:
+        print('不存在该进程，继续执行！')
+    return Processes

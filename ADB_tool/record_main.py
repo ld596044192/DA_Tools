@@ -1,5 +1,7 @@
 # 该py程序需要单独打包成一个exe后台程序供主程序调用，放进background_program文件夹即可
 import os.path
+import time
+
 import public
 import getpass
 import tkinter
@@ -9,6 +11,9 @@ import psutil
 
 username = getpass.getuser()
 adb_path = public.resource_path(os.path.join('adb-tools'))
+record_version = public.resource_path(os.path.join('version','record_version.txt'))
+# 记录程序位置
+exe_path = public.resource_path(os.path.join('temp','exe_path.log'))
 # 记录录屏状态和pid
 make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
 record_state = make_dir + 'record_state.txt'
@@ -16,10 +21,16 @@ record_pid = make_dir + 'record_pid.txt'
 record_count = make_dir + 'record_count.txt'
 # 录屏名称
 record_name = make_dir + 'record_name.txt'
+# 录屏时间
+record_time = make_dir + 'record_time.txt'
+# 录屏模式
+record_model_log = make_dir + 'record_model.log'
 username = getpass.getuser()
 # 自定义录屏保存文件名
 record_dirname = 'ADB工具-录屏（DA）'
 record_save = 'C:\\Users\\' + username + '\\Desktop\\' + record_dirname + '\\'
+# 连续模式保存文件
+record_model_save_1 = record_save + '连续模式' + '\\'
 # cmd自动最小化
 ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 6)
 # 获取录屏程序进程名称列表
@@ -36,9 +47,19 @@ class MainForm_record():
         s.root_time.mainloop()
 
     def main_record(s):
+        def main_record(record_time_finally,record_name_model):
+            # 录屏 # 最大录屏时间为180秒
+            record_cmd = 'adb shell screenrecord --time-limit ' + record_time_finally + ' /sdcard/da_screenrecord/' + record_name_model
+            public.execute_cmd(record_cmd)
+
         def record():
             # 设备录屏
-            print('程序获取权限成功，开始录屏...')
+            print('程序获取权限成功，开始录屏...\n')
+
+            # 显示版本历史内容
+            fp = open(record_version,'r',encoding='utf-8').readlines()
+            for version in fp:
+                print(version)
 
             # 开始录屏标记
             with open(record_state, 'w') as fp:
@@ -70,10 +91,52 @@ class MainForm_record():
             # 获取录屏文件名称
             record_name_finally = open(record_name,'r').read()
 
-            # 录屏
-            public.execute_cmd('adb shell screenrecord /sdcard/da_screenrecord/' + record_name_finally + '（' + str(r) + '）' + '.mp4')
+            # 获取录屏设置时间
+            record_time_finally = open(record_time,'r').read()
+
+            # 获取模式
+            record_model_get = open(record_model_log,'r').read()
+            # 手动模式
+            if record_model_get == '0':
+                record_name_model = record_name_finally + '（' + str(r) + '）' + '.mp4'
+                main_record(record_time_finally,record_name_model)
+            # 连续模式
+            elif record_model_get == '1':
+                i = 1
+                while True:
+                    devices_state = public.device_connect()
+                    with open(record_state,'w') as fp:
+                        fp.write('Began to record the screen')
+
+                    record_name_model = record_name_finally + '（' + str(r) + '）连续-' + str(i) + '.mp4'
+                    main_record(record_time_finally, record_name_model)
+                    # 连续模式保存文件
+                    if not os.path.exists(record_model_save_1):
+                        os.makedirs(record_model_save_1)
+
+                    download_cmd = 'adb pull /sdcard/da_screenrecord/' + record_name_model + ' ' + record_model_save_1 + record_name_model
+                    # print(download_cmd)
+                    public.execute_cmd(download_cmd)
+
+                    # 删除录屏文件缓存（减少占用空间）
+                    public.execute_cmd('adb shell rm -r /sdcard/da_screenrecord/*.mp4')
+
+                    with open(record_state,'w') as fp:
+                        fp.write('continuous')
+                    i += 1
+                    time.sleep(2)
+                    # 设备突然中断连接，连续模式结束
+                    if not devices_state:
+                        break
+
+            # 录屏各项异常处理
+            print('设备突然中断连接或录屏最大时间到了，录屏结束！')
+            with open(record_state,'w') as fp:
+                fp.write('Stop recording screen')
 
         def stop_record():
+            # 等待2S后检测
+            time.sleep(2)
             while True:
                 record_stop = open(record_state,'r').read()
                 if record_stop == 'Stop recording screen':
