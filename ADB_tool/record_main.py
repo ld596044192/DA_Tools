@@ -31,6 +31,8 @@ record_dirname = 'ADB工具-录屏（DA）'
 record_save = 'C:\\Users\\' + username + '\\Desktop\\' + record_dirname + '\\'
 # 连续模式保存文件
 record_model_save_1 = record_save + '连续模式' + '\\'
+# 录屏停止处理1
+record_stop = make_dir + 'record_stop.ini'
 # cmd自动最小化
 ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 6)
 # 获取录屏程序进程名称列表
@@ -54,7 +56,7 @@ class MainForm_record():
 
         def record():
             # 设备录屏
-            print('程序获取权限成功，开始录屏...\n')
+            print('程序获取权限成功，正在启动录屏...\n')
 
             # 显示版本历史内容
             fp = open(record_version,'r',encoding='utf-8').readlines()
@@ -93,6 +95,10 @@ class MainForm_record():
 
             # 获取录屏设置时间
             record_time_finally = open(record_time,'r').read()
+
+            # 停止标记
+            with open(record_stop,'w') as fp:
+                fp.write('1')
 
             # 获取模式
             record_model_get = open(record_model_log,'r').read()
@@ -140,7 +146,6 @@ class MainForm_record():
             while True:
                 record_stop = open(record_state,'r').read()
                 if record_stop == 'Stop recording screen':
-
                     # # 获取当前后台程序的pid
                     # pid = os.getpid()
                     # print(pid)
@@ -159,7 +164,6 @@ class MainForm_record():
                     if 'adb.exe' in Processes or 'record_main.exe' in Processes:
                         os.popen('taskkill /F /IM %s ' % 'adb.exe /T','r')
                         os.popen('taskkill /F /IM %s ' % 'record_main.exe /T','r')
-                    sys.exit()
 
         record = threading.Thread(target=record)
         record.setDaemon(True)

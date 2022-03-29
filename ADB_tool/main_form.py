@@ -1,9 +1,8 @@
 import re
 import time
-import tkinter,tkinter.ttk
-import tkinter.messagebox
+import tkinter,tkinter.ttk,tkinter.messagebox
 import threading
-import os,sys
+import os,psutil
 import public,getpass
 import quickly,screen_record
 
@@ -29,6 +28,8 @@ exe_path = public.resource_path(os.path.join('temp','exe_path.log'))
 # 录屏模式
 record_model_log = make_dir + 'record_model.log'
 record_count = make_dir + 'record_count.txt'
+# 录屏停止处理1
+record_stop_config = make_dir + 'record_stop.ini'
 # ------------------------------- 录屏功能
 # 统一修改版本号
 version = 'V1.0.0.5'
@@ -84,11 +85,13 @@ class MainForm(object):
         s.verion_menu.place(x=120,y=0)
 
         # 连接设备功能
-        s.devices_str = tkinter.StringVar()
+
         s.devices_state_label = tkinter.Label(s.root,text='设备连接状态：')
         s.devices_state_label.config(command=s.devices_bind())
         s.devices_null = tkinter.StringVar()
+        s.devices_str = tkinter.StringVar()
         s.devices_success = tkinter.Label(s.root,textvariable=s.devices_str,fg='green')
+        s.devices_str.set('正在检测设备连接状态...')
         s.devices_fail = tkinter.Label(s.root,textvariable=s.devices_null,fg='red')
 
         s.devices_state_label.place(x=370,y=0)
@@ -98,6 +101,7 @@ class MainForm(object):
         s.adb_state_label.config(command=s.adb_bind())
         s.adb_str = tkinter.StringVar()
         s.adb_success = tkinter.Label(s.root,textvariable=s.adb_str,fg='green')
+        s.adb_str.set('正在检测ADB服务连接状态...')
         s.adb_success.place(x=110,y=425)
         s.adb_state_label.place(x=0,y=425)
 
@@ -306,7 +310,15 @@ class MainForm(object):
         s.open_record_button.bind('<Button-1>', lambda x: s.open_record_bind())
         s.open_record_button_disable = tkinter.Button(s.screen_frame1, text='正在打开...', width=width_button)
         s.open_record_button_disable.config(state='disable')
-        s.open_record_button.place(x=100, y=370)
+        s.open_record_button.place(x=20, y=370)
+
+        # 一键重置按钮
+        s.reset_button = tkinter.Button(s.screen_frame1, text='一键重置', width=width_button)
+        s.reset_button.bind('<Button-1>', lambda x: s.reset_bind())
+        s.reset_button_disable = tkinter.Button(s.screen_frame1, text='一键重置', width=width_button)
+        s.reset_button_disable.config(state='disable')
+        s.reset_button_disable.bind('<Button-1>',lambda x: s.reset_disable_bind())
+        s.reset_button.place(x=200, y=370)
 
         s.screen_frame1.place(y=20)
 
@@ -418,7 +430,6 @@ class MainForm(object):
 
     def devices_bind(s):
         def t_devices():
-            s.devices_str.set('正在检测连接状态...')
             while True:
                 # 获取设备序列号
                 devices_finally = public.device_connect()
@@ -440,7 +451,9 @@ class MainForm(object):
         t_devices.start()
 
     def adb_bind(s):
+        # 检测ADB服务状态
         def t_adb():
+            time.sleep(5)  # 等待ADB服务启动完毕
             adb_finally = public.adb_connect()[1]
             if adb_finally == '不是内部或外部命令，也不是可运行的程序':
                 os.chdir(adb_path)
@@ -500,6 +513,7 @@ class MainForm(object):
 
     def record_stop_bind(s):
         # 停止录屏标志
+        s.record_stop_button_disable.place(x=200, y=330)
         with open(record_state,'w') as fp:
             fp.write('Stop recording screen')
         with open(record_screen_state,'w') as fp:
@@ -507,13 +521,18 @@ class MainForm(object):
 
     def record_bind(s):
         def t_record():
+            s.record_stop_button_disable.place_forget()
+            s.record_button_disable.place(x=20, y=330)
+            s.record_stop_button.place(x=200, y=330)
+            s.reset_button_disable.place(x=200, y=370)
             devices_state = public.device_connect()
             if not devices_state:
                 s.record_str.set('请连接设备后再录屏！')
+                # 按钮复原
+                s.record_button_disable.place_forget()
+                s.record_stop_button_disable.place(x=200, y=330)
+                s.reset_button_disable.place_forget()
             else:
-                s.record_stop_button_disable.place_forget()
-                s.record_button_disable.place(x=20,y=330)
-                s.record_stop_button.place(x=200,y=330)
                 s.record_str.set('正在启动录屏（自动获取权限）...')
 
                 # 记录录屏模式
@@ -553,18 +572,15 @@ class MainForm(object):
             else:
                 with open(record_state, 'w') as fp:
                     fp.write('')
-                record_end_finally = screen_record.record_time(s.record_str)
-                s.record_stop_button_disable.place(x=200, y=330)
-                record_no_devices = open(record_screen_state,'r').read()
+                # record_end_finally = screen_record.record_time(s.record_str)
+                screen_record.record_time(s.record_str)
                 record_model_get = open(record_model_log, 'r').read()
                 if record_model_get == '0':
-                    if record_no_devices == 'no devices':
-                        s.record_str.set('设备突然中断连接，录屏结束！')
-                    else:
-                        s.record_str.set('正在保存录屏文件，请稍等...')
-                        s.record_name = open(record_name,'r').read()
-                        screen_record.record_pull(s.record_name)
-                        s.record_str.set('注意：录屏时间仅供参考，具体查看文件时长\n录屏文件保存成功！录屏时间为：' + record_end_finally)
+                    s.record_str.set('正在保存录屏文件，请稍等...')
+                    s.record_name = open(record_name,'r').read()
+                    screen_record.record_pull(s.record_name)
+                    # s.record_str.set('注意：录屏时间仅供参考，具体查看文件时长\n录屏文件保存成功！录屏时间为：' + record_end_finally)
+                    s.record_str.set('录屏文件保存成功！\n打开录屏文件夹即可查看哦~')
                 elif record_model_get == '1':
 
                     # 返回原始地址，防止与本地ADB服务发生冲突导致无法使用
@@ -579,10 +595,40 @@ class MainForm(object):
                     r += 1
                     with open(record_count, 'w') as fp:
                         fp.write(str(r))
-
                     s.record_str.set('连续模式已结束！（录屏文件已保存）')
                 s.record_button_disable.place_forget()
-                s.record_stop_button.place_forget()
+                s.record_stop_button_disable.place(x=200, y=330)
+                s.reset_button_disable.place_forget()
+
+        def record_stop():
+            with open(record_screen_state,'w') as fp:
+                fp.write('')
+            with open(record_stop_config,'w') as fp:
+                fp.write('0')
+            while True:
+                record_stop_state = open(record_screen_state,'r').read()
+                record_stop_ini = open(record_stop_config,'r').read()
+                if record_stop_state == 'Stop recording screen' and record_stop_ini == '0':
+                    os.popen('taskkill /F /IM %s ' % 'record_main.exe /T', 'r')
+                    try:
+                        public.stop_thread(t_record)
+                        public.stop_thread(record_time)
+                    except ValueError:
+                        pass
+                    s.record_button_disable.place_forget()
+                    s.record_stop_button_disable.place(x=200, y=330)
+                    s.reset_button_disable.place_forget()
+                    s.record_str.set('录屏已被中断！！！')
+                    break
+                elif record_stop_state == 'Stop recording screen' and record_stop_ini == '1':
+                    break
+                elif record_stop_state == 'no devices':
+                    os.popen('taskkill /F /IM %s ' % 'record_main.exe /T', 'r')
+                    s.record_str.set('设备突然中断连接，录屏结束！')
+                    s.record_button_disable.place_forget()
+                    s.record_stop_button_disable.place(x=200, y=330)
+                    s.reset_button_disable.place_forget()
+                    break
 
         t_record = threading.Thread(target=t_record)
         t_record.setDaemon(True)
@@ -592,12 +638,36 @@ class MainForm(object):
         record_time.setDaemon(True)
         record_time.start()
 
+        record_stop = threading.Thread(target=record_stop)
+        record_stop.setDaemon(True)
+        record_stop.start()
+
     def open_record_bind(s):
         def open_record():
-            s.open_record_button_disable.place(x=100,y=370)
+            s.open_record_button_disable.place(x=20,y=370)
             screen_record.open_screenrecords()
             s.open_record_button_disable.place_forget()
 
         open_record = threading.Thread(target=open_record)
         open_record.setDaemon(True)
         open_record.start()
+
+    def reset_bind(s):
+        def t_reset():
+            reset_message = """
+            真的确定要一键重置 截图录屏，重置部分包括如下：
+            1.将会清空所有的截图录屏保存文件夹
+            2.将会清空所有相关截图录屏的缓存文件
+            3.将会重置截图录屏的文件名计数（重置为零）
+            """
+            if tkinter.messagebox.askyesno(title='重置警告',message=reset_message):
+                screen_record.reset_screenrecord()
+                tkinter.messagebox.showinfo(title='完成',message='一键重置完成！！！')
+
+        t_reset = threading.Thread(target=t_reset)
+        t_reset.setDaemon(True)
+        t_reset.start()
+
+    def reset_disable_bind(s):
+        tkinter.messagebox.showwarning(title='录屏警告',message='正在进行录屏，无法重置！！！')
+
