@@ -80,6 +80,11 @@ class MainForm(object):
         s.screen_menu = tkinter.Menubutton(s.root, text='截图录屏')
         s.screen_menu1 = tkinter.Menubutton(s.root, text='截图录屏')
         s.screen_menu1.config(state='disable')
+
+        s.linux_menu = tkinter.Menubutton(s.root, text='Linux模式')
+        s.linux_menu1 = tkinter.Menubutton(s.root, text='Linux模式')
+        s.linux_menu1.config(state='disable')
+
         s.verion_menu = tkinter.Menubutton(s.root,text='版本历史')
         s.verion_menu1 = tkinter.Menubutton(s.root, text='版本历史')
         s.verion_menu1.config(state='disable')
@@ -88,7 +93,8 @@ class MainForm(object):
         s.screen_menu.bind('<Button-1>',lambda x:s.display_screenshot_frame())
         s.main_menu.place(x=0,y=0)
         s.screen_menu.place(x=60, y=0)
-        s.verion_menu.place(x=120,y=0)
+        s.linux_menu.place(x=120,y=0)
+        s.verion_menu.place(x=180,y=0)
 
         # 连接设备功能
 
@@ -137,13 +143,17 @@ class MainForm(object):
             print('所选窗口未启动 -警告信息Logs（可忽略）')
             pass
 
+    def display_linux_frame(s):
+        # 显示Linux模式窗口
+        pass
+
     def display_version_frame(s):
         # 显示版本历史窗口
         s.version_history_frame()
         s.quickly_frame1.place_forget()
         s.main_menu1.place_forget()
         s.screen_menu1.place_forget()
-        s.verion_menu1.place(x=120, y=0)
+        s.verion_menu1.place(x=180, y=0)
         try:
             s.screen_frame1.place_forget()
         except AttributeError:
@@ -330,6 +340,9 @@ class MainForm(object):
         s.reset_button.place(x=200, y=370)
 
         s.screen_frame1.place(y=20)
+
+    def linux_frame(s):
+        # 
 
     def version_history_frame(s):
         # 历史版本信息窗口
