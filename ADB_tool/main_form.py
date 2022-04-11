@@ -4,7 +4,7 @@ import tkinter,tkinter.ttk,tkinter.messagebox
 import threading
 import os,psutil
 import public,getpass
-import quickly,screen_record
+import quickly,screen_record,linux_main
 
 username = getpass.getuser()
 LOGO_path = public.resource_path(os.path.join('icon', 'android.ico'))
@@ -18,6 +18,8 @@ if not os.path.exists(make_dir):
 count_path = make_dir + 'screenshots_count.txt'
 # 主程序启动标志
 root_state = make_dir + 'root_state.txt'
+# 截图页面启动标志
+screen_page = make_dir + 'screen_page_state.txt'
 # ------------------------------- 录屏功能
 # 录屏状态
 record_screen_state = make_dir + 'record_state.txt'
@@ -91,6 +93,7 @@ class MainForm(object):
         s.main_menu.bind('<Button-1>',lambda x:s.display_main_frame())
         s.verion_menu.bind('<Button-1>',lambda x:s.display_version_frame())
         s.screen_menu.bind('<Button-1>',lambda x:s.display_screenshot_frame())
+        s.linux_menu.bind('<Button-1>',lambda x:s.display_linux_frame())
         s.main_menu.place(x=0,y=0)
         s.screen_menu.place(x=60, y=0)
         s.linux_menu.place(x=120,y=0)
@@ -120,11 +123,13 @@ class MainForm(object):
     def display_main_frame(s):
         # 显示快捷模式主窗口
         s.quickly_frame()
-        s.screen_frame1.place_forget()
         s.verion_menu1.place_forget()
         s.screen_menu1.place_forget()
+        s.linux_menu1.place_forget()
         s.main_menu1.place(x=0, y=0)
         try:
+            s.screen_frame1.place_forget()
+            s.linux_frame1.place_forget()
             s.verion_frame.place_forget()
         except AttributeError:
             print('所选窗口未启动 -警告信息Logs（可忽略）')
@@ -135,9 +140,11 @@ class MainForm(object):
         s.screen_frame()
         s.quickly_frame1.place_forget()
         s.main_menu1.place_forget()
+        s.linux_menu1.place_forget()
         s.screen_menu1.place(x=60, y=0)
         s.verion_menu1.place_forget()
         try:
+            s.linux_frame1.place_forget()
             s.verion_frame.place_forget()
         except AttributeError:
             print('所选窗口未启动 -警告信息Logs（可忽略）')
@@ -145,7 +152,18 @@ class MainForm(object):
 
     def display_linux_frame(s):
         # 显示Linux模式窗口
-        pass
+        s.linux_frame()
+        s.quickly_frame1.place_forget()
+        s.screen_menu1.place_forget()
+        s.main_menu1.place_forget()
+        s.verion_menu1.place_forget()
+        s.linux_menu1.place(x=120,y=0)
+        try:
+            s.screen_frame1.place_forget()
+            s.verion_frame.place_forget()
+        except AttributeError:
+            print('所选窗口未启动 -警告信息Logs（可忽略）')
+            pass
 
     def display_version_frame(s):
         # 显示版本历史窗口
@@ -153,8 +171,10 @@ class MainForm(object):
         s.quickly_frame1.place_forget()
         s.main_menu1.place_forget()
         s.screen_menu1.place_forget()
+        s.linux_menu1.place_forget()
         s.verion_menu1.place(x=180, y=0)
         try:
+            s.linux_frame1.place_forget()
             s.screen_frame1.place_forget()
         except AttributeError:
             print('所选窗口未启动 -警告信息Logs（可忽略）')
@@ -342,7 +362,43 @@ class MainForm(object):
         s.screen_frame1.place(y=20)
 
     def linux_frame(s):
-        # 
+        # 显示Linux模式窗口
+        s.linux_frame1 = tkinter.Frame(s.root, width=width, height=height)
+
+        # 设备初始化说明
+        init_content = '注意：Linux设备使用本软件功能前需要初始化！\n否则可能无法正常使用下面功能哦'
+        s.init_label = tkinter.Label(s.linux_frame1, text=init_content, fg='red',font=('宋体', 10))
+        s.init_label.place(x=20, y=20)
+
+        # 初始化按钮
+        s.init_str = tkinter.StringVar()
+        s.linux_init_Button = tkinter.Button(s.linux_frame1, text='初始化设备', width=width_button)
+        s.linux_init_Button_disable = tkinter.Button(s.linux_frame1, text='初始化设备', width=width_button)
+        s.linux_init_Button_disable.config(state='disable')
+        s.linux_init_Button.bind('<Button-1>', lambda x: linux_main.devices_init(s.init_str,s.linux_init_Button, s.linux_init_Button_disable))
+        s.linux_init_Button_disable.place(x=100, y=110)
+
+        # 初始化状态栏
+        s.init_label = tkinter.Label(s.linux_frame1, textvariable=s.init_str, bg='black', fg='#FFFFFF',
+                                       width=46, height=2)
+        s.init_label.config(command=linux_main.check_init(s.init_str,s.linux_init_Button,s.linux_init_Button_disable))
+        s.init_label.place(x=20, y=60)
+        s.init_str.set('此处显示初始化状态')
+
+        # 功能禁用状态标签
+        button_disable_content = '该设备没有初始化，已隐藏所有功能\n请点击上方按钮进行设备初始化\n以便开启所有功能'
+        s.linux_button_label = tkinter.Label(s.linux_frame1, text=button_disable_content, fg='red',
+                                     width=46, height=4)
+        s.linux_button_bind()
+
+        # 截图功能
+        s.linux_screen_Button = tkinter.Button(s.linux_frame1,text='截图工具（Linux）',width=width_button)
+        s.linux_screen_Button_disable = tkinter.Button(s.linux_frame1,text='截图工具（Linux）',width=width_button)
+        s.linux_screen_Button.bind('<Button-1>',lambda x:s.linux_screen_bind())
+        s.linux_screen_Button_disable.config(state='disable')
+        s.linux_screen_Button.place(x=20,y=150)
+
+        s.linux_frame1.place(y=20)
 
     def version_history_frame(s):
         # 历史版本信息窗口
@@ -476,8 +532,11 @@ class MainForm(object):
         # 检测ADB服务状态
         def t_adb():
             time.sleep(5)  # 等待ADB服务启动完毕
+            # 中文状态下
             adb_finally = public.adb_connect()[1]
-            if adb_finally == '不是内部或外部命令，也不是可运行的程序':
+            # 英文状态下
+            adb_english = ' '.join(public.adb_connect()).split(',')[1]
+            if adb_finally == '不是内部或外部命令，也不是可运行的程序' or adb_english == ' operable program or batch file.':
                 os.chdir(adb_path)
                 s.adb_str.set('内置ADB已开启！')
             else:
@@ -717,4 +776,50 @@ class MainForm(object):
 
     def reset_disable_bind(s):
         tkinter.messagebox.showwarning(title='录屏警告',message='正在进行录屏，无法重置！！！')
+
+    def linux_button_bind(s):
+        def t_linux_button():
+            while True:
+                s.init_text = s.init_str.get()
+                if s.init_text == '该设备没有初始化\n请点击下方按钮进行设备初始化' or s.init_text == '此处显示初始化状态':
+                    s.linux_screen_Button.place_forget()
+                    s.linux_button_label.place(x=20, y=220)
+                elif s.init_text == '该设备已初始化\n无需初始化，可正常使用下方功能':
+                    s.linux_screen_Button.place(x=20,y=150)
+                    s.linux_button_label.place_forget()
+                    break
+
+        t_linux_button = threading.Thread(target=t_linux_button)
+        t_linux_button.setDaemon(True)
+        t_linux_button.start()
+
+    def linux_screen_bind(s):
+        def t_screen():
+            # 初始化截图页面的状态
+            with open(screen_page, 'w') as fp:
+                fp.write('')
+            linux_screen = linux_main.Linux_Screen()
+            screen_root_info = linux_screen.screen_form()
+
+            # 监听截图页面的打开或关闭状态
+            screen_exists = screen_root_info.winfo_exists()
+            print(screen_exists)
+            if screen_exists == 1:
+                s.linux_screen_Button.place_forget()
+                s.linux_screen_Button_disable.place(x=20,y=150)
+            while True:
+                screen_page_state = open(screen_page,'r').read()
+                if screen_page_state == '0':
+                    s.linux_screen_Button_disable.place_forget()
+                    s.linux_screen_Button.place(x=20, y=150)
+                    break
+                else:
+                    s.linux_screen_Button.place_forget()
+                    s.linux_screen_Button_disable.place(x=20, y=150)
+
+        t_screen = threading.Thread(target=t_screen)
+        t_screen.setDaemon(True)
+        t_screen.start()
+
+
 
