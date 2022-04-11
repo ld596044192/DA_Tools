@@ -56,7 +56,8 @@ class MainForm_record():
 
         def record():
             # 设备录屏
-            print('程序获取权限成功，正在启动录屏...\n')
+            # print('程序获取权限成功，正在启动录屏...\n')
+            print('正在启动录屏...\n')
 
             # 显示版本历史内容
             fp = open(record_version,'r',encoding='utf-8').readlines()
@@ -140,55 +141,57 @@ class MainForm_record():
             with open(record_state,'w') as fp:
                 fp.write('Stop recording screen')
 
-        def stop_record():
-            # 等待2S后检测
-            time.sleep(2)
-            while True:
-                record_stop = open(record_state,'r').read()
-                if record_stop == 'Stop recording screen':
-                    # # 获取当前后台程序的pid
-                    # pid = os.getpid()
-                    # print(pid)
-                    # # 关闭后台进程
-                    # os.kill(int(pid), signal.SIGINT)
-
-                    # 强制关闭所有相关的后台进程
-                    pids = psutil.pids()
-                    try:
-                        for pid in pids:
-                            pid_names = psutil.Process(pid).name()
-                            # 获取所有进程名称并添加到列表中
-                            Processes.append(pid_names)
-                    except psutil.NoSuchProcess:
-                        print('不存在该进程，继续执行！')
-                    if 'adb.exe' in Processes or 'record_main.exe' in Processes:
-                        os.popen('taskkill /F /IM %s ' % 'adb.exe /T','r')
-                        os.popen('taskkill /F /IM %s ' % 'record_main.exe /T','r')
+        # def stop_record():
+        #     # 等待2S后检测
+        #     time.sleep(2)
+        #     while True:
+        #         record_stop = open(record_state,'r').read()
+        #         if record_stop == 'Stop recording screen':
+        #             # # 获取当前后台程序的pid
+        #             # pid = os.getpid()
+        #             # print(pid)
+        #             # # 关闭后台进程
+        #             # os.kill(int(pid), signal.SIGINT)
+        #
+        #             # 强制关闭所有相关的后台进程
+        #             pids = psutil.pids()
+        #             try:
+        #                 for pid in pids:
+        #                     pid_names = psutil.Process(pid).name()
+        #                     # 获取所有进程名称并添加到列表中
+        #                     Processes.append(pid_names)
+        #             except psutil.NoSuchProcess:
+        #                 print('不存在该进程，继续执行！')
+        #             if 'adb.exe' in Processes or 'record_main.exe' in Processes:
+        #                 os.popen('taskkill /F /IM %s ' % 'adb.exe /T','r')
+        #                 os.popen('taskkill /F /IM %s ' % 'record_main.exe /T','r')
 
         record = threading.Thread(target=record)
         record.setDaemon(True)
         record.start()
 
-        stop_record = threading.Thread(target=stop_record)
-        stop_record.setDaemon(True)
-        stop_record.start()
+        # stop_record = threading.Thread(target=stop_record)
+        # stop_record.setDaemon(True)
+        # stop_record.start()
 
 
 # 自动获取权限（UAC）
-def run_program():
-    main_form = MainForm_record()
-
-    def is_admin():
-        try:
-            return ctypes.windll.shell32.IsUserAnAdmin()
-        except:
-            return False
-
-    if is_admin():
-        main_form.root_form()
-    else:
-        ctypes.windll.shell32.ShellExecuteW(None, 'runas', sys.executable, __file__, None, 1)
+# def run_program():
+#     main_form = MainForm_record()
+#
+#     def is_admin():
+#         try:
+#             return ctypes.windll.shell32.IsUserAnAdmin()
+#         except:
+#             return False
+#
+#     if is_admin():
+#         main_form.root_form()
+#     else:
+#         ctypes.windll.shell32.ShellExecuteW(None, 'runas', sys.executable, __file__, None, 1)
 
 
 if __name__ == '__main__':
-    run_program()
+    # run_program()
+    main_form = MainForm_record()
+    main_form.root_form()

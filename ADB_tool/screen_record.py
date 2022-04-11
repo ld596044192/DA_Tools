@@ -83,13 +83,8 @@ def open_screenshots():
 def open_record_main():
     # 强制运行录屏程序
     while True:
-        record_devices_state = open(record_began,'r').read()
         record_name = public.get_pid_name()
         if 'record_main.exe' in record_name:
-            break
-        elif record_devices_state == 'no devices':
-            # 设备中断连接后强制结束录屏程序
-            os.popen('taskkill /F /IM %s ' % 'record_main.exe /T', 'r')
             break
         else:
             win32api.ShellExecute(0, 'open',record_main , '', '', 1)
@@ -101,24 +96,24 @@ def record_time(record_str):
         with open(record_began,'w') as fp:
             fp.write('')
     # 检测后台程序是否运行，运行则继续，否则一直检测
-    while True:
-        devices_state = public.device_connect()
-        record_name = public.get_pid_name()
-        if 'record_main.exe' in record_name:
-            break
-        elif not devices_state:
-            # # 有残留程序直接强制关闭（首先获取pid，再杀死程序）
-            # record_pid = public.get_pid('record_main.exe')
-            # print(record_pid)
-            # try:
-            #     for pid in record_pid:
-            #         os.kill(pid, signal.SIGINT)
-            #     break
-            # except TypeError:
-            #     print('该进程已退出，继续执行！')
-            with open(record_began, 'w') as fp:
-                fp.write('no devices')
-            sys.exit()
+    # while True:
+    #     devices_state = public.device_connect()
+    #     record_name = public.get_pid_name()
+    #     if 'record_main.exe' in record_name:
+    #         break
+    #     elif not devices_state:
+    #         # # 有残留程序直接强制关闭（首先获取pid，再杀死程序）
+    #         # record_pid = public.get_pid('record_main.exe')
+    #         # print(record_pid)
+    #         # try:
+    #         #     for pid in record_pid:
+    #         #         os.kill(pid, signal.SIGINT)
+    #         #     break
+    #         # except TypeError:
+    #         #     print('该进程已退出，继续执行！')
+    #         with open(record_began, 'w') as fp:
+    #             fp.write('no devices')
+    #         sys.exit()
     while True:
         try:
             record_time_began = open(record_began, 'r').read()
@@ -243,7 +238,6 @@ def reset_screenrecord():
         ,record_count,record_stop]
     for filename in filename_list:
         reset_delete(filename)
-
 
 
 

@@ -16,6 +16,8 @@ make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
 if not os.path.exists(make_dir):
     os.makedirs(make_dir)
 count_path = make_dir + 'screenshots_count.txt'
+# 主程序启动标志
+root_state = make_dir + 'root_state.txt'
 # ------------------------------- 录屏功能
 # 录屏状态
 record_screen_state = make_dir + 'record_state.txt'
@@ -28,12 +30,12 @@ exe_path = public.resource_path(os.path.join('temp','exe_path.log'))
 # 录屏模式
 record_model_log = make_dir + 'record_model.log'
 record_count = make_dir + 'record_count.txt'
-# 录屏停止处理1
+# 录屏停止处理
 record_stop_config = make_dir + 'record_stop.ini'
 # ------------------------------- 录屏功能
 # 统一修改版本号
-version = 'V1.0.0.5'
-version_code = 1005
+version = 'V1.0.0.8'
+version_code = 1008
 # 统一修改frame的宽高
 width = 600
 height = 405
@@ -60,8 +62,12 @@ class MainForm(object):
         # 软件始终置顶
         # s.root.wm_attributes('-topmost', 1)
         # s.root.protocol('WM_DELETE_WINDOW', s.exit)  # 点击Tk窗口关闭时直接调用s.exit，不使用默认关闭
+        # 主程序启动标志
+        with open(root_state,'w') as fp:
+            fp.write('1')
         s.main_menu_bar()
         s.quickly_frame()
+
         s.root.mainloop()
         return s.root
 
@@ -290,6 +296,9 @@ class MainForm(object):
         s.record_radio_button1.place(x=200,y=300)
         s.record_radio_button2 = tkinter.Radiobutton(s.screen_frame1, text='连续模式', variable=s.record_model_str, value=1)
         s.record_radio_button2.place(x=270, y=300)
+        # 气泡提示对话框
+        public.CreateToolTip(s.record_radio_button1,text='手动模式：到达指定时间就会自动停止（没到达指定时间时也可以手动停止）\n且不会重新录制')
+        public.CreateToolTip(s.record_radio_button2,text='连续模式：到达指定时间会自动重新录制（除非手动停止）\n，每一轮录制后都会自动保存')
 
         # 录屏按钮
         s.record_button = tkinter.Button(s.screen_frame1, text='开始录屏', width=width_button)
@@ -521,6 +530,8 @@ class MainForm(object):
 
     def record_bind(s):
         def t_record():
+            # 录屏运行
+            global record_stop_flag
             s.record_stop_button_disable.place_forget()
             s.record_button_disable.place(x=20, y=330)
             s.record_stop_button.place(x=200, y=330)
@@ -533,7 +544,8 @@ class MainForm(object):
                 s.record_stop_button_disable.place(x=200, y=330)
                 s.reset_button_disable.place_forget()
             else:
-                s.record_str.set('正在启动录屏（自动获取权限）...')
+                # s.record_str.set('正在启动录屏（自动获取权限）...')
+                s.record_str.set('正在启动录屏（请稍候）...')
 
                 # 记录录屏模式
                 s.record_model_selected = s.record_model_str.get()
@@ -558,7 +570,16 @@ class MainForm(object):
                 os.chdir(adb_path)
                 # 响应内置ADB（防止切换到内置ADB时导致失效）
                 public.execute_cmd('adb start-server')
-                time.sleep(1)
+
+                # 确保切换内置ADB并连接上设备后再执行停止机制
+                while True:
+                    devices_states = devices_state
+                    if devices_states:
+                        record_stop_flag = True
+                        break
+
+                with open(record_stop_config, 'w') as fp:
+                    fp.write('0')
                 # 获取录屏名称
                 s.record_name = s.record_entry.get()
                 with open(record_name,'w') as fp:
@@ -566,6 +587,7 @@ class MainForm(object):
                 screen_record.open_record_main()
 
         def record_time():
+            # 显示录屏状态
             devices_state = public.device_connect()
             if not devices_state:
                 pass
@@ -601,14 +623,19 @@ class MainForm(object):
                 s.reset_button_disable.place_forget()
 
         def record_stop():
+            # 录屏停止机制
+            global record_stop_flag
+            record_stop_flag = False
             with open(record_screen_state,'w') as fp:
                 fp.write('')
             with open(record_stop_config,'w') as fp:
-                fp.write('0')
+                fp.write('')
             while True:
+                record_device = public.device_connect()
                 record_stop_state = open(record_screen_state,'r').read()
                 record_stop_ini = open(record_stop_config,'r').read()
-                if record_stop_state == 'Stop recording screen' and record_stop_ini == '0':
+                if record_stop_state == 'Stop recording screen' and record_stop_ini == '0' and record_stop_flag:
+                    os.popen('taskkill /F /IM %s ' % 'adb.exe /T', 'r')
                     os.popen('taskkill /F /IM %s ' % 'record_main.exe /T', 'r')
                     try:
                         public.stop_thread(t_record)
@@ -620,9 +647,16 @@ class MainForm(object):
                     s.reset_button_disable.place_forget()
                     s.record_str.set('录屏已被中断！！！')
                     break
-                elif record_stop_state == 'Stop recording screen' and record_stop_ini == '1':
+                elif record_stop_state == 'Stop recording screen' and record_stop_ini == '1' and record_stop_flag:
+                    os.popen('taskkill /F /IM %s ' % 'record_main.exe /T', 'r')
+                    # 等待文件保存完毕再复原按钮
+                    time.sleep(4)
+                    s.record_button_disable.place_forget()
+                    s.record_stop_button_disable.place(x=200, y=330)
+                    s.reset_button_disable.place_forget()
                     break
-                elif record_stop_state == 'no devices':
+                elif not record_device and record_stop_ini == '0' and record_stop_flag:
+                    # 未录屏前断开设备
                     os.popen('taskkill /F /IM %s ' % 'record_main.exe /T', 'r')
                     s.record_str.set('设备突然中断连接，录屏结束！')
                     s.record_button_disable.place_forget()

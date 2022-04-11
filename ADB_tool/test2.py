@@ -1,27 +1,33 @@
-import os.path
-import threading
-import time
-import public
-import getpass,win32api
-import datetime
+from tkinter import *
 
-adb_path = public.resource_path(os.path.join('adb-tools'))
+root = Tk()
+root.geometry("400x200")
 
 
-def main_record():
-    os.chdir(adb_path)
-    # 录屏
-    p = public.execute_cmd('adb shell screenrecord /sdcard/demo.mp4')
-    print(p)
+canvas = Canvas(root, width=150, height=150, bg="black", bd=2, relief="ridge")
+canvas.place(x=20, y=20)
 
+A = canvas.create_oval(20,20,30,30, outline='grey', fill="grey",tags='A')
 
-def stop():
-    time.sleep(5)
-    public.stop_thread(t1)
+B = canvas.create_oval(130,130,140,140, outline='grey', fill="grey",tags='B')
 
+lbl = Label(root)
+lbl.place(x=200, y=50, anchor="nw")
 
-t1 = threading.Thread(target=main_record)
-t1.start()
+def on_enter(e):
+    # find the canvas item below mouse cursor
+    item = canvas.find_withtag("current")
+    # get the tags for the item
+    tags = canvas.gettags(item)
+    # show it using the label
+    lbl.config(text=tags[0])
 
-t2 = threading.Thread(target=stop)
-t2.start()
+def on_leave(e):
+    # clear the label text
+    lbl.config(text="")
+
+for item in (A, B):
+    canvas.tag_bind(item, "<Enter>", on_enter)
+    canvas.tag_bind(item, "<Leave>", on_leave)
+
+root.mainloop()

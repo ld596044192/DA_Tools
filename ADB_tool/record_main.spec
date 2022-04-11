@@ -5,7 +5,7 @@ block_cipher = None
 
 
 a = Analysis(['record_main.py'],
-             pathex=['.\\public.py', 'D:\\my_git\\little_tools\\DA_Tools\\ADB_tool'],
+             pathex=['.\\public.py','D:\\my_git\\little_tools\\DA_Tools\\ADB_tool'],
              binaries=[],
              datas=[('adb-tools','adb-tools'),('temp','temp'),('version','version')],
              hiddenimports=[],
@@ -37,4 +37,4 @@ exe = EXE(pyz,
           disable_windowed_traceback=False,
           target_arch=None,
           codesign_identity=None,
-          entitlements_file=None )
+          entitlements_file=None , icon='adb.ico')
