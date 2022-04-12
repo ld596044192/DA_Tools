@@ -19,8 +19,8 @@ screen_page = make_dir + 'screen_page_state.txt'
 # 自定义截图保存文件夹名
 linux_dirname = 'ADB工具-Linux截图（DA）'
 linux_save_path = 'C:\\Users\\' + username + '\\Desktop\\' + linux_dirname + '\\'
-if not os.path.exists(linux_save_path):
-    os.makedirs(linux_save_path)
+# Linux截图计数
+linux_screen_count = make_dir + 'linux_screen_count.txt'
 
 
 def main_init(init_str,init_Button,init_Button_disable):
@@ -34,7 +34,7 @@ def main_init(init_str,init_Button,init_Button_disable):
     else:
         init_str.set('该设备没有初始化\n请点击下方按钮进行设备初始化')
         init_Button_disable.place_forget()
-        init_Button.place(x=100,y=110)
+        init_Button.place(x=100, y=110)
 
 
 def check_init(init_str,init_Button,init_Button_disable):
@@ -65,7 +65,7 @@ def devices_init(init_str,init_Button,init_Button_disable):
     def t_init():
         while True:
             init_Button.place_forget()
-            init_Button_disable.place(x=100,y=110)
+            init_Button_disable.place(x=100, y=110)
             # 检测只读系统
             check_only_read = public.execute_cmd('adb shell ls -lh /data/.overlay')
             only_read = ' '.join(check_only_read.split()).split(':')[-1]
@@ -138,7 +138,6 @@ class Linux_Screen(object):
         def t_check_gsnap():
             # 检测 是否内置 gsnap 截图工具
             self.screen_str.set('正在检测是否内置截图工具...')
-            os.chdir(r'E:\my_github\python\DA_Tools\ADB_tool\adb-tools')
             check_gsnap_cmd = public.execute_cmd('adb shell gsnap')
             check_gsnap_cmd_finally = ' '.join(check_gsnap_cmd.split()).split(':')[-1]
             if check_gsnap_cmd_finally == ' not found':
@@ -161,10 +160,23 @@ class Linux_Screen(object):
             self.screen_str.set('正在截图中...')
             self.linux_screen_button.place_forget()
             self.linux_screen_button_disable.place(x=20, y=60)
+            if not os.path.exists(linux_save_path):
+                os.makedirs(linux_save_path)
+            if not os.path.exists(linux_screen_count):
+                with open(linux_screen_count, 'w') as fp:
+                    fp.write('0')
+
+            # 截图
+            f = int(open(linux_screen_count, 'r').read())
+            f += 1
             public.execute_cmd('adb shell gsnap /data/1.png /dev/fb0')
             time.sleep(1)
-            public.execute_cmd('adb pull /data/1.png ' + linux_save_path)
-            self.screen_str.set('截图成功！文件保存在:\n 桌面\\' + linux_dirname + '\\1.png')
+            pull_output = public.execute_cmd('adb pull /data/1.png ' + linux_save_path + str(f) + '.png')
+            # 打印下载信息
+            print(pull_output)
+            self.screen_str.set('截图成功！文件保存在:\n 桌面\\' + linux_dirname + '\\' + str(f) + '.png')
+            with open(linux_screen_count,'w') as fp:
+                fp.write(str(f))
             self.linux_screen_button_disable.place_forget()
             self.linux_screen_button.place(x=20, y=60)
 

@@ -1,3 +1,4 @@
+# -*- coding:utf-8 -*-
 import main_form
 import ctypes,sys
 
@@ -19,3 +20,5 @@ def run_program():
 
 
 run_program()
+
+
