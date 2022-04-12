@@ -39,22 +39,28 @@ def main_init(init_str,init_Button,init_Button_disable):
 
 def check_init(init_str,init_Button,init_Button_disable):
     def t_check_init():
-        try:
-            # 中文状态下
-            adb_finally = public.adb_connect()[1]
-            # 英文状态下
-            adb_english = ' '.join(public.adb_connect()).split(',')[1]
+        devices_state = public.device_connect()
+        if not devices_state:
+            init_str.set('请连接设备后再进行检测')
+            init_Button.place_forget()
+            init_Button_disable.place(x=100, y=110)
+        else:
+            try:
+                # 中文状态下
+                adb_finally = public.adb_connect()[1]
+                # 英文状态下
+                adb_english = ' '.join(public.adb_connect()).split(',')[1]
 
-            # 判断是否为内置ADB，如果为内置ADB需要延迟5S，如果为本地ADB则无需延迟
-            if adb_finally == '不是内部或外部命令，也不是可运行的程序' or adb_english == ' operable program or batch file.':
-                time.sleep(5)
+                # 判断是否为内置ADB，如果为内置ADB需要延迟5S，如果为本地ADB则无需延迟
+                if adb_finally == '不是内部或外部命令，也不是可运行的程序' or adb_english == ' operable program or batch file.':
+                    time.sleep(5)
+                    main_init(init_str, init_Button, init_Button_disable)
+                else:
+                    main_init(init_str, init_Button, init_Button_disable)
+            except IndexError:
+                print('出现IndexError,无需处理该异常，继续检测')
                 main_init(init_str, init_Button, init_Button_disable)
-            else:
-                main_init(init_str, init_Button, init_Button_disable)
-        except IndexError:
-            print('出现IndexError,无需处理该异常，继续检测')
-            main_init(init_str, init_Button, init_Button_disable)
-            pass
+                pass
 
     t_check_init = threading.Thread(target=t_check_init)
     t_check_init.setDaemon(True)
