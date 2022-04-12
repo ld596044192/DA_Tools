@@ -5,9 +5,9 @@ block_cipher = None
 
 
 a = Analysis(['main_debug.py'],
-             pathex=['.\\public.py,.\\quickly.py,.\\main_form.py,.\\screen_record.py,.\\linux_main.py'],
+             pathex=['.\\public.py,.\\quickly.py,.\\main_form.py,.\\screen_record.py', 'D:\\my_git\\little_tools\\DA_Tools\\ADB_tool'],
              binaries=[],
-             datas=[('icon','icon'),('version','version'),('adb-tools','adb-tools'),('background_program','background_program'),('temp','temp'),('resources','resources')],
+             datas=[('icon','icon'),('version','version'),('adb-tools','adb-tools'),('background_program','background_program'),('temp','temp')],
              hiddenimports=[],
              hookspath=[],
              hooksconfig={},

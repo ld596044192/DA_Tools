@@ -36,8 +36,8 @@ record_count = make_dir + 'record_count.txt'
 record_stop_config = make_dir + 'record_stop.ini'
 # ------------------------------- 录屏功能
 # 统一修改版本号
-version = 'V1.0.0.10'
-version_code = 10010
+version = 'V1.0.0.8'
+version_code = 1008
 # 统一修改frame的宽高
 width = 600
 height = 405
@@ -534,21 +534,13 @@ class MainForm(object):
             time.sleep(5)  # 等待ADB服务启动完毕
             # 中文状态下
             adb_finally = public.adb_connect()[1]
-            try:
-                # 英文状态下
-                adb_english = ' '.join(public.adb_connect()).split(',')[1]
-                if adb_finally == '不是内部或外部命令，也不是可运行的程序' or adb_english == ' operable program or batch file.':
-                    os.chdir(adb_path)
-                    s.adb_str.set('内置ADB已开启！')
-                else:
-                    s.adb_str.set('本地ADB已开启！')
-            except IndexError:
-                print('IndexError异常，无影响！')
-                if adb_finally == '不是内部或外部命令，也不是可运行的程序':
-                    os.chdir(adb_path)
-                    s.adb_str.set('内置ADB已开启！')
-                else:
-                    s.adb_str.set('本地ADB已开启！')
+            # 英文状态下
+            adb_english = ' '.join(public.adb_connect()).split(',')[1]
+            if adb_finally == '不是内部或外部命令，也不是可运行的程序' or adb_english == ' operable program or batch file.':
+                os.chdir(adb_path)
+                s.adb_str.set('内置ADB已开启！')
+            else:
+                s.adb_str.set('本地ADB已开启！')
 
         t_adb = threading.Thread(target=t_adb)
         t_adb.setDaemon(True)
@@ -788,7 +780,6 @@ class MainForm(object):
     def linux_button_bind(s):
         def t_linux_button():
             while True:
-                # linux_frame_exists = s.linux_frame1.winfo_exists()
                 s.init_text = s.init_str.get()
                 if s.init_text == '该设备没有初始化\n请点击下方按钮进行设备初始化' or s.init_text == '此处显示初始化状态':
                     s.linux_screen_Button.place_forget()
@@ -797,7 +788,6 @@ class MainForm(object):
                     s.linux_screen_Button.place(x=20,y=150)
                     s.linux_button_label.place_forget()
                     break
-                time.sleep(1)
 
         t_linux_button = threading.Thread(target=t_linux_button)
         t_linux_button.setDaemon(True)
