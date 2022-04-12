@@ -6,6 +6,9 @@ import os,psutil
 import public,getpass
 import quickly,screen_record,linux_main
 
+# 全局变量标记-设备类型
+devices_linux_flag = True
+
 username = getpass.getuser()
 LOGO_path = public.resource_path(os.path.join('icon', 'android.ico'))
 version_path = public.resource_path(os.path.join('version','version_history.txt'))
@@ -119,6 +122,17 @@ class MainForm(object):
         s.adb_str.set('正在检测ADB服务连接状态...')
         s.adb_success.place(x=110,y=425)
         s.adb_state_label.place(x=0,y=425)
+
+        # 检测设备类型 Android Linux
+        s.devices_type_label = tkinter.Label(s.root,text='设备类型：')
+        s.devices_type_str = tkinter.StringVar()
+        s.devices_type_error = tkinter.StringVar()
+        s.devices_type_success = tkinter.Label(s.root,textvariable=s.devices_type_str,fg='green')
+        s.devices_type_fail = tkinter.Label(s.root,textvariable=s.devices_type_error,fg='red')
+        s.devices_type_str.set('正在检测设备类型...')
+        s.devices_type_label.place(x=270,y=425)
+        s.devices_type_success.place(x=325,y=425)
+
 
     def display_main_frame(s):
         # 显示快捷模式主窗口
@@ -375,13 +389,21 @@ class MainForm(object):
         s.linux_init_Button = tkinter.Button(s.linux_frame1, text='初始化设备', width=width_button)
         s.linux_init_Button_disable = tkinter.Button(s.linux_frame1, text='初始化设备', width=width_button)
         s.linux_init_Button_disable.config(state='disable')
-        s.linux_init_Button.bind('<Button-1>', lambda x: linux_main.devices_init(s.init_str,s.linux_init_Button, s.linux_init_Button_disable))
-        s.linux_init_Button_disable.place(x=100, y=110)
+        s.linux_init_Button.bind('<Button-1>', lambda x: linux_main.devices_init(s.init_str,s.linux_init_Button
+                                                                                 ,s.linux_init_Button_disable))
+        s.linux_init_Button_disable.place(x=200, y=110)
+
+        # 重新检测按钮
+        s.init_again_Button = tkinter.Button(s.linux_frame1, text='点击重新检测', width=width_button)
+        s.init_again_Button.bind('<Button-1>',lambda x:linux_main.check_init(s.init_str,s.linux_init_Button
+                                    ,s.linux_init_Button_disable,devices_linux_flag))
+        s.init_again_Button.place(x=20,y=110)
 
         # 初始化状态栏
         s.init_label = tkinter.Label(s.linux_frame1, textvariable=s.init_str, bg='black', fg='#FFFFFF',
                                        width=46, height=2)
-        s.init_label.config(command=linux_main.check_init(s.init_str,s.linux_init_Button,s.linux_init_Button_disable))
+        s.init_label.config(command=linux_main.check_init(s.init_str,s.linux_init_Button,s.linux_init_Button_disable,
+                                                          devices_linux_flag))
         s.init_label.place(x=20, y=60)
         s.init_str.set('此处显示初始化状态')
 
@@ -508,21 +530,41 @@ class MainForm(object):
 
     def devices_bind(s):
         def t_devices():
+            def devices_type():
+                global devices_linux_flag
+                # 检测设备类型
+                device_type = public.execute_cmd('adb shell getprop net.bt.name')
+                # print(device_type.strip())
+                # 增加strip方法，去掉结果的两边空格以便进行识别
+                if device_type.strip() == 'Android':
+                    s.devices_type_str.set('Android（安卓）')
+                    devices_linux_flag = False
+                elif device_type.strip() == 'Linux':
+                    s.devices_type_str.set('Linux')
+                    devices_linux_flag = True
+
             while True:
                 # 获取设备序列号
                 devices_finally = public.device_connect()
                 if not devices_finally:
                     s.devices_fail.place(x=470, y=0)
+                    s.devices_type_fail.place(x=325,y=425)
                     s.devices_success.place_forget()
+                    s.devices_type_success.place_forget()
                     s.devices_null.set('未连接任何设备！')
+                    s.devices_type_error.set('未连接任何设备！')
                 else:
                     s.devices_fail.place_forget()
+                    s.devices_type_fail.place_forget()
                     s.devices_success.place(x=450,y=0)
+                    s.devices_type_success.place(x=325,y=425)
+                    devices_type()
                     for devices in devices_finally:
                         if len(devices_finally) == 1:
                             s.devices_str.set(devices + ' 已连接')
                         elif len(devices_finally) > 1:
                             s.devices_str.set('多部设备已连接')
+                    time.sleep(1)
 
         t_devices = threading.Thread(target=t_devices)
         t_devices.setDaemon(True)

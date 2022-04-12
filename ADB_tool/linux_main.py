@@ -34,33 +34,40 @@ def main_init(init_str,init_Button,init_Button_disable):
     else:
         init_str.set('该设备没有初始化\n请点击下方按钮进行设备初始化')
         init_Button_disable.place_forget()
-        init_Button.place(x=100, y=110)
+        init_Button.place(x=200, y=110)
 
 
-def check_init(init_str,init_Button,init_Button_disable):
+def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag):
     def t_check_init():
+        # 打印设备类型判断标记flag
+        print('devices_linux_flag = ' + str(devices_linux_flag))
         devices_state = public.device_connect()
         if not devices_state:
             init_str.set('请连接设备后再进行检测')
             init_Button.place_forget()
-            init_Button_disable.place(x=100, y=110)
+            init_Button_disable.place(x=200, y=110)
         else:
-            try:
-                # 中文状态下
-                adb_finally = public.adb_connect()[1]
-                # 英文状态下
-                adb_english = ' '.join(public.adb_connect()).split(',')[1]
+            if not devices_linux_flag:
+                init_str.set('您所连接的设备为Android\n无法使用Linux模式所有功能')
+                init_Button.place_forget()
+                init_Button_disable.place(x=200, y=110)
+            else:
+                try:
+                    # 中文状态下
+                    adb_finally = public.adb_connect()[1]
+                    # 英文状态下
+                    adb_english = ' '.join(public.adb_connect()).split(',')[1]
 
-                # 判断是否为内置ADB，如果为内置ADB需要延迟5S，如果为本地ADB则无需延迟
-                if adb_finally == '不是内部或外部命令，也不是可运行的程序' or adb_english == ' operable program or batch file.':
-                    time.sleep(5)
+                    # 判断是否为内置ADB，如果为内置ADB需要延迟5S，如果为本地ADB则无需延迟
+                    if adb_finally == '不是内部或外部命令，也不是可运行的程序' or adb_english == ' operable program or batch file.':
+                        time.sleep(5)
+                        main_init(init_str, init_Button, init_Button_disable)
+                    else:
+                        main_init(init_str, init_Button, init_Button_disable)
+                except IndexError:
+                    print('出现IndexError,无需处理该异常，继续检测')
                     main_init(init_str, init_Button, init_Button_disable)
-                else:
-                    main_init(init_str, init_Button, init_Button_disable)
-            except IndexError:
-                print('出现IndexError,无需处理该异常，继续检测')
-                main_init(init_str, init_Button, init_Button_disable)
-                pass
+                    pass
 
     t_check_init = threading.Thread(target=t_check_init)
     t_check_init.setDaemon(True)
@@ -70,22 +77,28 @@ def check_init(init_str,init_Button,init_Button_disable):
 def devices_init(init_str,init_Button,init_Button_disable):
     def t_init():
         while True:
-            init_Button.place_forget()
-            init_Button_disable.place(x=100, y=110)
-            # 检测只读系统
-            check_only_read = public.execute_cmd('adb shell ls -lh /data/.overlay')
-            only_read = ' '.join(check_only_read.split()).split(':')[-1]
-            print(only_read)
-            if only_read == ' No such file or directory':
-                print('设备系统为只读，无法上传文件等操作')
-                init_str.set('检测到系统为只读\n正在获取权限并重启设备...')
-                public.execute_cmd('adb shell touch /data/.overlay')
-                public.execute_cmd('adb shell reboot')
-                time.sleep(15)
-                continue
+            devices_state = public.device_connect()
+            if not devices_state:
+                init_str.set('请连接设备后再进行检测')
+                init_Button.place_forget()
+                init_Button_disable.place(x=200, y=110)
             else:
-                init_str.set('设备系统已获取权限\n设备初始化完成')
-                break
+                init_Button.place_forget()
+                init_Button_disable.place(x=200, y=110)
+                # 检测只读系统
+                check_only_read = public.execute_cmd('adb shell ls -lh /data/.overlay')
+                only_read = ' '.join(check_only_read.split()).split(':')[-1]
+                print(only_read)
+                if only_read == ' No such file or directory':
+                    print('设备系统为只读，无法上传文件等操作')
+                    init_str.set('检测到系统为只读\n正在获取权限并重启设备...')
+                    public.execute_cmd('adb shell touch /data/.overlay')
+                    public.execute_cmd('adb shell reboot')
+                    time.sleep(15)
+                    continue
+                else:
+                    init_str.set('设备系统已获取权限\n设备初始化完成')
+                    break
 
         time.sleep(2)
         public.execute_cmd('adb push ' + init_path + ' /data')
