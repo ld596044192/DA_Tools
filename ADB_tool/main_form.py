@@ -7,7 +7,7 @@ import public,getpass
 import quickly,screen_record,linux_main
 
 # 全局变量标记-设备类型
-devices_linux_flag = True
+devices_linux_flag = False
 
 username = getpass.getuser()
 LOGO_path = public.resource_path(os.path.join('icon', 'android.ico'))
@@ -396,14 +396,14 @@ class MainForm(object):
         # 重新检测按钮
         s.init_again_Button = tkinter.Button(s.linux_frame1, text='点击重新检测', width=width_button)
         s.init_again_Button.bind('<Button-1>',lambda x:linux_main.check_init(s.init_str,s.linux_init_Button
-                                    ,s.linux_init_Button_disable,devices_linux_flag))
+                                    ,s.linux_init_Button_disable,devices_linux_flag,s.linux_all_button_close))
         s.init_again_Button.place(x=20,y=110)
 
         # 初始化状态栏
         s.init_label = tkinter.Label(s.linux_frame1, textvariable=s.init_str, bg='black', fg='#FFFFFF',
                                        width=46, height=2)
         s.init_label.config(command=linux_main.check_init(s.init_str,s.linux_init_Button,s.linux_init_Button_disable,
-                                                          devices_linux_flag))
+                                                          devices_linux_flag,s.linux_all_button_close))
         s.init_label.place(x=20, y=60)
         s.init_str.set('此处显示初始化状态')
 
@@ -420,7 +420,20 @@ class MainForm(object):
         s.linux_screen_Button_disable.config(state='disable')
         s.linux_screen_Button.place(x=20,y=150)
 
+        # 开始默认禁用，根据情况开启
+        s.linux_all_button_close()
+
         s.linux_frame1.place(y=20)
+
+    def linux_all_button_close(s):
+        # 特殊情况下禁用linux模式所有功能
+        s.linux_screen_Button.place_forget()
+        s.linux_button_label.place(x=20, y=220)
+
+    def linux_all_button_open(s):
+        # 正常情况下开启linux模式所有功能
+        s.linux_screen_Button.place(x=20, y=150)
+        s.linux_button_label.place_forget()
 
     def version_history_frame(s):
         # 历史版本信息窗口
@@ -539,9 +552,16 @@ class MainForm(object):
                 if device_type.strip() == 'Android':
                     s.devices_type_str.set('Android（安卓）')
                     devices_linux_flag = False
-                elif device_type.strip() == 'Linux':
-                    s.devices_type_str.set('Linux')
-                    devices_linux_flag = True
+                elif device_type.strip() == '/bin/sh: getprop: not found':
+                    # Linux无法使用adb shell getprop命令
+                    device_type_linux = public.execute_cmd('adb shell cat /proc/version')
+                    device_type_linux_finally = device_type_linux.split(' ')[0]
+                    # print(device_type_linux.split(' ')[0])
+                    if device_type_linux_finally == 'Linux':
+                        s.devices_type_str.set('Linux')
+                        devices_linux_flag = True
+                    else:
+                        s.devices_type_str.set('未知设备')
 
             while True:
                 # 获取设备序列号
@@ -553,6 +573,12 @@ class MainForm(object):
                     s.devices_type_success.place_forget()
                     s.devices_null.set('未连接任何设备！')
                     s.devices_type_error.set('未连接任何设备！')
+                    s.devices_type_str.set('正在检测设备类型...')
+                    # 确保切换设备类型时Linux相关功能按钮不会主动显示出来
+                    try:
+                        s.linux_all_button_close()
+                    except AttributeError:
+                        pass
                 else:
                     s.devices_fail.place_forget()
                     s.devices_type_fail.place_forget()
@@ -829,16 +855,22 @@ class MainForm(object):
 
     def linux_button_bind(s):
         def t_linux_button():
+            def check_only_read():
+                check_only_read = public.execute_cmd('adb shell ls -lh /data/.overlay')
+                only_read = ' '.join(check_only_read.split()).split(':')[-1]
+                return only_read
+
             while True:
                 # linux_frame_exists = s.linux_frame1.winfo_exists()
+                devices_finally = public.device_connect()
                 s.init_text = s.init_str.get()
-                if s.init_text == '该设备没有初始化\n请点击下方按钮进行设备初始化' or s.init_text == '此处显示初始化状态':
-                    s.linux_screen_Button.place_forget()
-                    s.linux_button_label.place(x=20, y=220)
-                elif s.init_text == '该设备已初始化\n无需初始化，可正常使用下方功能':
-                    s.linux_screen_Button.place(x=20,y=150)
-                    s.linux_button_label.place_forget()
-                    break
+                only_read = check_only_read()
+                if s.init_text == '该设备没有初始化\n请点击下方按钮进行设备初始化' or s.init_text == '此处显示初始化状态'\
+                        or not devices_linux_flag or not devices_finally or only_read == ' No such file or directory':
+                    s.linux_all_button_close()
+                elif s.init_text == '该设备已初始化\n无需初始化，可正常使用下方功能' and devices_linux_flag and devices_finally\
+                          and only_read != ' No such file or directory':
+                    s.linux_all_button_open()
                 time.sleep(1)
 
         t_linux_button = threading.Thread(target=t_linux_button)

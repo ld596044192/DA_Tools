@@ -28,8 +28,12 @@ def main_init(init_str,init_Button,init_Button_disable):
     # 设备初始化
     init_str.set('正在检测设备是否初始化...')
     # 检测该设备是否初始化
+    # 检测权限文件是否存在
+    check_only_read = public.execute_cmd('adb shell ls -lh /data/.overlay')
+    only_read = ' '.join(check_only_read.split()).split(':')[-1]
+    print(only_read)
     init_final = public.execute_cmd('adb shell cat /data/adb_init.ini')
-    if init_final == 'The device initialized':
+    if init_final == 'The device initialized' and only_read != ' No such file or directory':
         init_str.set('该设备已初始化\n无需初始化，可正常使用下方功能')
     else:
         init_str.set('该设备没有初始化\n请点击下方按钮进行设备初始化')
@@ -37,7 +41,7 @@ def main_init(init_str,init_Button,init_Button_disable):
         init_Button.place(x=200, y=110)
 
 
-def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag):
+def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux_all_button_close):
     def t_check_init():
         # 打印设备类型判断标记flag
         print('devices_linux_flag = ' + str(devices_linux_flag))
@@ -46,6 +50,7 @@ def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag):
             init_str.set('请连接设备后再进行检测')
             init_Button.place_forget()
             init_Button_disable.place(x=200, y=110)
+            linux_all_button_close()
         else:
             if not devices_linux_flag:
                 init_str.set('您所连接的设备为Android\n无法使用Linux模式所有功能')
