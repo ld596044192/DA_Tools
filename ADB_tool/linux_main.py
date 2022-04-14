@@ -1,7 +1,8 @@
 import os,getpass
+import sys
 import time
 import public
-import tkinter
+import tkinter,tkinter.ttk
 import threading
 
 # 初始化文件路径
@@ -21,6 +22,8 @@ linux_dirname = 'ADB工具-Linux截图（DA）'
 linux_save_path = 'C:\\Users\\' + username + '\\Desktop\\' + linux_dirname + '\\'
 # Linux截图计数
 linux_screen_count = make_dir + 'linux_screen_count.txt'
+# 记录照片旋转角度
+Image_rotate_path = make_dir + 'linux_screen_rotate.txt'
 
 
 def main_init(init_str,init_Button,init_Button_disable):
@@ -35,6 +38,8 @@ def main_init(init_str,init_Button,init_Button_disable):
     init_final = public.execute_cmd('adb shell cat /data/adb_init.ini')
     if init_final == 'The device initialized' and only_read != ' No such file or directory':
         init_str.set('该设备已初始化\n无需初始化，可正常使用下方功能')
+        init_Button.place_forget()
+        init_Button_disable.place(x=200, y=110)
     else:
         init_str.set('该设备没有初始化\n请点击下方按钮进行设备初始化')
         init_Button_disable.place_forget()
@@ -116,8 +121,9 @@ def devices_init(init_str,init_Button,init_Button_disable):
     t_init.start()
 
 
+# 截图工具界面
 class Linux_Screen(object):
-    def screen_form(self):
+    def screen_form(self,init_str,linux_screen_Button,linux_screen_Button_disable):
         self.screen_root = tkinter.Toplevel()
         self.screen_root.title('Linux截图工具')
         screenWidth = self.screen_root.winfo_screenwidth()
@@ -131,16 +137,39 @@ class Linux_Screen(object):
         self.screen_root.resizable(0, 0)
         self.screen_root.wm_attributes('-topmost', 1)
 
+        self.screen_startup(linux_screen_Button,linux_screen_Button_disable)
+
         self.screen_root.protocol('WM_DELETE_WINDOW',self.close_handle)
         self.main_frame()
+        self.device_monitor(init_str)
 
         return self.screen_root
+
+    def screen_startup(self,linux_screen_Button,linux_screen_Button_disable):
+        # 监听截图页面的打开状态
+        screen_exists = self.screen_root.winfo_exists()
+        print(screen_exists)
+        if screen_exists == 1:
+            linux_screen_Button.place_forget()
+            linux_screen_Button_disable.place(x=20, y=190)
 
     def close_handle(self):
         # 监听页面消失
         with open(screen_page,'w') as fp:
             fp.write('0')
         self.screen_root.destroy()
+
+    def device_monitor(self,init_str):
+        # 监听设备连接状态
+        while True:
+            devices_state = public.device_connect()
+            if not devices_state:
+                init_str.set('请连接设备后再使用Linux功能！')
+                self.screen_root.destroy()
+                sys.exit()
+            else:
+                pass
+            time.sleep(1)
 
     def main_frame(self):
         # 截图状态栏
@@ -157,6 +186,24 @@ class Linux_Screen(object):
         self.linux_screen_button_disable = tkinter.Button(self.screen_root, text='正在截图...', width=15)
         self.linux_screen_button_disable.config(state='disable')
         self.linux_screen_button.place(x=20, y=60)
+
+        # 选择旋转角度下拉框及标签
+        content = '''请选择旋转角度：'''
+        self.image_rotate_label = tkinter.Label(self.screen_root, text=content)
+        self.image_rotate_label.place(x=140, y=65)
+
+        # 获取旋转角度默认值
+        if not os.path.exists(Image_rotate_path):
+            with open(Image_rotate_path,'w') as fp:
+                fp.write('0')
+        image_rotate_number = int(open(Image_rotate_path,'r').read())
+
+        self.image_rotate_value = tkinter.StringVar()
+        self.image_rotate_combobox = tkinter.ttk.Combobox(self.screen_root, state="readonly", width=5, textvariable=self.image_rotate_value)
+        # state：“正常”，“只读”或“禁用”之一。在“只读”状态下，可能无法直接编辑该值，并且用户只能从下拉列表中选择值。在“正常”状态下，文本字段可直接编辑。在“禁用”状态下，不可能进行交互。
+        self.image_rotate_combobox['value'] = ('0', '90度', '180度', '270度', '360度')
+        self.image_rotate_combobox.current(image_rotate_number)
+        self.image_rotate_combobox.place(x=235, y=65)
 
     def check_gsnap(self):
         def t_check_gsnap():
@@ -207,3 +254,4 @@ class Linux_Screen(object):
         t_screen = threading.Thread(target=t_screen)
         t_screen.setDaemon(True)
         t_screen.start()
+

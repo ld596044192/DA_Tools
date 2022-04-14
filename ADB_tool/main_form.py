@@ -39,7 +39,7 @@ record_count = make_dir + 'record_count.txt'
 record_stop_config = make_dir + 'record_stop.ini'
 # ------------------------------- 录屏功能
 # 统一修改版本号
-version = 'V1.0.0.10'
+version = 'V1.0.0.10 - Release'
 version_code = 10010
 # 统一修改frame的宽高
 width = 600
@@ -380,7 +380,7 @@ class MainForm(object):
         s.linux_frame1 = tkinter.Frame(s.root, width=width, height=height)
 
         # 设备初始化说明
-        init_content = '注意：Linux设备使用本软件功能前需要初始化！\n否则可能无法正常使用下面功能哦'
+        init_content = '注意：Linux设备使用本软件功能前需要初始化！\n否则无法正常使用下面功能哦'
         s.init_label = tkinter.Label(s.linux_frame1, text=init_content, fg='red',font=('宋体', 10))
         s.init_label.place(x=20, y=20)
 
@@ -408,9 +408,10 @@ class MainForm(object):
         s.init_str.set('此处显示初始化状态')
 
         # 功能禁用状态标签
-        button_disable_content = '该设备没有初始化，已隐藏所有功能\n请点击上方按钮进行设备初始化\n以便开启所有功能'
+        button_disable_content = '该设备没有初始化，已隐藏所有功能\n请点击上方按钮进行设备初始化\n以便开启所有Linux功能' \
+                                 '\n温馨提示：\n如果设备已初始化但功能无法使用\n请检查设备是否正常已连接\n如已连接请点击“重新检测”按钮进行检测'
         s.linux_button_label = tkinter.Label(s.linux_frame1, text=button_disable_content, fg='red',
-                                     width=46, height=4)
+                                     width=46, height=7)
         s.linux_button_bind()
 
         # 截图功能
@@ -418,7 +419,7 @@ class MainForm(object):
         s.linux_screen_Button_disable = tkinter.Button(s.linux_frame1,text='截图工具（Linux）',width=width_button)
         s.linux_screen_Button.bind('<Button-1>',lambda x:s.linux_screen_bind())
         s.linux_screen_Button_disable.config(state='disable')
-        s.linux_screen_Button.place(x=20,y=150)
+        s.linux_screen_Button.place(x=20,y=190)
 
         # 开始默认禁用，根据情况开启
         s.linux_all_button_close()
@@ -426,13 +427,18 @@ class MainForm(object):
         s.linux_frame1.place(y=20)
 
     def linux_all_button_close(s):
-        # 特殊情况下禁用linux模式所有功能
+        # 特殊情况下禁用linux模式所有功能（包含已disable状态的按钮）
         s.linux_screen_Button.place_forget()
+        s.linux_screen_Button_disable.place_forget()
         s.linux_button_label.place(x=20, y=220)
 
     def linux_all_button_open(s):
+        # 先禁用初始化按钮
+        s.linux_init_Button.place_forget()
+        s.linux_init_Button_disable.place(x=200,y=110)
+
         # 正常情况下开启linux模式所有功能
-        s.linux_screen_Button.place(x=20, y=150)
+        s.linux_screen_Button.place(x=20, y=190)
         s.linux_button_label.place_forget()
 
     def version_history_frame(s):
@@ -883,27 +889,23 @@ class MainForm(object):
             with open(screen_page, 'w') as fp:
                 fp.write('')
             linux_screen = linux_main.Linux_Screen()
-            screen_root_info = linux_screen.screen_form()
+            linux_screen.screen_form(s.init_str,s.linux_screen_Button,s.linux_screen_Button_disable)
 
-            # 监听截图页面的打开或关闭状态
-            screen_exists = screen_root_info.winfo_exists()
-            print(screen_exists)
-            if screen_exists == 1:
-                s.linux_screen_Button.place_forget()
-                s.linux_screen_Button_disable.place(x=20,y=150)
+        def t_screen_close():
+            # 监听截图页面的关闭状态
             while True:
                 screen_page_state = open(screen_page,'r').read()
                 if screen_page_state == '0':
                     s.linux_screen_Button_disable.place_forget()
-                    s.linux_screen_Button.place(x=20, y=150)
+                    s.linux_screen_Button.place(x=20, y=190)
                     break
-                else:
-                    s.linux_screen_Button.place_forget()
-                    s.linux_screen_Button_disable.place(x=20, y=150)
 
         t_screen = threading.Thread(target=t_screen)
         t_screen.setDaemon(True)
         t_screen.start()
 
+        t_screen_close = threading.Thread(target=t_screen_close)
+        t_screen_close.setDaemon(True)
+        t_screen_close.start()
 
 
