@@ -1,9 +1,10 @@
 import os,getpass
 import sys
-import time
+import time,re,win32api
 import public
 import tkinter,tkinter.ttk
 import threading
+from PIL import Image
 
 # 初始化文件路径
 init_path = public.resource_path(os.path.join('resources','adb_init.ini'))
@@ -128,14 +129,14 @@ class Linux_Screen(object):
         self.screen_root.title('Linux截图工具')
         screenWidth = self.screen_root.winfo_screenwidth()
         screenHeight = self.screen_root.winfo_screenheight()
-        w = 300
+        w = 310
         h = 200
         x = (screenWidth - w) / 2
         y = (screenHeight - h) / 2
         self.screen_root.geometry('%dx%d+%d+%d' % (w, h, x, y))
         self.screen_root.iconbitmap(LOGO_path)
         self.screen_root.resizable(0, 0)
-        self.screen_root.wm_attributes('-topmost', 1)
+        # self.screen_root.wm_attributes('-topmost', 1)
 
         self.screen_startup(linux_screen_Button,linux_screen_Button_disable)
 
@@ -177,7 +178,7 @@ class Linux_Screen(object):
         self.screen_label = tkinter.Label(self.screen_root, textvariable=self.screen_str, bg='black', fg='#FFFFFF',
                                            width=35, height=2)
         self.screen_label.config(command=self.check_gsnap())
-        self.screen_label.place(x=20, y=10)
+        self.screen_label.place(x=35, y=10)
         self.screen_str.set('此处显示截图状态')
 
         # 截图按钮
@@ -191,19 +192,47 @@ class Linux_Screen(object):
         content = '''请选择旋转角度：'''
         self.image_rotate_label = tkinter.Label(self.screen_root, text=content)
         self.image_rotate_label.place(x=140, y=65)
+        public.CreateToolTip(self.image_rotate_label,'截图后会根据选择的角度进行旋转并保存\n旋转默认方向为逆时针')
 
         # 获取旋转角度默认值
         if not os.path.exists(Image_rotate_path):
             with open(Image_rotate_path,'w') as fp:
                 fp.write('0')
-        image_rotate_number = int(open(Image_rotate_path,'r').read())
+        image_rotate_number = open(Image_rotate_path,'r').read()
+        # 根据选项判断current值
+        if image_rotate_number != '0':
+            if image_rotate_number == '90度':
+                image_rotate_number = '1'
+            elif image_rotate_number == '180度':
+                image_rotate_number = '2'
+            elif image_rotate_number == '270度':
+                image_rotate_number = '3'
+            elif image_rotate_number == '360度':
+                image_rotate_number = '4'
+        else:
+            pass
 
         self.image_rotate_value = tkinter.StringVar()
         self.image_rotate_combobox = tkinter.ttk.Combobox(self.screen_root, state="readonly", width=5, textvariable=self.image_rotate_value)
         # state：“正常”，“只读”或“禁用”之一。在“只读”状态下，可能无法直接编辑该值，并且用户只能从下拉列表中选择值。在“正常”状态下，文本字段可直接编辑。在“禁用”状态下，不可能进行交互。
         self.image_rotate_combobox['value'] = ('0', '90度', '180度', '270度', '360度')
-        self.image_rotate_combobox.current(image_rotate_number)
+        self.image_rotate_combobox.current(int(image_rotate_number))
         self.image_rotate_combobox.place(x=235, y=65)
+
+        # 打开截图文件夹按钮
+        self.open_screen_linux_button = tkinter.Button(self.screen_root, text='打开截图文件夹', width=15)
+        self.open_screen_linux_button.bind('<Button-1>', lambda x: self.open_linux_screen_bind())
+        self.open_screen_linux_button_disable = tkinter.Button(self.screen_root, text='正在打开...', width=15)
+        self.open_screen_linux_button_disable.config(state='disable')
+        self.open_screen_linux_button.place(x=20, y=100)
+
+        # 自动打开截图（默认关闭，开启后截图后会自动打开该文件方便截图编辑，添加文字说明等等）
+        self.auto_show_on = tkinter.IntVar()
+        self.auto_show_checkbutton = tkinter.Checkbutton(self.screen_root,text='自动显示截图（懒人）模式',onvalue=1,offvalue=0,
+                                                         variable=self.auto_show_on)
+        self.auto_show_checkbutton.place(x=140,y=100)
+        public.CreateToolTip(self.auto_show_checkbutton, '默认关闭，打开后会自动显示刚刚截好的图片\n方便对截图文件进行编辑和添加文件说明\n'
+                                                         '针对需要对截图进行编辑的人群使用或懒人必备')
 
     def check_gsnap(self):
         def t_check_gsnap():
@@ -236,6 +265,10 @@ class Linux_Screen(object):
             if not os.path.exists(linux_screen_count):
                 with open(linux_screen_count, 'w') as fp:
                     fp.write('0')
+            # 记录旋转角度默认值
+            self.rotate_get = self.image_rotate_value.get()
+            with open(Image_rotate_path, 'w') as fp:
+                fp.write(self.rotate_get)
 
             # 截图
             f = int(open(linux_screen_count, 'r').read())
@@ -245,13 +278,45 @@ class Linux_Screen(object):
             pull_output = public.execute_cmd('adb pull /data/1.png ' + linux_save_path + str(f) + '.png')
             # 打印下载信息
             print(pull_output)
+
+            # 旋转截图文件
+            self.screen_str.set('正在旋转截图文件并保存...')
+            if self.rotate_get != '0':
+                self.rotate_get = re.findall('(.*?)度',self.rotate_get)[0]
+            else:
+                pass
+            img_path = linux_save_path + str(f) + '.png'
+            img_open = Image.open(img_path)
+            # expand=1 表示的是原图旋转，如果没有此参数，则内容直接旋转
+            img_rotate = img_open.rotate(int(self.rotate_get), expand=1)
+            # 保存旋转后的图片
+            img_rotate.save(img_path)
+
             self.screen_str.set('截图成功！文件保存在:\n 桌面\\' + linux_dirname + '\\' + str(f) + '.png')
             with open(linux_screen_count,'w') as fp:
                 fp.write(str(f))
+
+            # 截图保存后自动打开判断
+            if self.auto_show_on.get() == 1:
+                self.screen_str.set('自动显示截图模式已打开\n可以进行编辑、添加文字提示')
+                img_rotate.show()
+                self.screen_str.set('截图已关闭\n自动显示截图说明：方便编辑图片、添加文字')
+            else:
+                pass
+
             self.linux_screen_button_disable.place_forget()
             self.linux_screen_button.place(x=20, y=60)
 
         t_screen = threading.Thread(target=t_screen)
         t_screen.setDaemon(True)
         t_screen.start()
+
+    def open_linux_screen_bind(self):
+        # 打开Linux截图文件夹
+        self.open_screen_linux_button_disable.place(x=20,y=100)
+        if not os.path.exists(linux_save_path):
+            os.makedirs(linux_save_path)
+        win32api.ShellExecute(0, 'open', linux_save_path, '', '', 1)
+        self.open_screen_linux_button_disable.place_forget()
+
 

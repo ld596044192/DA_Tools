@@ -893,6 +893,8 @@ class MainForm(object):
 
         def t_screen_close():
             # 监听截图页面的关闭状态
+            with open(screen_page, 'w') as fp:
+                fp.write('')
             while True:
                 screen_page_state = open(screen_page,'r').read()
                 if screen_page_state == '0':

@@ -1,11 +1,6 @@
+import re
 
-from PIL import Image
+name = '90度'
 
-
-img = r'C:\Users\lida\Desktop\ADB工具-Linux截图（DA）\2.png'
-
-img = Image.open(img)
-
-img1 = img.rotate(90, expand=1)
-
-img1.show()
+p = re.findall('(.*?)度',name)[0]
+print(p)
