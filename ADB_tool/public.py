@@ -1,7 +1,7 @@
 import ctypes,inspect
 import sys,os
 import subprocess
-import psutil
+import psutil,shutil
 import re
 from tkinter import *
 
@@ -151,3 +151,28 @@ def CreateToolTip(widget, text):
         toolTip.hidetip()
     widget.bind('<Enter>', enter)
     widget.bind('<Leave>', leave)
+
+
+def reset_delete(filename):
+    # 通用重置删除文件
+    if os.path.exists(filename):
+        # 判断文件是否为文件夹或文件
+        if os.path.isdir(filename):
+            # shutil.rmtree只删除文件夹
+            shutil.rmtree(filename)
+            print(filename + ' 已删除！')
+        else:
+            try:
+                # os.remove只删除文件
+                os.remove(filename)
+            except PermissionError:
+                # 遇到 另一个程序正在使用此文件，进程无法访问 导致无法删除文件的权限问题，下面利用cmd强制删除文件命令进行删除
+                execute_cmd('del /F /S /Q ' + filename)
+            print(filename + ' 已删除！')
+
+
+def reset_method(filename_list):
+    # 重置功能需要调用的方法
+    # filename_list 需要删除的文件名称列表
+    for filename in filename_list:
+        reset_delete(filename)

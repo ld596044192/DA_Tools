@@ -2,7 +2,7 @@ import os,getpass
 import sys
 import time,re,win32api
 import public
-import tkinter,tkinter.ttk
+import tkinter,tkinter.ttk,tkinter.messagebox
 import threading
 from PIL import Image
 
@@ -58,6 +58,8 @@ def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux
             init_Button_disable.place(x=200, y=110)
             linux_all_button_close()
         else:
+            # 延时1秒等待flag响应
+            time.sleep(1)
             if not devices_linux_flag:
                 init_str.set('您所连接的设备为Android\n无法使用Linux模式所有功能')
                 init_Button.place_forget()
@@ -234,6 +236,14 @@ class Linux_Screen(object):
         public.CreateToolTip(self.auto_show_checkbutton, '默认关闭，打开后会自动显示刚刚截好的图片\n方便对截图文件进行编辑和添加文件说明\n'
                                                          '针对需要对截图进行编辑的人群使用或懒人必备')
 
+        # 截图一键重置功能
+        self.linux_reset_button = tkinter.Button(self.screen_root, text='一键重置（Linux）', width=15)
+        self.linux_reset_button.bind('<Button-1>', lambda x:self.linux_reset_bind())
+        self.linux_reset_button_disable = tkinter.Button(self.screen_root, text='一键重置（Linux）', width=15)
+        self.linux_reset_button_disable.config(state='disable')
+        self.linux_reset_button_disable.bind('<Button-1>', lambda x: self.linux_reset_disable_bind())
+        self.linux_reset_button.place(x=100, y=140)
+
     def check_gsnap(self):
         def t_check_gsnap():
             # 检测 是否内置 gsnap 截图工具
@@ -260,6 +270,8 @@ class Linux_Screen(object):
             self.screen_str.set('正在截图中...')
             self.linux_screen_button.place_forget()
             self.linux_screen_button_disable.place(x=20, y=60)
+            self.linux_reset_button.place_forget()
+            self.linux_reset_button_disable.place(x=100, y=140)
             if not os.path.exists(linux_save_path):
                 os.makedirs(linux_save_path)
             if not os.path.exists(linux_screen_count):
@@ -306,6 +318,8 @@ class Linux_Screen(object):
 
             self.linux_screen_button_disable.place_forget()
             self.linux_screen_button.place(x=20, y=60)
+            self.linux_reset_button_disable.place_forget()
+            self.linux_reset_button.place(x=100, y=140)
 
         t_screen = threading.Thread(target=t_screen)
         t_screen.setDaemon(True)
@@ -318,5 +332,25 @@ class Linux_Screen(object):
             os.makedirs(linux_save_path)
         win32api.ShellExecute(0, 'open', linux_save_path, '', '', 1)
         self.open_screen_linux_button_disable.place_forget()
+
+    def linux_reset_bind(self):
+        def t_linux_reset():
+            linux_reset_message = """
+            真的确定要一键重置 Linux截图，重置部分包括如下：
+            1.将会删除Linux截图保存文件夹
+            2.将会清空所有相关Linux截图工具的缓存文件
+            3.将会重置Linux截图文件名计数（重置为零）
+            """
+            if tkinter.messagebox.askyesno(title='重置警告',message=linux_reset_message):
+                filename_list = [linux_save_path,linux_screen_count,Image_rotate_path,screen_page]
+                public.reset_method(filename_list)
+                tkinter.messagebox.showinfo(title='完成',message='一键重置完成！！！')
+
+        t_linux_reset = threading.Thread(target=t_linux_reset)
+        t_linux_reset.setDaemon(True)
+        t_linux_reset.start()
+
+    def linux_reset_disable_bind(self):
+        tkinter.messagebox.showwarning(title='录屏警告',message='正在进行截图，无法重置！！！')
 
 

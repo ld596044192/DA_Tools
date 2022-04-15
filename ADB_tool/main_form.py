@@ -421,6 +421,18 @@ class MainForm(object):
         s.linux_screen_Button_disable.config(state='disable')
         s.linux_screen_Button.place(x=20,y=190)
 
+        # 开发者模式开关
+        s.linux_developer_mode_Button_open = tkinter.Button(s.linux_frame1, text='开启开发者模式', width=width_button)
+        s.linux_developer_mode_Button_close = tkinter.Button(s.linux_frame1, text='关闭开发者模式', width=width_button)
+        s.linux_developer_mode_Button_open_disable = tkinter.Button(s.linux_frame1, text='开启开发者模式', width=width_button)
+        s.linux_developer_mode_Button_close_disable = tkinter.Button(s.linux_frame1, text='关闭开发者模式', width=width_button)
+        # s.linux_developer_mode_Button_open.bind('<Button-1>', lambda x: s.linux_screen_bind())
+        # s.linux_developer_mode_Button_close.bind('<Button-1>', lambda x: s.linux_screen_bind())
+        s.linux_developer_mode_Button_open_disable.config(state='disable')
+        s.linux_developer_mode_Button_close_disable.config(state='disable')
+        s.linux_developer_mode_Button_open.place(x=20, y=230)
+        s.linux_developer_mode_Button_close.place(x=200, y=230)
+
         # 开始默认禁用，根据情况开启
         s.linux_all_button_close()
 
@@ -430,6 +442,10 @@ class MainForm(object):
         # 特殊情况下禁用linux模式所有功能（包含已disable状态的按钮）
         s.linux_screen_Button.place_forget()
         s.linux_screen_Button_disable.place_forget()
+        s.linux_developer_mode_Button_open.place_forget()
+        s.linux_developer_mode_Button_open_disable.place_forget()
+        s.linux_developer_mode_Button_close.place_forget()
+        s.linux_developer_mode_Button_close_disable.place_forget()
         s.linux_button_label.place(x=20, y=220)
 
     def linux_all_button_open(s):
@@ -440,6 +456,8 @@ class MainForm(object):
         # 正常情况下开启linux模式所有功能
         s.linux_screen_Button.place(x=20, y=190)
         s.linux_button_label.place_forget()
+        s.linux_developer_mode_Button_open.place(x=20,y=230)
+        s.linux_developer_mode_Button_close.place(x=200,y=230)
 
     def version_history_frame(s):
         # 历史版本信息窗口
@@ -909,5 +927,13 @@ class MainForm(object):
         t_screen_close = threading.Thread(target=t_screen_close)
         t_screen_close.setDaemon(True)
         t_screen_close.start()
+
+    def linux_developer_mode_open_bind(self):
+        # 开启开发者模式
+        pass
+
+    def linux_developer_mode_close_bind(self):
+        # 关闭开发者模式
+        pass
 
 
