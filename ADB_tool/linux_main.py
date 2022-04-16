@@ -58,8 +58,8 @@ def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux
             init_Button_disable.place(x=200, y=110)
             linux_all_button_close()
         else:
-            # 延时1秒等待flag响应
-            time.sleep(1)
+            # 延时2秒等待flag响应
+            time.sleep(2)
             if not devices_linux_flag:
                 init_str.set('您所连接的设备为Android\n无法使用Linux模式所有功能')
                 init_Button.place_forget()
@@ -342,7 +342,7 @@ class Linux_Screen(object):
             3.将会重置Linux截图文件名计数（重置为零）
             """
             if tkinter.messagebox.askyesno(title='重置警告',message=linux_reset_message):
-                filename_list = [linux_save_path,linux_screen_count,Image_rotate_path,screen_page]
+                filename_list = [linux_save_path,linux_screen_count,Image_rotate_path]
                 public.reset_method(filename_list)
                 tkinter.messagebox.showinfo(title='完成',message='一键重置完成！！！')
 

@@ -928,12 +928,18 @@ class MainForm(object):
         t_screen_close.setDaemon(True)
         t_screen_close.start()
 
-    def linux_developer_mode_open_bind(self):
+    def linux_developer_mode_open_bind(s):
         # 开启开发者模式
+        # s.init_str.set('正在打开开发者模式')
         pass
 
-    def linux_developer_mode_close_bind(self):
+    def linux_developer_mode_close_bind(s):
         # 关闭开发者模式
+        s.init_str.set('正在关闭开发者模式并重启设备中...')
+        public.execute_cmd('adb shell rm /data/.adb_config')
+        public.execute_cmd('adb shell reboot')
+        time.sleep(18)
+        s.init_str.set('开发者模式已关闭完成\nADB命令不可用')
         pass
 
 
