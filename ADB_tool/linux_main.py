@@ -25,6 +25,8 @@ linux_save_path = 'C:\\Users\\' + username + '\\Desktop\\' + linux_dirname + '\\
 linux_screen_count = make_dir + 'linux_screen_count.txt'
 # 记录照片旋转角度
 Image_rotate_path = make_dir + 'linux_screen_rotate.txt'
+# 安装页面启动标志
+install_page = make_dir + 'install_page_state.txt'
 
 
 def main_init(init_str,init_Button,init_Button_disable):
@@ -58,9 +60,11 @@ def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux
             init_Button_disable.place(x=200, y=110)
             linux_all_button_close()
         else:
-            # 延时2秒等待flag响应
-            time.sleep(2)
-            if not devices_linux_flag:
+            init_str.set('正在检测设备初始化状态...')
+            # 延时1秒等待flag响应
+            time.sleep(1)
+            device_type = public.device_type_android()
+            if not devices_linux_flag and device_type.strip() == 'Android':
                 init_str.set('您所连接的设备为Android\n无法使用Linux模式所有功能')
                 init_Button.place_forget()
                 init_Button_disable.place(x=200, y=110)
@@ -187,6 +191,7 @@ class Linux_Screen(object):
         self.linux_screen_button = tkinter.Button(self.screen_root, text='一键截图', width=15)
         self.linux_screen_button.bind('<Button-1>', lambda x: self.screen_main())
         self.linux_screen_button_disable = tkinter.Button(self.screen_root, text='正在截图...', width=15)
+        self.linux_screen_button_disable.bind('<Button-1>', lambda x: self.linux_screen_disable_bind())
         self.linux_screen_button_disable.config(state='disable')
         self.linux_screen_button.place(x=20, y=60)
 
@@ -325,6 +330,9 @@ class Linux_Screen(object):
         t_screen.setDaemon(True)
         t_screen.start()
 
+    def linux_screen_disable_bind(self):
+        tkinter.messagebox.showwarning(title='重复警告',message='已有截图任务正在进行中...\n请勿重复截图')
+
     def open_linux_screen_bind(self):
         # 打开Linux截图文件夹
         self.open_screen_linux_button_disable.place(x=20,y=100)
@@ -353,4 +361,103 @@ class Linux_Screen(object):
     def linux_reset_disable_bind(self):
         tkinter.messagebox.showwarning(title='录屏警告',message='正在进行截图，无法重置！！！')
 
+
+# 安装应用界面
+class Linux_Install(object):
+    def install_form(self,init_str,linux_screen_Button,linux_screen_Button_disable):
+        self.install_root = tkinter.Toplevel()
+        self.install_root.title('Linux一键安装工具')
+        screenWidth = self.install_root.winfo_screenwidth()
+        screenHeight = self.install_root.winfo_screenheight()
+        w = 400
+        h = 200
+        x = (screenWidth - w) / 2
+        y = (screenHeight - h) / 2
+        self.install_root.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        self.install_root.iconbitmap(LOGO_path)
+        self.install_root.resizable(0, 0)
+        # self.screen_root.wm_attributes('-topmost', 1)
+
+        self.install_startup(linux_screen_Button,linux_screen_Button_disable)
+
+        self.install_root.protocol('WM_DELETE_WINDOW',self.close_handle)
+        self.main_frame()
+        self.device_monitor(init_str)
+
+        return self.install_root
+
+    def install_startup(self,linux_install_Button,linux_install_Button_disable):
+        # 监听安装页面的打开状态
+        install_exists = self.install_root.winfo_exists()
+        print(install_exists)
+        if install_exists == 1:
+            linux_install_Button.place_forget()
+            linux_install_Button_disable.place(x=20, y=230)
+
+    def close_handle(self):
+        # 监听页面消失
+        with open(install_page,'w') as fp:
+            fp.write('0')
+        self.install_root.destroy()
+
+    def device_monitor(self,init_str):
+        # 监听设备连接状态
+        while True:
+            devices_state = public.device_connect()
+            if not devices_state:
+                init_str.set('请连接设备后再使用Linux功能！')
+                self.install_root.destroy()
+                sys.exit()
+            else:
+                pass
+            time.sleep(1)
+
+    def main_frame(self):
+        # 安装状态栏
+        self.install_str = tkinter.StringVar()
+        self.install_label = tkinter.Label(self.install_root, textvariable=self.install_str, bg='black', fg='#FFFFFF',
+                                          width=40, height=2)
+        self.install_label.place(x=55, y=10)
+        self.install_str.set('此处显示安装状态')
+
+        # 导入库标签
+        self.install_library_label = tkinter.Label(self.install_root,text='导入库：')
+        self.install_library_label.place(x=5,y=65)
+
+        # 导入库输入框
+        self.install_library_entry_str = tkinter.StringVar()
+        self.install_library_entry = tkinter.Entry(self.install_root,textvariable=self.install_library_entry_str,width=40,highlightcolor='red'
+                                           ,highlightthickness=5)
+        self.install_library_entry.place(x=60,y=60)
+        # 设置默认焦点
+        self.install_library_entry.focus_set()
+
+        # 导入应用标签
+        self.install_software_label = tkinter.Label(self.install_root, text='导入应用：')
+        self.install_software_label.place(x=5, y=95)
+
+        # 导入应用输入框
+        self.install_software_entry_str = tkinter.StringVar()
+        self.install_software_entry = tkinter.Entry(self.install_root, textvariable=self.install_software_entry_str,
+                                                   width=40, highlightcolor='green'
+                                                   , highlightthickness=5)
+        self.install_software_entry.place(x=60, y=90)
+
+        # 显示右键菜单功能
+        self.right_click_menu()
+
+    def right_click_menu(self):
+        # 右键菜单 tearoff=False 去掉分隔虚线
+        self.install_right_menu = tkinter.Menu(self.install_root, tearoff=False)
+        self.install_entry_list = [self.install_library_entry,self.install_software_entry]
+        self.install_right_menu.add_command(label='剪切', command=lambda: public.cut(self.install_entry_list))
+        self.install_right_menu.add_separator()  # add_separator() 添加分隔实线
+        self.install_right_menu.add_command(label='复制', command=lambda: public.copy(self.install_entry_list))
+        self.install_right_menu.add_separator()
+        self.install_right_menu.add_command(label='粘贴', command=lambda: public.paste(self.install_entry_list))
+
+        def showmenu(event):
+            self.install_right_menu.post(event.x_root, event.y_root)  # 将菜单条绑定上事件，坐标为x和y的root位置
+
+        self.install_root.bind('<Button-3>', showmenu)
 

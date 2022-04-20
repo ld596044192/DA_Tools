@@ -23,6 +23,8 @@ count_path = make_dir + 'screenshots_count.txt'
 root_state = make_dir + 'root_state.txt'
 # 截图页面启动标志
 screen_page = make_dir + 'screen_page_state.txt'
+# 安装页面启动标志
+install_page = make_dir + 'install_page_state.txt'
 # ------------------------------- 录屏功能
 # 录屏状态
 record_screen_state = make_dir + 'record_state.txt'
@@ -421,17 +423,22 @@ class MainForm(object):
         s.linux_screen_Button_disable.config(state='disable')
         s.linux_screen_Button.place(x=20,y=190)
 
-        # 开发者模式开关
-        s.linux_developer_mode_Button_open = tkinter.Button(s.linux_frame1, text='开启开发者模式', width=width_button)
-        s.linux_developer_mode_Button_close = tkinter.Button(s.linux_frame1, text='关闭开发者模式', width=width_button)
-        s.linux_developer_mode_Button_open_disable = tkinter.Button(s.linux_frame1, text='开启开发者模式', width=width_button)
-        s.linux_developer_mode_Button_close_disable = tkinter.Button(s.linux_frame1, text='关闭开发者模式', width=width_button)
-        # s.linux_developer_mode_Button_open.bind('<Button-1>', lambda x: s.linux_screen_bind())
-        # s.linux_developer_mode_Button_close.bind('<Button-1>', lambda x: s.linux_screen_bind())
-        s.linux_developer_mode_Button_open_disable.config(state='disable')
+        # 关闭开发者模式
+        s.linux_developer_mode_Button_close = tkinter.Button(s.linux_frame1, text='访问设备本地盘', width=width_button)
+        s.linux_developer_mode_Button_close_disable = tkinter.Button(s.linux_frame1, text='正在关闭开发者模式...', width=width_button)
+        s.linux_developer_mode_Button_close.bind('<Button-1>', lambda x: s.linux_developer_mode_close_bind())
         s.linux_developer_mode_Button_close_disable.config(state='disable')
-        s.linux_developer_mode_Button_open.place(x=20, y=230)
-        s.linux_developer_mode_Button_close.place(x=200, y=230)
+        s.linux_developer_mode_Button_close.place(x=200, y=190)
+        s.linux_developer_mode_content = """访问设备本地盘需要关闭ADB命令，届时本工具不能连接该设备\n恢复ADB命令需要手动在设备上的“设置-关于-固件版本”，连续点击5下后重启
+恢复ADB命令后，计算机不能访问设备本地盘，但本工具可连接该设备\n在adb shell中通过cd /data/UDISK/ 也可访问到本地盘的数据"""
+        public.CreateToolTip(s.linux_developer_mode_Button_close,s.linux_developer_mode_content)
+
+        # 安装软件
+        s.linux_install = tkinter.Button(s.linux_frame1, text='一键安装工具（Linux）', width=width_button)
+        s.linux_install_disable = tkinter.Button(s.linux_frame1, text='一键安装工具（Linux）', width=width_button)
+        s.linux_install.bind('<Button-1>', lambda x: s.linux_install_bind())
+        s.linux_install_disable.config(state='disable')
+        s.linux_install.place(x=20,y=230)
 
         # 开始默认禁用，根据情况开启
         s.linux_all_button_close()
@@ -442,10 +449,10 @@ class MainForm(object):
         # 特殊情况下禁用linux模式所有功能（包含已disable状态的按钮）
         s.linux_screen_Button.place_forget()
         s.linux_screen_Button_disable.place_forget()
-        s.linux_developer_mode_Button_open.place_forget()
-        s.linux_developer_mode_Button_open_disable.place_forget()
         s.linux_developer_mode_Button_close.place_forget()
         s.linux_developer_mode_Button_close_disable.place_forget()
+        s.linux_install.place_forget()
+        s.linux_install_disable.place_forget()
         s.linux_button_label.place(x=20, y=220)
 
     def linux_all_button_open(s):
@@ -454,10 +461,10 @@ class MainForm(object):
         s.linux_init_Button_disable.place(x=200,y=110)
 
         # 正常情况下开启linux模式所有功能
-        s.linux_screen_Button.place(x=20, y=190)
         s.linux_button_label.place_forget()
-        s.linux_developer_mode_Button_open.place(x=20,y=230)
-        s.linux_developer_mode_Button_close.place(x=200,y=230)
+        s.linux_screen_Button.place(x=20, y=190)
+        s.linux_developer_mode_Button_close.place(x=200,y=190)
+        s.linux_install.place(x=20,y=230)
 
     def version_history_frame(s):
         # 历史版本信息窗口
@@ -570,7 +577,7 @@ class MainForm(object):
             def devices_type():
                 global devices_linux_flag
                 # 检测设备类型
-                device_type = public.execute_cmd('adb shell getprop net.bt.name')
+                device_type = public.device_type_android()
                 # print(device_type.strip())
                 # 增加strip方法，去掉结果的两边空格以便进行识别
                 if device_type.strip() == 'Android':
@@ -928,18 +935,48 @@ class MainForm(object):
         t_screen_close.setDaemon(True)
         t_screen_close.start()
 
-    def linux_developer_mode_open_bind(s):
-        # 开启开发者模式
-        # s.init_str.set('正在打开开发者模式')
-        pass
-
     def linux_developer_mode_close_bind(s):
-        # 关闭开发者模式
-        s.init_str.set('正在关闭开发者模式并重启设备中...')
-        public.execute_cmd('adb shell rm /data/.adb_config')
-        public.execute_cmd('adb shell reboot')
-        time.sleep(18)
-        s.init_str.set('开发者模式已关闭完成\nADB命令不可用')
-        pass
+        def t_developer_mode_close():
+            # 关闭开发者模式
+            linux_developer_mode_content = '你确定要关闭开发者选项并访问设备本地盘吗？\n\n点击“确定”则访问设备本地盘且无法使用ADB命令\n点击“取消”则不能访问设备本地盘'
+            if tkinter.messagebox.askokcancel(title='',message=linux_developer_mode_content):
+                s.init_str.set('正在关闭开发者模式并重启设备中...')
+                s.linux_developer_mode_Button_close.place_forget()
+                s.linux_developer_mode_Button_close_disable.place(x=200,y=190)
+                public.execute_cmd('adb shell rm -rf /data/.adb_config')
+                public.execute_cmd('adb shell reboot')
+                time.sleep(18)
+                s.init_str.set('现在可以访问设备本地盘了\nADB命令不可用')
+            else:
+                pass
 
+        t_developer_mode_close = threading.Thread(target=t_developer_mode_close)
+        t_developer_mode_close.setDaemon(True)
+        t_developer_mode_close.start()
 
+    def linux_install_bind(s):
+        def t_install():
+            # 初始化安装页面的状态
+            with open(install_page, 'w') as fp:
+                fp.write('')
+            linux_install = linux_main.Linux_Install()
+            linux_install.install_form(s.init_str,s.linux_install,s.linux_install_disable)
+
+        def t_install_close():
+            # 监听安装页面的关闭状态
+            with open(install_page, 'w') as fp:
+                fp.write('')
+            while True:
+                install_page_state = open(install_page,'r').read()
+                if install_page_state == '0':
+                    s.linux_install_disable.place_forget()
+                    s.linux_install.place(x=20, y=230)
+                    break
+
+        t_install = threading.Thread(target=t_install)
+        t_install.setDaemon(True)
+        t_install.start()
+
+        t_install_close = threading.Thread(target=t_install_close)
+        t_install_close.setDaemon(True)
+        t_install_close.start()

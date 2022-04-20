@@ -103,6 +103,12 @@ def get_pid_name():
     return Processes
 
 
+def device_type_android():
+    # 检测安卓方法
+    device_type = execute_cmd('adb shell getprop net.bt.name')
+    return device_type
+
+
 # 当鼠标移动到指定控件时，进行文字提醒的控件
 class ToolTip(object):
 
@@ -176,3 +182,25 @@ def reset_method(filename_list):
     # filename_list 需要删除的文件名称列表
     for filename in filename_list:
         reset_delete(filename)
+
+
+# 右键菜单绑定事件
+# 剪切功能的实现
+def cut(editor_list, event=None):
+    for editor in editor_list:
+        editor.event_generate("<<Cut>>")
+
+
+# 复制功能的实现
+def copy(editor_list, event=None):
+    for editor in editor_list:
+        editor.event_generate("<<Copy>>")
+
+
+# 粘贴功能的实现
+def paste(editor_list, event=None):
+    for editor in editor_list:
+        editor.event_generate('<<Paste>>')
+
+
+
