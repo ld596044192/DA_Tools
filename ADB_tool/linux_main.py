@@ -2,7 +2,7 @@ import os,getpass
 import sys
 import time,re,win32api
 import public
-import tkinter,tkinter.ttk,tkinter.messagebox
+import tkinter,tkinter.ttk,tkinter.messagebox,tkinter.filedialog
 import threading
 from PIL import Image
 
@@ -27,6 +27,9 @@ linux_screen_count = make_dir + 'linux_screen_count.txt'
 Image_rotate_path = make_dir + 'linux_screen_rotate.txt'
 # 安装页面启动标志
 install_page = make_dir + 'install_page_state.txt'
+# Entry输入框焦点标记（用于右键菜单粘贴逻辑使用）
+install_library_entry_focus_flag = False
+install_software_entry_focus_flag = False
 
 
 def main_init(init_str,init_Button,init_Button_disable):
@@ -133,13 +136,13 @@ class Linux_Screen(object):
     def screen_form(self,init_str,linux_screen_Button,linux_screen_Button_disable):
         self.screen_root = tkinter.Toplevel()
         self.screen_root.title('Linux截图工具')
-        screenWidth = self.screen_root.winfo_screenwidth()
-        screenHeight = self.screen_root.winfo_screenheight()
+        # screenWidth = self.screen_root.winfo_screenwidth()
+        # screenHeight = self.screen_root.winfo_screenheight()
         w = 310
         h = 200
-        x = (screenWidth - w) / 2
-        y = (screenHeight - h) / 2
-        self.screen_root.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        # x = (screenWidth - w) / 2
+        # y = (screenHeight - h) / 2
+        self.screen_root.geometry('%dx%d' % (w, h))
         self.screen_root.iconbitmap(LOGO_path)
         self.screen_root.resizable(0, 0)
         # self.screen_root.wm_attributes('-topmost', 1)
@@ -238,7 +241,7 @@ class Linux_Screen(object):
         self.auto_show_checkbutton = tkinter.Checkbutton(self.screen_root,text='自动显示截图（懒人）模式',onvalue=1,offvalue=0,
                                                          variable=self.auto_show_on)
         self.auto_show_checkbutton.place(x=140,y=100)
-        public.CreateToolTip(self.auto_show_checkbutton, '默认关闭，打开后会自动显示刚刚截好的图片\n方便对截图文件进行编辑和添加文件说明\n'
+        public.CreateToolTip(self.auto_show_checkbutton, '默认关闭，打开后会自动显示刚刚截好的图片\n方便对截图文件进行编辑和添加文字说明\n'
                                                          '针对需要对截图进行编辑的人群使用或懒人必备')
 
         # 截图一键重置功能
@@ -367,16 +370,17 @@ class Linux_Install(object):
     def install_form(self,init_str,linux_screen_Button,linux_screen_Button_disable):
         self.install_root = tkinter.Toplevel()
         self.install_root.title('Linux一键安装工具')
-        screenWidth = self.install_root.winfo_screenwidth()
-        screenHeight = self.install_root.winfo_screenheight()
+        # screenWidth = self.install_root.winfo_screenwidth()
+        # screenHeight = self.install_root.winfo_screenheight()
         w = 400
-        h = 200
-        x = (screenWidth - w) / 2
-        y = (screenHeight - h) / 2
-        self.install_root.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        h = 250
+        # x = (screenWidth - w) / 2
+        # y = (screenHeight - h) / 2
+        # self.install_root.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        self.install_root.geometry('%dx%d' % (w, h))
         self.install_root.iconbitmap(LOGO_path)
         self.install_root.resizable(0, 0)
-        # self.screen_root.wm_attributes('-topmost', 1)
+        # self.install_root.wm_attributes('-topmost', 1)
 
         self.install_startup(linux_screen_Button,linux_screen_Button_disable)
 
@@ -406,8 +410,6 @@ class Linux_Install(object):
             devices_state = public.device_connect()
             if not devices_state:
                 init_str.set('请连接设备后再使用Linux功能！')
-                self.install_root.destroy()
-                sys.exit()
             else:
                 pass
             time.sleep(1)
@@ -424,13 +426,13 @@ class Linux_Install(object):
         self.install_library_label = tkinter.Label(self.install_root,text='导入库：')
         self.install_library_label.place(x=5,y=65)
 
-        # 导入库输入框
+        # 导入库输入框 # validate="focusin"属性用于验证输入框焦点判断
         self.install_library_entry_str = tkinter.StringVar()
         self.install_library_entry = tkinter.Entry(self.install_root,textvariable=self.install_library_entry_str,width=40,highlightcolor='red'
-                                           ,highlightthickness=5)
+                                           ,highlightthickness=5,validate="focusin")
         self.install_library_entry.place(x=60,y=60)
-        # 设置默认焦点
-        self.install_library_entry.focus_set()
+        # 获取焦点时的标记提醒
+        self.install_library_entry.bind("<FocusIn>", lambda x:self.install_library_entry_flag())
 
         # 导入应用标签
         self.install_software_label = tkinter.Label(self.install_root, text='导入应用：')
@@ -439,9 +441,81 @@ class Linux_Install(object):
         # 导入应用输入框
         self.install_software_entry_str = tkinter.StringVar()
         self.install_software_entry = tkinter.Entry(self.install_root, textvariable=self.install_software_entry_str,
-                                                   width=40, highlightcolor='green'
+                                                   width=40, highlightcolor='green',validate="focusin"
                                                    , highlightthickness=5)
         self.install_software_entry.place(x=60, y=90)
+        # 获取焦点时的标记提醒
+        self.install_software_entry.bind("<FocusIn>", lambda x: self.install_software_entry_flag())
+        # 设置默认焦点
+        self.install_software_entry.focus_set()
+
+        # 打开so库文件按钮
+        self.open_library_button = tkinter.Button(self.install_root,text='浏览',width=4)
+        self.open_library_button_disable = tkinter.Button(self.install_root,text='浏览',width=4)
+        self.open_library_button_disable.config(state='disable')
+        self.open_library_button.bind('<Button-1>',lambda x: self.open_library_files())
+        self.open_library_button.place(x=358,y=60)
+
+        # 打开amr应用文件按钮
+        self.open_software_button = tkinter.Button(self.install_root, text='浏览', width=4)
+        self.open_software_button_disable = tkinter.Button(self.install_root, text='浏览', width=4)
+        self.open_software_button_disable.config(state='disable')
+        self.open_software_button.bind('<Button-1>', lambda x: self.open_software_files())
+        self.open_software_button.place(x=358, y=90)
+
+        # 库文件安装标签
+        self.install_library_combobox_label = tkinter.Label(self.install_root, text='库文件安装位置：')
+        self.install_library_combobox_label.place(x=5, y=125)
+        public.CreateToolTip(self.install_library_combobox_label,'根据实际情况选择安装路径，否则出现问题\n备注：\n'
+                                                                 'Linux默认位置：/usr/lib')
+
+        # 安装库文件目录位置下拉框
+        self.install_library_value = tkinter.StringVar()
+        self.install_library_combobox = tkinter.ttk.Combobox(self.install_root, state="readonly", width=30,
+                                                          textvariable=self.install_library_value)
+        # state：“正常”，“只读”或“禁用”之一。在“只读”状态下，可能无法直接编辑该值，并且用户只能从下拉列表中选择值。在“正常”状态下，文本字段可直接编辑。在“禁用”状态下，不可能进行交互。
+        self.install_library_combobox['value'] = ('Liunx库默认位置','dosmono指定位置 /etc/miniapp/jsapis/')
+        self.install_library_combobox.current(0)
+        self.install_library_combobox.place(x=110, y=125)
+
+        # 应用包文件安装标签
+        self.install_software_combobox_label = tkinter.Label(self.install_root, text='应用包安装位置：')
+        self.install_software_combobox_label.place(x=5, y=155)
+        public.CreateToolTip(self.install_software_combobox_label, '根据实际情况选择安装路径，否则出现问题\n备注：\n'
+                                        '主程序默认安装路径：/etc/miniapp/resources/presetpkgs/8180000000000020.amr\n'
+                                        '引导页默认安装路径：/etc/miniapp/resources/presetpkgs/8180000000000026.amr')
+
+        # 安装应用包文件目录位置下拉框
+        self.install_software_value = tkinter.StringVar()
+        self.install_software_combobox = tkinter.ttk.Combobox(self.install_root, state="readonly", width=30,
+                                                             textvariable=self.install_software_value)
+        # state：“正常”，“只读”或“禁用”之一。在“只读”状态下，可能无法直接编辑该值，并且用户只能从下拉列表中选择值。在“正常”状态下，文本字段可直接编辑。在“禁用”状态下，不可能进行交互。
+        self.install_software_combobox['value'] = ('主程序默认安装位置 ','引导页默认安装位置 ')
+        self.install_software_combobox.current(0)
+        self.install_software_combobox.place(x=110, y=155)
+
+        # 安装库复选框（勾选此项会安装库）
+        self.install_library_str = tkinter.IntVar()
+        self.install_library_checkbutton = tkinter.Checkbutton(self.install_root, text='勾选此项安装库', onvalue=1, offvalue=0,
+                                                         variable=self.install_library_str)
+        self.install_library_checkbutton.place(x=60, y=185)
+        public.CreateToolTip(self.install_library_checkbutton,'勾选此选项，软件安装时会把库文件导入设备中')
+
+        # 安装应用包复选框（勾选此项会安装应用包）
+        self.install_software_str = tkinter.IntVar()
+        self.install_software_checkbutton = tkinter.Checkbutton(self.install_root, text='勾选此项安装应用包', onvalue=1, offvalue=0,
+                                                               variable=self.install_software_str)
+        self.install_software_checkbutton.place(x=200, y=185)
+        public.CreateToolTip(self.install_software_checkbutton,'勾选此选项，软件安装时会把应用包文件导入设备中')
+        # 安装应用包复选框默认选中
+        self.install_software_checkbutton.select()
+
+        # 一键安装按钮
+        self.linux_install_button = tkinter.Button(self.install_root, text='一键安装（Linux）', width=15)
+        self.linux_install_button.bind('<Button-1>', lambda x: self.linux_install_bind())
+        self.linux_install_button_disable = tkinter.Button(self.install_root, text='一键安装（Linux）', width=15)
+        self.linux_install_button_disable.config(state='disable')
+        self.linux_install_button.place(x=130, y=215)
 
         # 显示右键菜单功能
         self.right_click_menu()
@@ -449,15 +523,154 @@ class Linux_Install(object):
     def right_click_menu(self):
         # 右键菜单 tearoff=False 去掉分隔虚线
         self.install_right_menu = tkinter.Menu(self.install_root, tearoff=False)
+
+        # 编辑控件列表
         self.install_entry_list = [self.install_library_entry,self.install_software_entry]
         self.install_right_menu.add_command(label='剪切', command=lambda: public.cut(self.install_entry_list))
         self.install_right_menu.add_separator()  # add_separator() 添加分隔实线
         self.install_right_menu.add_command(label='复制', command=lambda: public.copy(self.install_entry_list))
         self.install_right_menu.add_separator()
-        self.install_right_menu.add_command(label='粘贴', command=lambda: public.paste(self.install_entry_list))
+        self.install_right_menu.add_command(label='粘贴', command=lambda: self.install_paste())
+        self.install_right_menu.add_separator()
+        self.install_right_menu.add_command(label='清空', command=lambda: self.install_clear())
 
         def showmenu(event):
             self.install_right_menu.post(event.x_root, event.y_root)  # 将菜单条绑定上事件，坐标为x和y的root位置
 
         self.install_root.bind('<Button-3>', showmenu)
+
+    def install_library_entry_flag(self):
+        # 导入库输入框获取焦点标记
+        global install_library_entry_focus_flag,install_software_entry_focus_flag
+        install_library_entry_focus_flag = True
+        install_software_entry_focus_flag = False
+        print('install_library_entry获得焦点！！！')
+
+    def install_software_entry_flag(self):
+        # 导入应用包输入框获取焦点标记
+        global install_software_entry_focus_flag,install_library_entry_focus_flag
+        install_software_entry_focus_flag = True
+        install_library_entry_focus_flag = False
+        print('install_software_entry获得焦点！！！')
+
+    def install_paste(self):
+        # 粘贴功能的逻辑实现（需要根据焦点获取决定粘贴的组件对象）
+        if install_library_entry_focus_flag:
+            # install_library_entry获取焦点时要绑定的事件
+            self.install_library_entry.event_generate('<<Paste>>')
+        elif install_software_entry_focus_flag:
+            # install_software_entry获取焦点时要绑定的事件
+            self.install_software_entry.event_generate('<<Paste>>')
+
+    def install_clear(self):
+        # 清空功能的逻辑实现（需要根据焦点获取决定清空的组件对象）
+        if install_library_entry_focus_flag:
+            self.install_library_entry_str.set('')
+        elif install_software_entry_focus_flag:
+            self.install_software_entry_str.set('')
+
+    def open_library_files(self):
+        def t_open_library_file():
+            # 打开库文件代码
+            self.open_library_button_disable.place(x=358,y=60)
+            self.open_software_button_disable.place(x=358, y=90)
+            library_file = tkinter.filedialog.askopenfile(mode='r', filetypes=[('So Files', '*.so')], title='选择库安装文件')
+            library_file_string = str(library_file)
+            if not library_file:
+                self.install_str.set('没有成功选择库文件\n请重新选择库文件')
+            else:
+                library_file_finally = eval(library_file_string.split()[1].split('=')[1])
+                self.install_library_entry_str.set(library_file_finally)
+                print(library_file_finally)
+            self.open_library_button_disable.place_forget()
+            self.open_software_button_disable.place_forget()
+
+        t_open_library_file = threading.Thread(target=t_open_library_file)
+        t_open_library_file.setDaemon(True)
+        t_open_library_file.start()
+
+    def open_software_files(self):
+        def t_open_software_file():
+            # 打开应用包文件代码
+            self.open_library_button_disable.place(x=358, y=60)
+            self.open_software_button_disable.place(x=358,y=90)
+            software_file = tkinter.filedialog.askopenfile(mode='r', filetypes=[('Amr Files', '*.amr')], title='选择应用包安装文件')
+            software_file_string = str(software_file)
+            if not software_file:
+                self.install_str.set('没有成功选择应用包文件\n请重新选择应用包文件')
+            else:
+                software_file_finally = eval(software_file_string.split()[1].split('=')[1])
+                self.install_software_entry_str.set(software_file_finally)
+                print(software_file_finally)
+            self.open_software_button_disable.place_forget()
+            self.open_library_button_disable.place_forget()
+
+        t_open_software_file = threading.Thread(target=t_open_software_file)
+        t_open_software_file.setDaemon(True)
+        t_open_software_file.start()
+
+    def linux_install_bind(self):
+        def t_linux_install():
+            # 安装软件核心代码
+            self.linux_install_button_disable.place(x=130,y=215)
+            # 运行前需要检测是否连接设备
+            devices_state = public.device_connect()
+            if not devices_state:
+                self.install_str.set('检测到没有连接到设备\n请连接设备后再使用本功能')
+            else:
+                self.install_str.set('正在开始安装应用...')
+
+                if self.install_library_str.get() == 0 and self.install_software_str.get() == 0:
+                    # 两个复选框都没选
+                    self.install_str.set('安装库和应用包请任意勾选其中一项\n两者选项至少勾选一项')
+                    tkinter.messagebox.showwarning(title='安装错误',message='请勾选安装库和应用包其中一项，两者至少勾选一项')
+                else:
+                    # 各项异常处理
+                    if self.install_library_entry_str.get() == '' and self.install_software_entry_str.get() == '':
+                        self.install_str.set('安装库文件或应用包为空\n无法成功安装应用')
+                        tkinter.messagebox.showwarning(title='安装错误', message='请选择正确的库文件或应用包后再重新安装！')
+                    elif self.install_library_entry_str.get() == '' and self.install_library_str.get() == 1:
+                        self.install_str.set('安装库文件失败\n请选择库文件后再重新安装！')
+                        tkinter.messagebox.showwarning(title='安装错误', message='请选择库文件后再重新安装！')
+                    elif self.install_software_entry_str.get() == '' and self.install_software_str.get() == 1:
+                        self.install_str.set('安装应用包文件失败\n请选择应用包文件后再重新安装！')
+                        tkinter.messagebox.showwarning(title='安装错误', message='请选择应用包文件后再重新安装！')
+                    else:
+                        # 安装库
+                        if self.install_library_str.get() == 1:
+                            self.install_str.set('正在导入库...')
+                            library_files_path = self.install_library_entry_str.get()
+                            if self.install_library_value.get() == 'Liunx库默认位置':
+                                install_library_path = public.execute_cmd('adb push ' + library_files_path + ' /usr/lib')
+                                print(install_library_path)
+                            elif self.install_library_value.get() == 'dosmono指定位置 /etc/miniapp/jsapis/':
+                                install_library_path = public.execute_cmd('adb push ' + library_files_path + ' /etc/miniapp/jsapis/')
+                                print(install_library_path)
+
+                        # 安装应用包
+                        if self.install_software_str.get() == 1:
+                            self.install_str.set('正在导入应用包..')
+                            software_files_path = self.install_software_entry_str.get()
+                            if self.install_software_value.get() == '主程序默认安装位置':
+                                install_software_path = public.execute_cmd('adb push ' + software_files_path +
+                                                                           ' /etc/miniapp/resources/presetpkgs/8180000000000020.amr')
+                                print(install_software_path)
+                            elif self.install_software_value.get() == '引导页默认安装位置':
+                                install_software_path = public.execute_cmd('adb push ' + software_files_path +
+                                                                           ' /etc/miniapp/resources/presetpkgs/8180000000000026.amr')
+                                print(install_software_path)
+
+                        # 安装后需要清理缓存
+                        self.install_str.set('正在清理缓存并重启设备..')
+                        public.execute_cmd('adb shell rm -rf /data/miniapp/data')
+
+                        # 重启
+                        public.execute_cmd('adb shell reboot')
+                        self.install_str.set('安装应用完成\n等待设备重启后使用即可')
+
+            self.linux_install_button_disable.place_forget()
+
+        t_linux_install = threading.Thread(target=t_linux_install)
+        t_linux_install.setDaemon(True)
+        t_linux_install.start()
 

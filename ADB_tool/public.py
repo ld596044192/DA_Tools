@@ -197,10 +197,5 @@ def copy(editor_list, event=None):
         editor.event_generate("<<Copy>>")
 
 
-# 粘贴功能的实现
-def paste(editor_list, event=None):
-    for editor in editor_list:
-        editor.event_generate('<<Paste>>')
-
 
 

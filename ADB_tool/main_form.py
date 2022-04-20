@@ -41,8 +41,8 @@ record_count = make_dir + 'record_count.txt'
 record_stop_config = make_dir + 'record_stop.ini'
 # ------------------------------- 录屏功能
 # 统一修改版本号
-version = 'V1.0.0.10 - Release'
-version_code = 10010
+version = 'V1.0.0.11'
+version_code = 1001.1
 # 统一修改frame的宽高
 width = 600
 height = 405
