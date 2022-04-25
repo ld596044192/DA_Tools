@@ -25,6 +25,8 @@ root_state = make_dir + 'root_state.txt'
 screen_page = make_dir + 'screen_page_state.txt'
 # 安装页面启动标志
 install_page = make_dir + 'install_page_state.txt'
+# 取图页面启动标志
+camera_page = make_dir + 'camera_page_state.txt'
 # ------------------------------- 录屏功能
 # 录屏状态
 record_screen_state = make_dir + 'record_state.txt'
@@ -439,6 +441,13 @@ class MainForm(object):
         s.linux_install_disable.config(state='disable')
         s.linux_install.place(x=20,y=230)
 
+        # 一键取图
+        s.linux_camera = tkinter.Button(s.linux_frame1, text='一键取图工具（Linux）', width=width_button)
+        s.linux_camera_disable = tkinter.Button(s.linux_frame1, text='一键取图工具（Linux）', width=width_button)
+        s.linux_camera.bind('<Button-1>', lambda x: s.linux_camera_bind())
+        s.linux_camera_disable.config(state='disable')
+        s.linux_camera.place(x=20, y=270)
+
         # 开始默认禁用，根据情况开启
         s.linux_all_button_close()
 
@@ -452,6 +461,9 @@ class MainForm(object):
         s.linux_developer_mode_Button_close_disable.place_forget()
         s.linux_install.place_forget()
         s.linux_install_disable.place_forget()
+        s.linux_camera.place_forget()
+        s.linux_camera_disable.place_forget()
+
         s.linux_button_label.place(x=20, y=220)
 
     def linux_all_button_open(s):
@@ -464,6 +476,7 @@ class MainForm(object):
         s.linux_screen_Button.place(x=20, y=190)
         s.linux_developer_mode_Button_close.place(x=200,y=190)
         s.linux_install.place(x=20,y=230)
+        s.linux_camera.place(x=20,y=270)
 
     def version_history_frame(s):
         # 历史版本信息窗口
@@ -583,6 +596,7 @@ class MainForm(object):
                     s.devices_type_success.place_forget()
                     s.devices_null.set('未连接任何设备！')
                     s.devices_type_error.set('未连接任何设备！')
+                    s.devices_type_str.set('正在检测设备类型...')
                     # 确保切换设备类型时Linux相关功能按钮不会主动显示出来
                     try:
                         s.linux_all_button_close()
@@ -604,7 +618,6 @@ class MainForm(object):
             while True:
                 global devices_linux_flag
                 # 检测设备类型
-                s.devices_type_str.set('正在检测设备类型...')
                 device_type = public.device_type_android()
                 # print(device_type.strip())
                 # 增加strip方法，去掉结果的两边空格以便进行识别
@@ -993,3 +1006,34 @@ class MainForm(object):
         t_install_close = threading.Thread(target=t_install_close)
         t_install_close.setDaemon(True)
         t_install_close.start()
+
+    def  linux_camera_bind(s):
+        def t_camera():
+            # 初始化取图页面的状态
+            with open(camera_page, 'w') as fp:
+                fp.write('')
+            linux_camera = linux_main.Linux_Camera()
+            linux_camera.camera_form(s.init_str,s.linux_camera,s.linux_camera_disable)
+
+        def t_camera_close():
+            # 监听取图页面的关闭状态
+            with open(camera_page, 'w') as fp:
+                fp.write('')
+            while True:
+                devices_connect = public.device_connect()
+                install_page_state = open(camera_page, 'r').read()
+                if not devices_connect:
+                    break
+                else:
+                    if install_page_state == '0':
+                        s.linux_camera_disable.place_forget()
+                        s.linux_camera.place(x=20, y=270)
+                        break
+
+        t_camera = threading.Thread(target=t_camera)
+        t_camera.setDaemon(True)
+        t_camera.start()
+
+        t_camera_close = threading.Thread(target=t_camera_close)
+        t_camera_close.setDaemon(True)
+        t_camera_close.start()

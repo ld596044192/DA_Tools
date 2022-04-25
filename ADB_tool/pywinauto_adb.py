@@ -4,12 +4,13 @@ import win32gui
 import time
 
 
+# 取图自动化脚本
 class Carmera(object):
-    def carmera_automation(self):
+    def carmera_automation(self,yuvplayer_path):
         # 打开软件
-        application.Application(backend='win32').start(r'C:\Users\lida\Desktop\yuvplayer.exe')
+        application.Application(backend='win32').start(yuvplayer_path)
         # 连接软件以获得属性等信息
-        app = application.Application().connect(path=r'C:\Users\lida\Desktop\yuvplayer.exe')
+        app = application.Application().connect(path=yuvplayer_path)
         # 找到窗口
         yuv_app = app.window(title='YUV player - frame: 1/0')
         # 打开yuv文件

@@ -1,7 +1,7 @@
 import os,getpass
 import sys
-import time,re,win32api
-import public
+import time,re,win32api,shutil
+import public,pywinauto_adb
 import tkinter,tkinter.ttk,tkinter.messagebox,tkinter.filedialog
 import threading
 from PIL import Image
@@ -10,6 +10,8 @@ from PIL import Image
 init_path = public.resource_path(os.path.join('resources','adb_init.ini'))
 # 初始化配置文件
 camera_system_path = public.resource_path(os.path.join('resources','camera_system.ini'))
+# 看图软件路径
+yuvplayer_path = public.resource_path(os.path.join('resources','yuvplayer.exe'))
 LOGO_path = public.resource_path(os.path.join('icon', 'android.ico'))
 # Linux截图工具路径
 gsnap_path = public.resource_path(os.path.join('resources','gsnap'))
@@ -25,12 +27,19 @@ screen_page = make_dir + 'screen_page_state.txt'
 # 自定义截图保存文件夹名
 linux_dirname = 'ADB工具-Linux截图（DA）'
 linux_save_path = 'C:\\Users\\' + username + '\\Desktop\\' + linux_dirname + '\\'
+# 取图保存路径
+linux_camera_name = 'ADB_get_yuv'
+linux_camera_save = 'C:\\Users\\' + username + '\\Desktop\\' + linux_camera_name + '\\'
 # Linux截图计数
 linux_screen_count = make_dir + 'linux_screen_count.txt'
+# 文件夹计数
+linux_camera_count = make_dir + 'linux_camera_count.txt'
 # 记录照片旋转角度
 Image_rotate_path = make_dir + 'linux_screen_rotate.txt'
 # 安装页面启动标志
 install_page = make_dir + 'install_page_state.txt'
+# 取图页面启动标志
+camera_page = make_dir + 'camera_page_state.txt'
 # Entry输入框焦点标记（用于右键菜单粘贴逻辑使用）
 install_library_entry_focus_flag = False
 install_software_entry_focus_flag = False
@@ -681,10 +690,8 @@ class Linux_Install(object):
 
 # 获取扫描帧数图片界面
 class Linux_Camera(object):
-    # def camera_form(self,init_str,linux_screen_Button,linux_screen_Button_disable):
-    def camera_form(self):
-        # self.camera_root = tkinter.Toplevel()
-        self.camera_root = tkinter.Tk()
+    def camera_form(self,init_str,linux_camera,linux_camera_disable):
+        self.camera_root = tkinter.Toplevel()
         self.camera_root.title('Linux获取扫描帧数图片工具')
         # screenWidth = self.install_root.winfo_screenwidth()
         # screenHeight = self.install_root.winfo_screenheight()
@@ -698,28 +705,26 @@ class Linux_Camera(object):
         self.camera_root.resizable(0, 0)
         # self.install_root.wm_attributes('-topmost', 1)
 
-        # self.install_startup(linux_screen_Button,linux_screen_Button_disable)
+        self.camera_startup(linux_camera,linux_camera_disable)
         #
-        # self.camera_root.protocol('WM_DELETE_WINDOW',self.close_handle)
+        self.camera_root.protocol('WM_DELETE_WINDOW',self.close_handle)
         self.main_frame()
-        # self.device_monitor(init_str)
 
-        self.camera_root.mainloop()
         return self.camera_root
 
-    # def install_startup(self,linux_install_Button,linux_install_Button_disable):
-    #     # 监听安装页面的打开状态
-    #     install_exists = self.camera_root.winfo_exists()
-    #     print(install_exists)
-    #     if install_exists == 1:
-    #         linux_install_Button.place_forget()
-    #         linux_install_Button_disable.place(x=20, y=230)
-    #
-    # def close_handle(self):
-    #     # 监听页面消失
-    #     with open(install_page,'w') as fp:
-    #         fp.write('0')
-    #     self.camera_root.destroy()
+    def camera_startup(self,linux_camera,linux_camera_disable):
+        # 监听取图页面的打开状态
+        camera_exists = self.camera_root.winfo_exists()
+        print(camera_exists)
+        if camera_exists == 1:
+            linux_camera.place_forget()
+            linux_camera_disable.place(x=20, y=270)
+
+    def close_handle(self):
+        # 监听页面消失
+        with open(camera_page,'w') as fp:
+            fp.write('0')
+        self.camera_root.destroy()
 
     def main_frame(self):
         # 获取图片状态栏
@@ -734,13 +739,13 @@ class Linux_Camera(object):
         self.take_image_mode_close = False
         self.linux_camera_button = tkinter.Button(self.camera_root, text='开启取图模式', width=15)
         self.linux_camera_button.bind('<Button-1>', lambda x: self.open_camera_bind())
+        self.linux_camera_button.place(x=30, y=60)
         self.linux_camera_button_disable = tkinter.Button(self.camera_root, text='开启取图模式', width=15)
         self.linux_camera_button_disable_open = tkinter.Button(self.camera_root, text='正在开启中...', width=15)
         self.linux_camera_button_disable_final = tkinter.Button(self.camera_root, text='取图模式已打开', width=15)
         self.linux_camera_button_disable_open.config(state='disable')
         self.linux_camera_button_disable.config(state='disable')
         self.linux_camera_button_disable_final.config(state='disable')
-        self.linux_camera_button.place(x=30, y=60)
 
         # 关闭取图模式按钮
         self.linux_camera_button_close = tkinter.Button(self.camera_root, text='关闭取图模式', width=15)
@@ -753,16 +758,41 @@ class Linux_Camera(object):
         self.linux_camera_button_close_disable_final.config(state='disable')
         self.linux_camera_button_close.place(x=200, y=60)
 
+        # 先禁用按钮
+        self.linux_camera_button_disable.place(x=30, y=60)
+        self.linux_camera_button_close_disable.place(x=200, y=60)
+
+        # 一键取图按钮
+        self.linux_get_camera_button = tkinter.Button(self.camera_root, text='一键取图', width=15)
+        self.linux_get_camera_button.bind('<Button-1>',lambda x:self.camera_pywinauto_main())
+        self.linux_get_camera_button_disable_final = tkinter.Button(self.camera_root, text='正在取图中...', width=15)
+        self.linux_get_camera_button_disable = tkinter.Button(self.camera_root, text='一键取图', width=15)
+        self.linux_get_camera_button_disable.config(state='disable')
+        self.linux_get_camera_button_disable_final.config(state='disable')
+        self.linux_get_camera_button.place(x=30,y=100)
+
+        # 先禁用按钮
+        self.linux_get_camera_button_disable.place(x=30, y=100)
+
+        # 自动化看图功能复选框
+        self.linux_camera_str = tkinter.IntVar()
+        self.linux_camera_checkbutton = tkinter.Checkbutton(self.camera_root, text='自动化看图功能', onvalue=1, offvalue=0,
+                                                               variable=self.linux_camera_str)
+        self.linux_camera_checkbutton.place(x=200, y=100)
+        public.CreateToolTip(self.linux_camera_checkbutton, '默认开启，开启后将会自动化打开软件进行查看yuv图片文件\n'
+                                                            '具体流程：主要把origin_320X240.yuv用yuvplayer.exe进行打开查看\n'
+                                                            '自动化过程中，请勿操作其他软件，否则容易出现异常\n'
+                                                            '适用于懒人必备功能或避免过多重复性动作造成时间浪费')
+        self.linux_camera_checkbutton.select()
+
     def check_system(self):
         def t_check_system():
             # 检测 是否配置 适用于取图的system文件
             self.camera_str.set('正在检测是否配置system文件...')
-            # 禁用按钮
-            self.linux_camera_button_disable.place(x=30, y=60)
-            self.linux_camera_button_close_disable.place(x=200,y=60)
             check_system_cmd = public.execute_cmd('adb shell ls -lh /data/camera_system.ini')
             check_system_cmd_finally = ' '.join(check_system_cmd.split()).split(':')[-1]
-            if check_system_cmd_finally == ' not found':
+            print(check_system_cmd_finally)
+            if check_system_cmd_finally.strip() == 'No such file or directory':
                 message = '配置取图功能需要重启多次，是否继续？\n点击“取消”则会关闭此页面！'
                 if tkinter.messagebox.askokcancel(title='温馨提示', message=message):
                     self.camera_str.set('检测没有配置过system，正在初始化...')
@@ -777,6 +807,7 @@ class Linux_Camera(object):
                     # 开放按钮
                     self.linux_camera_button_disable.place_forget()
                     self.linux_camera_button_close_disable.place_forget()
+                    self.linux_get_camera_button_disable.place_forget()
                 else:
                     self.camera_root.destroy()
             else:
@@ -787,12 +818,14 @@ class Linux_Camera(object):
                     self.linux_camera_button_disable.place_forget()
                     self.linux_camera_button_close_disable.place_forget()
                     self.linux_camera_button_disable_final.place(x=30,y=60)
+                    self.linux_get_camera_button_disable.place_forget()
                 else:
                     self.camera_str.set('取图模式已关闭\n请重新开启取图模式')
                     self.linux_camera_button_disable_final.place_forget()
                     self.linux_camera_button_close_disable.place_forget()
                     self.linux_camera_button_disable.place_forget()
                     self.linux_camera_button_close_disable_final.place(x=200,y=60)
+                    self.linux_get_camera_button_disable.place(x=30, y=100)
 
         t_check_system = threading.Thread(target=t_check_system)
         t_check_system.setDaemon(True)
@@ -846,21 +879,50 @@ class Linux_Camera(object):
                 self.linux_camera_button_close_disable_open.place_forget()
                 self.linux_camera_button_close_disable_final.place(x=200, y=60)
                 self.linux_camera_button_disable_final.place_forget()
+                self.linux_get_camera_button_disable.place(x=30,y=100)
             else:
                 self.camera_str.set('取图模式已打开\n可以取图啦~')
                 self.linux_camera_button_disable_open.place_forget()
                 self.linux_camera_button_disable_final.place(x=30,y=60)
                 self.linux_camera_button_close_disable_final.place_forget()
+                self.linux_get_camera_button_disable.place_forget()
 
         t_main_camera = threading.Thread(target=t_main_camera)
         t_main_camera.setDaemon(True)
         t_main_camera.start()
 
+    def camera_pywinauto_main(self):
+        def t_camera_pywinauto():
+            # 取图核心主流程
+            self.linux_get_camera_button_disable_final.place(x=30,y=100)
+            self.camera_str.set('正在检查取图环境...')
+            if not os.path.exists(linux_camera_save):
+                os.makedirs(linux_camera_save)
 
+            # 检查yuvplayer.exe看图工具是否存在
+            yuvplayer_exist = linux_camera_save + 'yuvplayer.exe'
+            if not os.path.exists(yuvplayer_exist):
+                shutil.copy(yuvplayer_path,yuvplayer_exist)
+            self.camera_str.set('取图环境初始化成功\n正在取图中...')
+            self.camera_str.set('正在取图中...\n请耐心等待...')
+            if not os.path.exists(linux_camera_count):
+                with open(linux_camera_count, 'w') as fp:
+                    fp.write('0')
+            f = int(open(linux_camera_count, 'r').read())
+            f += 1
+            get_yuv_path = linux_camera_save + 'get_yuv' + str(f)
+            # 取图到指定位置
+            yuv_download = public.execute_cmd('adb  pull /tmp/yuv_data ' + get_yuv_path)
+            print(yuv_download)
+            if self.linux_camera_str.get() == 1:
+                # 自动化执行
+                pywinauto_yuv = pywinauto_adb.Carmera()  # 实例化对象
+                pywinauto_yuv.carmera_automation(yuvplayer_exist)
+            with open(linux_camera_count,'w') as fp:
+                fp.write(str(f))
+            self.camera_str.set('取图完成！！！\n下次取图前请先关闭看图软件')
+            self.linux_get_camera_button_disable_final.place_forget()
 
-
-
-
-if __name__ == '__main__':
-    a = Linux_Camera()
-    a.camera_form()
+        t_camera_pywinauto = threading.Thread(target=t_camera_pywinauto)
+        t_camera_pywinauto.setDaemon(True)
+        t_camera_pywinauto.start()
