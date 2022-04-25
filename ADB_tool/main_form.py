@@ -105,15 +105,14 @@ class MainForm(object):
         s.verion_menu.place(x=180,y=0)
 
         # 连接设备功能
-
         s.devices_state_label = tkinter.Label(s.root,text='设备连接状态：')
-        s.devices_state_label.config(command=s.devices_bind())
         s.devices_null = tkinter.StringVar()
         s.devices_str = tkinter.StringVar()
         s.devices_success = tkinter.Label(s.root,textvariable=s.devices_str,fg='green')
-        s.devices_str.set('正在检测设备连接状态...')
         s.devices_fail = tkinter.Label(s.root,textvariable=s.devices_null,fg='red')
-
+        s.devices_success.place(x=450, y=0)
+        s.devices_str.set('正在检测设备连接状态...')
+        s.devices_state_label.config(command=s.devices_bind())
         s.devices_state_label.place(x=370,y=0)
 
         # 检测本地adb服务（None则使用内置adb）
@@ -430,7 +429,7 @@ class MainForm(object):
         s.linux_developer_mode_Button_close_disable.config(state='disable')
         s.linux_developer_mode_Button_close.place(x=200, y=190)
         s.linux_developer_mode_content = """访问设备本地盘需要关闭ADB命令，届时本工具不能连接该设备\n恢复ADB命令需要手动在设备上的“设置-关于-固件版本”，连续点击5下后重启
-恢复ADB命令后，计算机不能访问设备本地盘，但本工具可连接该设备\n在adb shell中通过cd /data/UDISK/ 也可访问到本地盘的数据"""
+恢复ADB命令后，计算机不能访问设备本地盘，但本工具可连接该设备\n在adb shell中通过cd /mnt/UDISK/ 也可访问到本地盘的数据"""
         public.CreateToolTip(s.linux_developer_mode_Button_close,s.linux_developer_mode_content)
 
         # 安装软件
@@ -574,9 +573,38 @@ class MainForm(object):
 
     def devices_bind(s):
         def t_devices():
-            def devices_type():
+            while True:
+                # 获取设备序列号
+                devices_finally = public.device_connect()
+                if not devices_finally:
+                    s.devices_fail.place(x=470, y=0)
+                    s.devices_type_fail.place(x=325,y=425)
+                    s.devices_success.place_forget()
+                    s.devices_type_success.place_forget()
+                    s.devices_null.set('未连接任何设备！')
+                    s.devices_type_error.set('未连接任何设备！')
+                    # 确保切换设备类型时Linux相关功能按钮不会主动显示出来
+                    try:
+                        s.linux_all_button_close()
+                    except AttributeError:
+                        pass
+                else:
+                    s.devices_fail.place_forget()
+                    s.devices_type_fail.place_forget()
+                    s.devices_success.place(x=450,y=0)
+                    s.devices_type_success.place(x=325,y=425)
+                    for devices in devices_finally:
+                        if len(devices_finally) == 1:
+                            s.devices_str.set(devices + ' 已连接')
+                        elif len(devices_finally) > 1:
+                            s.devices_str.set('多部设备已连接')
+                    time.sleep(1)
+
+        def devices_type():
+            while True:
                 global devices_linux_flag
                 # 检测设备类型
+                s.devices_type_str.set('正在检测设备类型...')
                 device_type = public.device_type_android()
                 # print(device_type.strip())
                 # 增加strip方法，去掉结果的两边空格以便进行识别
@@ -593,39 +621,15 @@ class MainForm(object):
                         devices_linux_flag = True
                     else:
                         s.devices_type_str.set('未知设备')
-
-            while True:
-                # 获取设备序列号
-                devices_finally = public.device_connect()
-                if not devices_finally:
-                    s.devices_fail.place(x=470, y=0)
-                    s.devices_type_fail.place(x=325,y=425)
-                    s.devices_success.place_forget()
-                    s.devices_type_success.place_forget()
-                    s.devices_null.set('未连接任何设备！')
-                    s.devices_type_error.set('未连接任何设备！')
-                    s.devices_type_str.set('正在检测设备类型...')
-                    # 确保切换设备类型时Linux相关功能按钮不会主动显示出来
-                    try:
-                        s.linux_all_button_close()
-                    except AttributeError:
-                        pass
-                else:
-                    s.devices_fail.place_forget()
-                    s.devices_type_fail.place_forget()
-                    s.devices_success.place(x=450,y=0)
-                    s.devices_type_success.place(x=325,y=425)
-                    devices_type()
-                    for devices in devices_finally:
-                        if len(devices_finally) == 1:
-                            s.devices_str.set(devices + ' 已连接')
-                        elif len(devices_finally) > 1:
-                            s.devices_str.set('多部设备已连接')
-                    time.sleep(1)
+                time.sleep(1)
 
         t_devices = threading.Thread(target=t_devices)
         t_devices.setDaemon(True)
         t_devices.start()
+
+        devices_type = threading.Thread(target=devices_type)
+        devices_type.setDaemon(True)
+        devices_type.start()
 
     def adb_bind(s):
         # 检测ADB服务状态
@@ -921,11 +925,16 @@ class MainForm(object):
             with open(screen_page, 'w') as fp:
                 fp.write('')
             while True:
+                # 通过没有连接设备判断可优化按钮闪现情况
+                devices_connect = public.device_connect()
                 screen_page_state = open(screen_page,'r').read()
-                if screen_page_state == '0':
-                    s.linux_screen_Button_disable.place_forget()
-                    s.linux_screen_Button.place(x=20, y=190)
+                if not devices_connect:
                     break
+                else:
+                    if screen_page_state == '0':
+                        s.linux_screen_Button_disable.place_forget()
+                        s.linux_screen_Button.place(x=20, y=190)
+                        break
 
         t_screen = threading.Thread(target=t_screen)
         t_screen.setDaemon(True)
@@ -967,11 +976,15 @@ class MainForm(object):
             with open(install_page, 'w') as fp:
                 fp.write('')
             while True:
+                devices_connect = public.device_connect()
                 install_page_state = open(install_page,'r').read()
-                if install_page_state == '0':
-                    s.linux_install_disable.place_forget()
-                    s.linux_install.place(x=20, y=230)
+                if not devices_connect:
                     break
+                else:
+                    if install_page_state == '0':
+                        s.linux_install_disable.place_forget()
+                        s.linux_install.place(x=20, y=230)
+                        break
 
         t_install = threading.Thread(target=t_install)
         t_install.setDaemon(True)

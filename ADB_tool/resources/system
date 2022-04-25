@@ -1,0 +1,86 @@
+config system
+	option hostname	cowboy
+	option zonename Asia/Shanghai
+	option timezone CST-8
+	option log_file /tmp/.lastlog
+	option log_size 512
+	option log_buffer_size 64
+
+config timeserver ntp
+	list server ntp5.aliyun.com
+	list server 0.openwrt.pool.ntp.org
+	list server 0.cn.pool.ntp.org
+	option enable 1
+	option enable_server 0
+
+config 'led'
+	option 'name'           'red'
+	option 'sysfs'          'led1'
+	option 'brightness'     '120'
+	option 'trigger'        'timer'
+
+config interface 'bluetooth'
+    option enable '0'
+	option remote_addr ''
+	option remote_name ''
+
+config interface 'wifiConnect'
+    option state 'false'
+
+config interface 'wifiEnable'
+    option enable '0'
+
+config interface 'offScreenTime'
+    option time '60'
+
+config interface 'deepSleepTime'
+    option time '600'
+
+config interface 'autoOffScreen'
+    option enable '1'
+
+config interface 'screenBrightness'
+    option brightness '153'
+
+config interface 'selectionDictionary'
+    option chinese '0'
+    option english '0'
+
+config interface 'directionalSelect'
+    option directional 'right'
+
+config interface 'moreLineScan'
+    option state 'true'
+
+config interface 'ttsSpeed'
+    option value '0.9'
+
+config interface 'ttsSpeedChineseOffset'
+    option value '0.0'
+
+config interface 'ttsOfflineMode'
+    option enable 'true'
+
+config interface 'ttsChineseVolume'
+    option volume '1.6'
+    option cloud_volume_factor '1.8'
+
+config interface 'ttsEnglishVolume'
+    option volume '1.4'
+    option cloud_volume_factor '2.8'
+
+config interface 'ttsDebugLog'
+    option state 'false'
+
+config interface 'mtss'
+    option enable '1'
+
+config interface 'algo_imageParameter'
+    option isSaveOriginalImage 'true'
+    option isSaveClipImage 'true'
+    option isSaveStitchTempImage 'true'
+    option isSaveStitchLastImage 'true'
+    option isSaveLastDropImage 'true'
+
+config interface 'algo_process_control'
+    option gIsOcrAutoToTtsPlay 'false'

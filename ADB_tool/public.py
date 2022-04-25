@@ -70,9 +70,10 @@ def device_connect():
     # 检查设备连接情况
     devices_fp = execute_cmd('adb devices')
     devices_re = re.findall('\\n(.*?)\\sdevice', devices_fp)
-    devices_split = ''.join(devices_re).split(' ')
-    devices_finally = [i for i in devices_split if i != '']  # 去空
-    return devices_finally
+    # devices_split = ''.join(devices_re).split(' ')
+    # devices_finally = [i for i in devices_split if i != '']  # 去空
+    # print(devices_re)  # 调试设备连接状态以及设备序列号信息
+    return devices_re
 
 
 def found_packages():
@@ -106,6 +107,7 @@ def get_pid_name():
 def device_type_android():
     # 检测安卓方法
     device_type = execute_cmd('adb shell getprop net.bt.name')
+    # print(device_type)  # 调试
     return device_type
 
 

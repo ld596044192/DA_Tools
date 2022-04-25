@@ -8,9 +8,13 @@ from PIL import Image
 
 # 初始化文件路径
 init_path = public.resource_path(os.path.join('resources','adb_init.ini'))
+# 初始化配置文件
+camera_system_path = public.resource_path(os.path.join('resources','camera_system.ini'))
 LOGO_path = public.resource_path(os.path.join('icon', 'android.ico'))
 # Linux截图工具路径
 gsnap_path = public.resource_path(os.path.join('resources','gsnap'))
+# 配置camera_system文件路径
+system_path = public.resource_path(os.path.join('resources','system'))
 username = getpass.getuser()
 # 创建临时文件夹
 make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
@@ -386,7 +390,7 @@ class Linux_Install(object):
 
         self.install_root.protocol('WM_DELETE_WINDOW',self.close_handle)
         self.main_frame()
-        self.device_monitor(init_str)
+        # self.device_monitor(init_str)
 
         return self.install_root
 
@@ -404,15 +408,15 @@ class Linux_Install(object):
             fp.write('0')
         self.install_root.destroy()
 
-    def device_monitor(self,init_str):
-        # 监听设备连接状态
-        while True:
-            devices_state = public.device_connect()
-            if not devices_state:
-                init_str.set('请连接设备后再使用Linux功能！')
-            else:
-                pass
-            time.sleep(1)
+    # def device_monitor(self,init_str):
+    #     # 监听设备连接状态
+    #     while True:
+    #         devices_state = public.device_connect()
+    #         if not devices_state:
+    #             init_str.set('请连接设备后再使用Linux功能！')
+    #         else:
+    #             pass
+    #         time.sleep(1)
 
     def main_frame(self):
         # 安装状态栏
@@ -640,25 +644,25 @@ class Linux_Install(object):
                         if self.install_library_str.get() == 1:
                             self.install_str.set('正在导入库...')
                             library_files_path = self.install_library_entry_str.get()
-                            if self.install_library_value.get() == 'Liunx库默认位置':
-                                install_library_path = public.execute_cmd('adb push ' + library_files_path + ' /usr/lib')
-                                print(install_library_path)
-                            elif self.install_library_value.get() == 'dosmono指定位置 /etc/miniapp/jsapis/':
-                                install_library_path = public.execute_cmd('adb push ' + library_files_path + ' /etc/miniapp/jsapis/')
-                                print(install_library_path)
+                            if self.install_library_value.get().strip() == 'Liunx库默认位置':
+                                public.execute_cmd('adb push ' + library_files_path + ' /usr/lib')
+                                print(library_files_path + '已上传')
+                            elif self.install_library_value.get().strip() == 'dosmono指定位置 /etc/miniapp/jsapis/':
+                                public.execute_cmd('adb push ' + library_files_path + ' /etc/miniapp/jsapis/')
+                                print(library_files_path + '已上传')
 
                         # 安装应用包
                         if self.install_software_str.get() == 1:
                             self.install_str.set('正在导入应用包..')
                             software_files_path = self.install_software_entry_str.get()
-                            if self.install_software_value.get() == '主程序默认安装位置':
-                                install_software_path = public.execute_cmd('adb push ' + software_files_path +
+                            if self.install_software_value.get().strip() == '主程序默认安装位置':
+                                public.execute_cmd('adb push ' + software_files_path +
                                                                            ' /etc/miniapp/resources/presetpkgs/8180000000000020.amr')
-                                print(install_software_path)
-                            elif self.install_software_value.get() == '引导页默认安装位置':
-                                install_software_path = public.execute_cmd('adb push ' + software_files_path +
+                                print(software_files_path + '已上传')
+                            elif self.install_software_value.get().strip() == '引导页默认安装位置':
+                                public.execute_cmd('adb push ' + software_files_path +
                                                                            ' /etc/miniapp/resources/presetpkgs/8180000000000026.amr')
-                                print(install_software_path)
+                                print(software_files_path + '已上传')
 
                         # 安装后需要清理缓存
                         self.install_str.set('正在清理缓存并重启设备..')
@@ -674,3 +678,189 @@ class Linux_Install(object):
         t_linux_install.setDaemon(True)
         t_linux_install.start()
 
+
+# 获取扫描帧数图片界面
+class Linux_Camera(object):
+    # def camera_form(self,init_str,linux_screen_Button,linux_screen_Button_disable):
+    def camera_form(self):
+        # self.camera_root = tkinter.Toplevel()
+        self.camera_root = tkinter.Tk()
+        self.camera_root.title('Linux获取扫描帧数图片工具')
+        # screenWidth = self.install_root.winfo_screenwidth()
+        # screenHeight = self.install_root.winfo_screenheight()
+        w = 350
+        h = 200
+        # x = (screenWidth - w) / 2
+        # y = (screenHeight - h) / 2
+        # self.install_root.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        self.camera_root.geometry('%dx%d' % (w, h))
+        self.camera_root.iconbitmap(LOGO_path)
+        self.camera_root.resizable(0, 0)
+        # self.install_root.wm_attributes('-topmost', 1)
+
+        # self.install_startup(linux_screen_Button,linux_screen_Button_disable)
+        #
+        # self.camera_root.protocol('WM_DELETE_WINDOW',self.close_handle)
+        self.main_frame()
+        # self.device_monitor(init_str)
+
+        self.camera_root.mainloop()
+        return self.camera_root
+
+    # def install_startup(self,linux_install_Button,linux_install_Button_disable):
+    #     # 监听安装页面的打开状态
+    #     install_exists = self.camera_root.winfo_exists()
+    #     print(install_exists)
+    #     if install_exists == 1:
+    #         linux_install_Button.place_forget()
+    #         linux_install_Button_disable.place(x=20, y=230)
+    #
+    # def close_handle(self):
+    #     # 监听页面消失
+    #     with open(install_page,'w') as fp:
+    #         fp.write('0')
+    #     self.camera_root.destroy()
+
+    def main_frame(self):
+        # 获取图片状态栏
+        self.camera_str = tkinter.StringVar()
+        self.camera_label = tkinter.Label(self.camera_root, textvariable=self.camera_str, bg='black', fg='#FFFFFF',
+                                           width=40, height=2)
+        self.camera_label.place(x=30, y=10)
+        self.camera_label.config(command=self.check_system())
+        self.camera_str.set('此处显示获取图片状态')
+
+        # 开启取图模式按钮
+        self.take_image_mode_close = False
+        self.linux_camera_button = tkinter.Button(self.camera_root, text='开启取图模式', width=15)
+        self.linux_camera_button.bind('<Button-1>', lambda x: self.open_camera_bind())
+        self.linux_camera_button_disable = tkinter.Button(self.camera_root, text='开启取图模式', width=15)
+        self.linux_camera_button_disable_open = tkinter.Button(self.camera_root, text='正在开启中...', width=15)
+        self.linux_camera_button_disable_final = tkinter.Button(self.camera_root, text='取图模式已打开', width=15)
+        self.linux_camera_button_disable_open.config(state='disable')
+        self.linux_camera_button_disable.config(state='disable')
+        self.linux_camera_button_disable_final.config(state='disable')
+        self.linux_camera_button.place(x=30, y=60)
+
+        # 关闭取图模式按钮
+        self.linux_camera_button_close = tkinter.Button(self.camera_root, text='关闭取图模式', width=15)
+        self.linux_camera_button_close.bind('<Button-1>', lambda x: self.close_camera_bind())
+        self.linux_camera_button_close_disable = tkinter.Button(self.camera_root, text='关闭取图模式', width=15)
+        self.linux_camera_button_close_disable_open = tkinter.Button(self.camera_root, text='正在关闭中...', width=15)
+        self.linux_camera_button_close_disable_final = tkinter.Button(self.camera_root, text='取图模式已关闭', width=15)
+        self.linux_camera_button_close_disable_open.config(state='disable')
+        self.linux_camera_button_close_disable.config(state='disable')
+        self.linux_camera_button_close_disable_final.config(state='disable')
+        self.linux_camera_button_close.place(x=200, y=60)
+
+    def check_system(self):
+        def t_check_system():
+            # 检测 是否配置 适用于取图的system文件
+            self.camera_str.set('正在检测是否配置system文件...')
+            # 禁用按钮
+            self.linux_camera_button_disable.place(x=30, y=60)
+            self.linux_camera_button_close_disable.place(x=200,y=60)
+            check_system_cmd = public.execute_cmd('adb shell ls -lh /data/camera_system.ini')
+            check_system_cmd_finally = ' '.join(check_system_cmd.split()).split(':')[-1]
+            if check_system_cmd_finally == ' not found':
+                message = '配置取图功能需要重启多次，是否继续？\n点击“取消”则会关闭此页面！'
+                if tkinter.messagebox.askokcancel(title='温馨提示', message=message):
+                    self.camera_str.set('检测没有配置过system，正在初始化...')
+                    # 内置取图配置文件到设备中
+                    public.execute_cmd('adb push ' + system_path + ' /etc/config/uci/system')
+                    public.execute_cmd('adb push ' + camera_system_path + ' /data/')
+                    # 需要重启生效
+                    public.execute_cmd('adb shell reboot')
+                    time.sleep(18)
+                    self.camera_str.set('取图工具初始化成功\n请点击“开启取图模式”按钮开启')
+
+                    # 开放按钮
+                    self.linux_camera_button_disable.place_forget()
+                    self.linux_camera_button_close_disable.place_forget()
+                else:
+                    self.camera_root.destroy()
+            else:
+                self.camera_str.set('已内置system配置文件\n可以开始使用取图功能')
+                take_image_mode_info = public.execute_cmd('adb shell cat /data/camera_system.ini')
+                if take_image_mode_info.strip() == 'Take image mode on':
+                    self.camera_str.set('取图模式已打开\n可以取图啦~')
+                    self.linux_camera_button_disable.place_forget()
+                    self.linux_camera_button_close_disable.place_forget()
+                    self.linux_camera_button_disable_final.place(x=30,y=60)
+                else:
+                    self.camera_str.set('取图模式已关闭\n请重新开启取图模式')
+                    self.linux_camera_button_disable_final.place_forget()
+                    self.linux_camera_button_close_disable.place_forget()
+                    self.linux_camera_button_disable.place_forget()
+                    self.linux_camera_button_close_disable_final.place(x=200,y=60)
+
+        t_check_system = threading.Thread(target=t_check_system)
+        t_check_system.setDaemon(True)
+        t_check_system.start()
+
+    def open_camera_bind(self):
+        def t_open_camera():
+            # 开启取图模式
+            self.take_image_mode_close = False
+            self.main_camera_bind(self.take_image_mode_close)
+
+        t_open_camera = threading.Thread(target=t_open_camera)
+        t_open_camera.setDaemon(True)
+        t_open_camera.start()
+
+    def close_camera_bind(self):
+        def t_close_camera():
+            # 关闭取图模式
+            # 取图模式标志
+            self.take_image_mode_close = True
+            self.main_camera_bind(self.take_image_mode_close)
+
+        t_close_camera = threading.Thread(target=t_close_camera)
+        t_close_camera.setDaemon(True)
+        t_close_camera.start()
+
+    def main_camera_bind(self,take_image_mode_close):
+        def t_main_camera():
+            # 取图模式核心流程
+            if take_image_mode_close:
+                self.linux_camera_button_close_disable_open.place(x=200, y=60)
+                # 设置取图模式为False (关闭取图模式)
+                self.camera_str.set('正在关闭取图模式并重启...')
+                public.execute_cmd('adb shell uci set system.algo_imageParameter.isSaveOriginalImage=false')
+                # 设置 关闭取图模式后的标志
+                public.execute_cmd('adb shell echo "Take image mode off" > /data/camera_system.ini')
+            else:
+                self.linux_camera_button_disable_open.place(x=30, y=60)
+                # 设置取图模式为True (开启取图模式)
+                self.camera_str.set('正在启动取图模式并重启...')
+                public.execute_cmd('adb shell uci set system.algo_imageParameter.isSaveOriginalImage=true')
+                # 设置 打开取图模式后的标志
+                public.execute_cmd('adb shell echo "Take image mode on" > /data/camera_system.ini')
+            # 上传到system
+            public.execute_cmd('adb shell uci commit system')
+            # 重启
+            public.execute_cmd('adb shell reboot')
+            time.sleep(18)
+            if take_image_mode_close:
+                self.camera_str.set('取图模式已关闭\n请重新开启取图模式')
+                self.linux_camera_button_close_disable_open.place_forget()
+                self.linux_camera_button_close_disable_final.place(x=200, y=60)
+                self.linux_camera_button_disable_final.place_forget()
+            else:
+                self.camera_str.set('取图模式已打开\n可以取图啦~')
+                self.linux_camera_button_disable_open.place_forget()
+                self.linux_camera_button_disable_final.place(x=30,y=60)
+                self.linux_camera_button_close_disable_final.place_forget()
+
+        t_main_camera = threading.Thread(target=t_main_camera)
+        t_main_camera.setDaemon(True)
+        t_main_camera.start()
+
+
+
+
+
+
+if __name__ == '__main__':
+    a = Linux_Camera()
+    a.camera_form()
