@@ -199,5 +199,23 @@ def copy(editor_list, event=None):
         editor.event_generate("<<Copy>>")
 
 
+# 获取当前路径中的所有文件夹
+def get_dirs(path):  # 获取所有文件
+    all_file = []
+    for f in os.listdir(path):  # listdir返回文件中所有目录
+        f_name = os.path.join(path, f)
+        all_file.append(f_name)
+    return all_file
 
+
+# 获取当前路径中的所有文件
+def get_files(file_dir):
+    for root, dirs, files in os.walk(file_dir):
+        if files:
+            # print(root)  # 当前目录路径
+            # print(dirs)  # 当前路径下所有子目录
+            file = ''.join(files)
+            print(file)   # 当前路径下所有非目录子文件
+
+            return file
 

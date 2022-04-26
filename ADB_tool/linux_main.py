@@ -10,6 +10,10 @@ from PIL import Image
 init_path = public.resource_path(os.path.join('resources','adb_init.ini'))
 # 初始化配置文件
 camera_system_path = public.resource_path(os.path.join('resources','camera_system.ini'))
+# 设置 打开取图模式后的标志路径
+camera_open_path = public.resource_path(os.path.join('resources','camera_open/camera_system.ini'))
+# 设置 关闭取图模式后的标志路径
+camera_close_path = public.resource_path(os.path.join('resources','camera_close/camera_system.ini'))
 # 看图软件路径
 yuvplayer_path = public.resource_path(os.path.join('resources','yuvplayer.exe'))
 LOGO_path = public.resource_path(os.path.join('icon', 'android.ico'))
@@ -806,8 +810,6 @@ class Linux_Camera(object):
 
                     # 开放按钮
                     self.linux_camera_button_disable.place_forget()
-                    self.linux_camera_button_close_disable.place_forget()
-                    self.linux_get_camera_button_disable.place_forget()
                 else:
                     self.camera_root.destroy()
             else:
@@ -835,6 +837,8 @@ class Linux_Camera(object):
         def t_open_camera():
             # 开启取图模式
             self.take_image_mode_close = False
+            # 设置 打开取图模式后的标志
+            public.execute_cmd('adb push ' + camera_open_path + ' /data/')
             self.main_camera_bind(self.take_image_mode_close)
 
         t_open_camera = threading.Thread(target=t_open_camera)
@@ -846,6 +850,8 @@ class Linux_Camera(object):
             # 关闭取图模式
             # 取图模式标志
             self.take_image_mode_close = True
+            # 设置 打开取图模式后的标志
+            public.execute_cmd('adb push ' + camera_close_path + ' /data/')
             self.main_camera_bind(self.take_image_mode_close)
 
         t_close_camera = threading.Thread(target=t_close_camera)
@@ -860,15 +866,11 @@ class Linux_Camera(object):
                 # 设置取图模式为False (关闭取图模式)
                 self.camera_str.set('正在关闭取图模式并重启...')
                 public.execute_cmd('adb shell uci set system.algo_imageParameter.isSaveOriginalImage=false')
-                # 设置 关闭取图模式后的标志
-                public.execute_cmd('adb shell echo "Take image mode off" > /data/camera_system.ini')
             else:
                 self.linux_camera_button_disable_open.place(x=30, y=60)
                 # 设置取图模式为True (开启取图模式)
                 self.camera_str.set('正在启动取图模式并重启...')
                 public.execute_cmd('adb shell uci set system.algo_imageParameter.isSaveOriginalImage=true')
-                # 设置 打开取图模式后的标志
-                public.execute_cmd('adb shell echo "Take image mode on" > /data/camera_system.ini')
             # 上传到system
             public.execute_cmd('adb shell uci commit system')
             # 重启
