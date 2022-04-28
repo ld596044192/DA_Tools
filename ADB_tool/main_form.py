@@ -113,7 +113,6 @@ class MainForm(object):
         s.devices_success = tkinter.Label(s.root,textvariable=s.devices_str,fg='green')
         s.devices_fail = tkinter.Label(s.root,textvariable=s.devices_null,fg='red')
         s.devices_success.place(x=450, y=0)
-        s.devices_str.set('正在检测设备连接状态...')
         s.devices_state_label.config(command=s.devices_bind())
         s.devices_state_label.place(x=370,y=0)
 
@@ -586,6 +585,7 @@ class MainForm(object):
 
     def devices_bind(s):
         def t_devices():
+            s.devices_str.set('正在检测设备连接状态...')
             while True:
                 # 获取设备序列号
                 devices_finally = public.device_connect()
@@ -596,7 +596,6 @@ class MainForm(object):
                     s.devices_type_success.place_forget()
                     s.devices_null.set('未连接任何设备！')
                     s.devices_type_error.set('未连接任何设备！')
-                    s.devices_type_str.set('正在检测设备类型...')
                     # 确保切换设备类型时Linux相关功能按钮不会主动显示出来
                     try:
                         s.linux_all_button_close()
@@ -615,11 +614,15 @@ class MainForm(object):
                     time.sleep(1)
 
         def devices_type():
+            try:
+                s.devices_type_str.set('正在检测设备类型...')
+            except AttributeError:
+                pass
             while True:
                 global devices_linux_flag
                 # 检测设备类型
                 device_type = public.device_type_android()
-                # print(device_type.strip())
+                # print(device_type.strip())  # 调试Logs
                 # 增加strip方法，去掉结果的两边空格以便进行识别
                 if device_type.strip() == 'Android':
                     s.devices_type_str.set('Android（安卓）')
@@ -628,7 +631,7 @@ class MainForm(object):
                     # Linux无法使用adb shell getprop命令
                     device_type_linux = public.execute_cmd('adb shell cat /proc/version')
                     device_type_linux_finally = device_type_linux.split(' ')[0]
-                    # print(device_type_linux.split(' ')[0])
+                    # print(device_type_linux_finally)  # 调试Logs
                     if device_type_linux_finally == 'Linux':
                         s.devices_type_str.set('Linux')
                         devices_linux_flag = True

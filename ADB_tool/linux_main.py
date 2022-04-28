@@ -1,9 +1,9 @@
 import os,getpass
 import sys
-import time,re,win32api,shutil
+import time,re,win32api,shutil,subprocess
 import public,pywinauto_adb
 import tkinter,tkinter.ttk,tkinter.messagebox,tkinter.filedialog
-import threading
+import threading,ctypes
 from PIL import Image
 
 # 初始化文件路径
@@ -712,7 +712,7 @@ class Linux_Camera(object):
         self.camera_startup(linux_camera,linux_camera_disable)
         #
         self.camera_root.protocol('WM_DELETE_WINDOW',self.close_handle)
-        self.main_frame()
+        self.main_frame(linux_camera_disable)
 
         return self.camera_root
 
@@ -730,13 +730,13 @@ class Linux_Camera(object):
             fp.write('0')
         self.camera_root.destroy()
 
-    def main_frame(self):
+    def main_frame(self,linux_camera_disable):
         # 获取图片状态栏
         self.camera_str = tkinter.StringVar()
         self.camera_label = tkinter.Label(self.camera_root, textvariable=self.camera_str, bg='black', fg='#FFFFFF',
                                            width=40, height=2)
         self.camera_label.place(x=30, y=10)
-        self.camera_label.config(command=self.check_system())
+        self.camera_label.config(command=self.check_system(linux_camera_disable))
         self.camera_str.set('此处显示获取图片状态')
 
         # 开启取图模式按钮
@@ -789,7 +789,7 @@ class Linux_Camera(object):
                                                             '适用于懒人必备功能或避免过多重复性动作造成时间浪费')
         self.linux_camera_checkbutton.select()
 
-    def check_system(self):
+    def check_system(self,linux_camera_disable):
         def t_check_system():
             # 检测 是否配置 适用于取图的system文件
             self.camera_str.set('正在检测是否配置system文件...')
@@ -810,8 +810,10 @@ class Linux_Camera(object):
 
                     # 开放按钮
                     self.linux_camera_button_disable.place_forget()
+
                 else:
                     self.camera_root.destroy()
+                    linux_camera_disable.place_forget()
             else:
                 self.camera_str.set('已内置system配置文件\n可以开始使用取图功能')
                 take_image_mode_info = public.execute_cmd('adb shell cat /data/camera_system.ini')
@@ -819,6 +821,8 @@ class Linux_Camera(object):
                     self.camera_str.set('取图模式已打开\n可以取图啦~')
                     self.linux_camera_button_disable.place_forget()
                     self.linux_camera_button_close_disable.place_forget()
+                    self.linux_camera_button_close_disable_final.place_forget()
+                    self.linux_camera_button_close.place(x=200,y=60)
                     self.linux_camera_button_disable_final.place(x=30,y=60)
                     self.linux_get_camera_button_disable.place_forget()
                 else:
@@ -885,6 +889,7 @@ class Linux_Camera(object):
             else:
                 self.camera_str.set('取图模式已打开\n可以取图啦~')
                 self.linux_camera_button_disable_open.place_forget()
+                self.linux_camera_button_close_disable.place_forget()
                 self.linux_camera_button_disable_final.place(x=30,y=60)
                 self.linux_camera_button_close_disable_final.place_forget()
                 self.linux_get_camera_button_disable.place_forget()
@@ -900,7 +905,6 @@ class Linux_Camera(object):
             self.camera_str.set('正在检查取图环境...')
             if not os.path.exists(linux_camera_save):
                 os.makedirs(linux_camera_save)
-
             # 检查yuvplayer.exe看图工具是否存在
             yuvplayer_exist = linux_camera_save + 'yuvplayer.exe'
             if not os.path.exists(yuvplayer_exist):
@@ -914,15 +918,59 @@ class Linux_Camera(object):
             f += 1
             get_yuv_path = linux_camera_save + 'get_yuv' + str(f)
             # 取图到指定位置
-            yuv_download = public.execute_cmd('adb  pull /tmp/yuv_data ' + get_yuv_path)
-            print(yuv_download)
+            command = 'adb  pull /tmp/yuv_data ' + get_yuv_path
+            # yuv_download = public.execute_cmd('adb  pull /tmp/yuv_data ' + get_yuv_path)
+            # print(yuv_download)
+            p = subprocess.Popen(command, shell=False, stdout=(subprocess.PIPE), stderr=(subprocess.STDOUT))
+            # 开启窗口置顶
+            self.camera_root.wm_attributes('-topmost', 1)
+            while p.poll() is None:
+                line = p.stdout.readline().decode('utf8').split('/')[0].split(']')[0].split('[')
+                line1 = ''.join(''.join(line).split())
+                line_re = re.findall('(.*?)%', line1)
+                print(line_re)
+                for i in line_re:
+                    print('取图yuv文件正在下载:' + str(i) + '%')
+                    self.camera_str.set('取图yuv文件正在下载:' + str(i) + '%\n请耐心等待...')
+            # 取消窗口置顶
+            self.camera_root.wm_attributes('-topmost', 0)
+            # 清理yuv文件缓存
+            self.camera_str.set('正在清理yuv文件缓存...')
+            public.execute_cmd('adb shell rm -rf /tmp/yuv_data')
             if self.linux_camera_str.get() == 1:
-                # 自动化执行
-                pywinauto_yuv = pywinauto_adb.Carmera()  # 实例化对象
-                pywinauto_yuv.carmera_automation(yuvplayer_exist)
-            with open(linux_camera_count,'w') as fp:
-                fp.write(str(f))
-            self.camera_str.set('取图完成！！！\n下次取图前请先关闭看图软件')
+                # 判断文件夹中是否含有origin_320X240.yuv，得出目标地址
+                yuv_path_dir = []
+            yuv_dirs = public.get_dirs(get_yuv_path)
+            print(yuv_dirs)
+            for yuv_dir_path in yuv_dirs:
+                try:
+                    yuv_files = public.get_files(yuv_dir_path)
+                    print(yuv_files)
+                    if 'origin_320X240.yuv' in yuv_files:
+                        yuv_dir_path_select = yuv_dir_path
+                        print(yuv_dir_path_select)
+                        yuv_path_dir.append(yuv_dir_path_select)
+                        print('已检测到 ' + yuv_dir_path_select + '\\origin_320X240.yuv')
+
+                        # 存储计数
+                        with open(linux_camera_count, 'w') as fp:
+                            fp.write(str(f))
+                        # 自动化执行
+                        self.camera_str.set('正在执行自动化操作...\n温馨提示:自动化过程中勿操作其他')
+                        pywinauto_yuv = pywinauto_adb.Carmera()  # 实例化对象
+                        pywinauto_yuv.carmera_automation(yuvplayer_exist, yuv_path_dir[0])
+                        self.camera_str.set('取图完成！！！\n下次取图前请先关闭看图软件')
+                        break
+                    else:
+                        self.camera_str.set('取图失败，没有找到origin_320X240.yuv\n无法进行自动化操作，请重新扫描后再次取图！')
+                        break
+                except TypeError:
+                    print('检测到此文件夹为空！')
+                    self.camera_str.set('取图失败，没有找到get_yuv文件夹\n无法继续进行取图，请重新扫描后再次取图！')
+                # except FileNotFoundError:
+                #     print('检测到你没有扫描到任何内容！')
+                #     self.camera_str.set('取图失败，没有找到yuv_data文件夹\n无法继续进行取图，请重新扫描后再次取图！')
+
             self.linux_get_camera_button_disable_final.place_forget()
 
         t_camera_pywinauto = threading.Thread(target=t_camera_pywinauto)
