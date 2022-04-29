@@ -934,43 +934,41 @@ class Linux_Camera(object):
                     self.camera_str.set('取图yuv文件正在下载:' + str(i) + '%\n请耐心等待...')
             # 取消窗口置顶
             self.camera_root.wm_attributes('-topmost', 0)
-            # 清理yuv文件缓存
-            self.camera_str.set('正在清理yuv文件缓存...')
-            public.execute_cmd('adb shell rm -rf /tmp/yuv_data')
             if self.linux_camera_str.get() == 1:
                 # 判断文件夹中是否含有origin_320X240.yuv，得出目标地址
                 yuv_path_dir = []
-            yuv_dirs = public.get_dirs(get_yuv_path)
-            print(yuv_dirs)
-            for yuv_dir_path in yuv_dirs:
-                try:
-                    yuv_files = public.get_files(yuv_dir_path)
-                    print(yuv_files)
-                    if 'origin_320X240.yuv' in yuv_files:
-                        yuv_dir_path_select = yuv_dir_path
-                        print(yuv_dir_path_select)
-                        yuv_path_dir.append(yuv_dir_path_select)
-                        print('已检测到 ' + yuv_dir_path_select + '\\origin_320X240.yuv')
+                yuv_dirs = public.get_dirs(get_yuv_path)
+                print(yuv_dirs)
+                for yuv_dir_path in yuv_dirs:
+                    try:
+                        yuv_files = public.get_files(yuv_dir_path)
+                        print(yuv_files)
+                        if 'origin_320X240.yuv' in yuv_files:
+                            yuv_dir_path_select = yuv_dir_path
+                            print(yuv_dir_path_select)
+                            yuv_path_dir.append(yuv_dir_path_select)
+                            print('已检测到 ' + yuv_dir_path_select + '\\origin_320X240.yuv')
 
-                        # 存储计数
-                        with open(linux_camera_count, 'w') as fp:
-                            fp.write(str(f))
-                        # 自动化执行
-                        self.camera_str.set('正在执行自动化操作...\n温馨提示:自动化过程中勿操作其他')
-                        pywinauto_yuv = pywinauto_adb.Carmera()  # 实例化对象
-                        pywinauto_yuv.carmera_automation(yuvplayer_exist, yuv_path_dir[0])
-                        self.camera_str.set('取图完成！！！\n下次取图前请先关闭看图软件')
-                        break
-                    else:
-                        self.camera_str.set('取图失败，没有找到origin_320X240.yuv\n无法进行自动化操作，请重新扫描后再次取图！')
-                        break
-                except TypeError:
-                    print('检测到此文件夹为空！')
-                    self.camera_str.set('取图失败，没有找到get_yuv文件夹\n无法继续进行取图，请重新扫描后再次取图！')
-                # except FileNotFoundError:
-                #     print('检测到你没有扫描到任何内容！')
-                #     self.camera_str.set('取图失败，没有找到yuv_data文件夹\n无法继续进行取图，请重新扫描后再次取图！')
+                            # 自动化执行
+                            self.camera_str.set('正在执行自动化操作...\n温馨提示:自动化过程中勿操作其他')
+                            pywinauto_yuv = pywinauto_adb.Carmera()  # 实例化对象
+                            pywinauto_yuv.carmera_automation(yuvplayer_exist, yuv_path_dir[0])
+                            # 清理yuv文件缓存
+                            self.camera_str.set('正在清理yuv文件缓存...')
+                            public.execute_cmd('adb shell rm -rf /tmp/yuv_data/ping/*.yuv')
+                            public.execute_cmd('adb shell rm -rf /tmp/yuv_data/pong/*.yuv')
+                            self.camera_str.set('取图完成！！！\n下次取图前请先关闭看图软件')
+                            break
+                        else:
+                            self.camera_str.set('取图失败，没有找到origin_320X240.yuv\n无法进行自动化操作，请重新扫描后再次取图！')
+                            break
+                    except TypeError:
+                        print('检测到此文件夹为空！')
+                        self.camera_str.set('取图失败，没有找到get_yuv文件夹\n无法继续进行取图，请重新扫描后再次取图！')
 
+            # 存储计数
+            with open(linux_camera_count, 'w') as fp:
+                fp.write(str(f))
             self.linux_get_camera_button_disable_final.place_forget()
 
         t_camera_pywinauto = threading.Thread(target=t_camera_pywinauto)

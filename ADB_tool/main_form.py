@@ -453,17 +453,22 @@ class MainForm(object):
         s.linux_frame1.place(y=20)
 
     def linux_all_button_close(s):
-        # 特殊情况下禁用linux模式所有功能（包含已disable状态的按钮）
-        s.linux_screen_Button.place_forget()
-        s.linux_screen_Button_disable.place_forget()
-        s.linux_developer_mode_Button_close.place_forget()
-        s.linux_developer_mode_Button_close_disable.place_forget()
-        s.linux_install.place_forget()
-        s.linux_install_disable.place_forget()
-        s.linux_camera.place_forget()
-        s.linux_camera_disable.place_forget()
+        devices = public.device_connect()
+        if not devices:
+            s.linux_init_Button.place_forget()
+            s.linux_init_Button_disable.place(x=200, y=110)
+        else:
+            # 特殊情况下禁用linux模式所有功能（包含已disable状态的按钮）
+            s.linux_screen_Button.place_forget()
+            s.linux_screen_Button_disable.place_forget()
+            s.linux_developer_mode_Button_close.place_forget()
+            s.linux_developer_mode_Button_close_disable.place_forget()
+            s.linux_install.place_forget()
+            s.linux_install_disable.place_forget()
+            s.linux_camera.place_forget()
+            s.linux_camera_disable.place_forget()
 
-        s.linux_button_label.place(x=20, y=220)
+            s.linux_button_label.place(x=20, y=220)
 
     def linux_all_button_open(s):
         # 先禁用初始化按钮
