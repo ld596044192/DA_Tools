@@ -168,7 +168,7 @@ class Linux_Screen(object):
 
         self.screen_root.protocol('WM_DELETE_WINDOW',self.close_handle)
         self.main_frame()
-        self.device_monitor(init_str)
+        # self.device_monitor(init_str)
 
         return self.screen_root
 
@@ -186,17 +186,17 @@ class Linux_Screen(object):
             fp.write('0')
         self.screen_root.destroy()
 
-    def device_monitor(self,init_str):
-        # 监听设备连接状态
-        while True:
-            devices_state = public.device_connect()
-            if not devices_state:
-                init_str.set('请连接设备后再使用Linux功能！')
-                self.screen_root.destroy()
-                sys.exit()
-            else:
-                pass
-            time.sleep(1)
+    # def device_monitor(self,init_str):
+    #     # 监听设备连接状态
+    #     while True:
+    #         devices_state = public.device_connect()
+    #         if not devices_state:
+    #             init_str.set('请连接设备后再使用Linux功能！')
+    #             self.screen_root.destroy()
+    #             sys.exit()
+    #         else:
+    #             pass
+    #         time.sleep(1)
 
     def main_frame(self):
         # 截图状态栏
@@ -271,19 +271,23 @@ class Linux_Screen(object):
 
     def check_gsnap(self):
         def t_check_gsnap():
-            # 检测 是否内置 gsnap 截图工具
-            self.screen_str.set('正在检测是否内置截图工具...')
-            check_gsnap_cmd = public.execute_cmd('adb shell gsnap')
-            check_gsnap_cmd_finally = ' '.join(check_gsnap_cmd.split()).split(':')[-1]
-            if check_gsnap_cmd_finally == ' not found':
-                self.screen_str.set('无法找到内置截图工具，正在初始化...')
-                # 内置截图工具到设备中
-                public.execute_cmd('adb push ' + gsnap_path + ' /usr/bin')
-                # 为内置的截图工具赋予执行权限
-                public.execute_cmd('adb shell chmod a+x /usr/bin/gsnap')
-                self.screen_str.set('截图工具初始化成功\n可以正常开始截图')
+            devices_state = public.device_connect()
+            if not devices_state:
+                self.screen_str.set('连接设备后重新启动本功能检测')
             else:
-                self.screen_str.set('已内置gsnap截图工具\n可以正常开始截图')
+                # 检测 是否内置 gsnap 截图工具
+                self.screen_str.set('正在检测是否内置截图工具...')
+                check_gsnap_cmd = public.execute_cmd('adb shell gsnap')
+                check_gsnap_cmd_finally = ' '.join(check_gsnap_cmd.split()).split(':')[-1]
+                if check_gsnap_cmd_finally == ' not found':
+                    self.screen_str.set('无法找到内置截图工具，正在初始化...')
+                    # 内置截图工具到设备中
+                    public.execute_cmd('adb push ' + gsnap_path + ' /usr/bin')
+                    # 为内置的截图工具赋予执行权限
+                    public.execute_cmd('adb shell chmod a+x /usr/bin/gsnap')
+                    self.screen_str.set('截图工具初始化成功\n可以正常开始截图')
+                else:
+                    self.screen_str.set('已内置gsnap截图工具\n可以正常开始截图')
 
         t_check_gsnap = threading.Thread(target=t_check_gsnap)
         t_check_gsnap.setDaemon(True)
@@ -292,54 +296,58 @@ class Linux_Screen(object):
     def screen_main(self):
         # linux截图核心函数
         def t_screen():
-            self.screen_str.set('正在截图中...')
-            self.linux_screen_button.place_forget()
-            self.linux_screen_button_disable.place(x=20, y=60)
-            self.linux_reset_button.place_forget()
-            self.linux_reset_button_disable.place(x=100, y=140)
-            if not os.path.exists(linux_save_path):
-                os.makedirs(linux_save_path)
-            if not os.path.exists(linux_screen_count):
-                with open(linux_screen_count, 'w') as fp:
-                    fp.write('0')
-            # 记录旋转角度默认值
-            self.rotate_get = self.image_rotate_value.get()
-            with open(Image_rotate_path, 'w') as fp:
-                fp.write(self.rotate_get)
-
-            # 截图
-            f = int(open(linux_screen_count, 'r').read())
-            f += 1
-            public.execute_cmd('adb shell gsnap /data/1.png /dev/fb0')
-            time.sleep(1)
-            pull_output = public.execute_cmd('adb pull /data/1.png ' + linux_save_path + str(f) + '.png')
-            # 打印下载信息
-            print(pull_output)
-
-            # 旋转截图文件
-            self.screen_str.set('正在旋转截图文件并保存...')
-            if self.rotate_get != '0':
-                self.rotate_get = re.findall('(.*?)度',self.rotate_get)[0]
+            devices_state = public.device_connect()
+            if not devices_state:
+                self.screen_str.set('请重新连接设备后再截图')
             else:
-                pass
-            img_path = linux_save_path + str(f) + '.png'
-            img_open = Image.open(img_path)
-            # expand=1 表示的是原图旋转，如果没有此参数，则内容直接旋转
-            img_rotate = img_open.rotate(int(self.rotate_get), expand=1)
-            # 保存旋转后的图片
-            img_rotate.save(img_path)
+                self.screen_str.set('正在截图中...')
+                self.linux_screen_button.place_forget()
+                self.linux_screen_button_disable.place(x=20, y=60)
+                self.linux_reset_button.place_forget()
+                self.linux_reset_button_disable.place(x=100, y=140)
+                if not os.path.exists(linux_save_path):
+                    os.makedirs(linux_save_path)
+                if not os.path.exists(linux_screen_count):
+                    with open(linux_screen_count, 'w') as fp:
+                        fp.write('0')
+                # 记录旋转角度默认值
+                self.rotate_get = self.image_rotate_value.get()
+                with open(Image_rotate_path, 'w') as fp:
+                    fp.write(self.rotate_get)
 
-            self.screen_str.set('截图成功！文件保存在:\n 桌面\\' + linux_dirname + '\\' + str(f) + '.png')
-            with open(linux_screen_count,'w') as fp:
-                fp.write(str(f))
+                # 截图
+                f = int(open(linux_screen_count, 'r').read())
+                f += 1
+                public.execute_cmd('adb shell gsnap /data/1.png /dev/fb0')
+                time.sleep(1)
+                pull_output = public.execute_cmd('adb pull /data/1.png ' + linux_save_path + str(f) + '.png')
+                # 打印下载信息
+                print(pull_output)
 
-            # 截图保存后自动打开判断
-            if self.auto_show_on.get() == 1:
-                self.screen_str.set('自动显示截图模式已打开\n可以进行编辑、添加文字提示')
-                img_rotate.show()
-                self.screen_str.set('截图已关闭\n自动显示截图说明：方便编辑图片、添加文字')
-            else:
-                pass
+                # 旋转截图文件
+                self.screen_str.set('正在旋转截图文件并保存...')
+                if self.rotate_get != '0':
+                    self.rotate_get = re.findall('(.*?)度',self.rotate_get)[0]
+                else:
+                    pass
+                img_path = linux_save_path + str(f) + '.png'
+                img_open = Image.open(img_path)
+                # expand=1 表示的是原图旋转，如果没有此参数，则内容直接旋转
+                img_rotate = img_open.rotate(int(self.rotate_get), expand=1)
+                # 保存旋转后的图片
+                img_rotate.save(img_path)
+
+                self.screen_str.set('截图成功！文件保存在:\n 桌面\\' + linux_dirname + '\\' + str(f) + '.png')
+                with open(linux_screen_count,'w') as fp:
+                    fp.write(str(f))
+
+                # 截图保存后自动打开判断
+                if self.auto_show_on.get() == 1:
+                    self.screen_str.set('自动显示截图模式已打开\n可以进行编辑、添加文字提示')
+                    img_rotate.show()
+                    self.screen_str.set('截图已关闭\n自动显示截图说明：方便编辑图片、添加文字')
+                else:
+                    pass
 
             self.linux_screen_button_disable.place_forget()
             self.linux_screen_button.place(x=20, y=60)
@@ -500,14 +508,15 @@ class Linux_Install(object):
         self.install_software_combobox_label.place(x=5, y=155)
         public.CreateToolTip(self.install_software_combobox_label, '根据实际情况选择安装路径，否则出现问题\n备注：\n'
                                         '主程序默认安装路径：/etc/miniapp/resources/presetpkgs/8180000000000020.amr\n'
-                                        '引导页默认安装路径：/etc/miniapp/resources/presetpkgs/8180000000000026.amr')
+                                        '引导页默认安装路径：/etc/miniapp/resources/presetpkgs/8180000000000026.amr\n'
+                                        '喜马拉雅默认安装路径：/etc/miniapp/resources/presetpkgs/8080231999314849.amr')
 
         # 安装应用包文件目录位置下拉框
         self.install_software_value = tkinter.StringVar()
         self.install_software_combobox = tkinter.ttk.Combobox(self.install_root, state="readonly", width=30,
                                                              textvariable=self.install_software_value)
         # state：“正常”，“只读”或“禁用”之一。在“只读”状态下，可能无法直接编辑该值，并且用户只能从下拉列表中选择值。在“正常”状态下，文本字段可直接编辑。在“禁用”状态下，不可能进行交互。
-        self.install_software_combobox['value'] = ('主程序默认安装位置 ','引导页默认安装位置 ')
+        self.install_software_combobox['value'] = ('主程序默认安装位置 ','引导页默认安装位置 ','喜马拉雅默认安装位置 ')
         self.install_software_combobox.current(0)
         self.install_software_combobox.place(x=110, y=155)
 
@@ -675,6 +684,9 @@ class Linux_Install(object):
                             elif self.install_software_value.get().strip() == '引导页默认安装位置':
                                 public.execute_cmd('adb push ' + software_files_path +
                                                                            ' /etc/miniapp/resources/presetpkgs/8180000000000026.amr')
+                            elif self.install_software_value.get().strip() == '喜马拉雅默认安装位置':
+                                public.execute_cmd('adb push ' + software_files_path +
+                                                   ' /etc/miniapp/resources/presetpkgs/8080231999314849.amr')
                                 print(software_files_path + '已上传')
 
                         # 安装后需要清理缓存

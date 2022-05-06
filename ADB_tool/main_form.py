@@ -43,8 +43,8 @@ record_count = make_dir + 'record_count.txt'
 record_stop_config = make_dir + 'record_stop.ini'
 # ------------------------------- 录屏功能
 # 统一修改版本号
-version = 'V1.0.0.11'
-version_code = 1001.1
+version = 'V1.0.0.12'
+version_code = 1001.2
 # 统一修改frame的宽高
 width = 600
 height = 405
@@ -134,7 +134,6 @@ class MainForm(object):
         s.devices_type_str.set('正在检测设备类型...')
         s.devices_type_label.place(x=270,y=425)
         s.devices_type_success.place(x=325,y=425)
-
 
     def display_main_frame(s):
         # 显示快捷模式主窗口
@@ -453,11 +452,7 @@ class MainForm(object):
         s.linux_frame1.place(y=20)
 
     def linux_all_button_close(s):
-        devices = public.device_connect()
-        if not devices:
-            s.linux_init_Button.place_forget()
-            s.linux_init_Button_disable.place(x=200, y=110)
-        else:
+        def linux_all_button_place_forget():
             # 特殊情况下禁用linux模式所有功能（包含已disable状态的按钮）
             s.linux_screen_Button.place_forget()
             s.linux_screen_Button_disable.place_forget()
@@ -469,6 +464,15 @@ class MainForm(object):
             s.linux_camera_disable.place_forget()
 
             s.linux_button_label.place(x=20, y=220)
+
+        devices = public.device_connect()
+        if not devices:
+            s.linux_init_Button.place_forget()
+            s.linux_init_Button_disable.place(x=200, y=110)
+
+            linux_all_button_place_forget()
+        else:
+            linux_all_button_place_forget()
 
     def linux_all_button_open(s):
         # 先禁用初始化按钮
@@ -594,6 +598,7 @@ class MainForm(object):
             while True:
                 # 获取设备序列号
                 devices_finally = public.device_connect()
+                # print(devices_finally)
                 if not devices_finally:
                     s.devices_fail.place(x=470, y=0)
                     s.devices_type_fail.place(x=325,y=425)
@@ -606,6 +611,9 @@ class MainForm(object):
                         s.linux_all_button_close()
                     except AttributeError:
                         pass
+                # elif devices_finally == 'error: device not found':
+                #     s.devices_null.set('获取设备失败，正在重新获取...')
+                #     continue
                 else:
                     s.devices_fail.place_forget()
                     s.devices_type_fail.place_forget()
