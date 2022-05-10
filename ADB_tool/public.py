@@ -220,12 +220,8 @@ def get_files(file_dir):
             return files
 
 
-# def minimize(lpClassName_str,lpWindowName_str):
-#     # 窗口最小化
-#     # 先等待3秒
-#     time.sleep(1)
-#     # # 查找窗口句柄   "YodaoMainWndClass"  u"网易有道词典"
-#     hwnd = win32gui.FindWindow(lpClassName_str, lpWindowName_str)
-#     print(hwnd)
-#     # 最小化
-#     win32gui.ShowWindow(hwnd, win32con.SW_SHOWMINIMIZED)
+def linux_only_read():
+    check_only_read = execute_cmd('adb shell ls -lh /data/.overlay')
+    only_read = ' '.join(check_only_read.split()).split(':')[-1]
+    print(only_read)
+    return only_read

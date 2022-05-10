@@ -90,6 +90,10 @@ class MainForm(object):
         s.screen_menu1 = tkinter.Menubutton(s.root, text='截图录屏')
         s.screen_menu1.config(state='disable')
 
+        s.install_menu = tkinter.Menubutton(s.root, text='安装卸载')
+        s.install_menu1 = tkinter.Menubutton(s.root, text='安装卸载')
+        s.install_menu1.config(state='disable')
+
         s.linux_menu = tkinter.Menubutton(s.root, text='Linux模式')
         s.linux_menu1 = tkinter.Menubutton(s.root, text='Linux模式')
         s.linux_menu1.config(state='disable')
@@ -97,14 +101,18 @@ class MainForm(object):
         s.verion_menu = tkinter.Menubutton(s.root,text='版本历史')
         s.verion_menu1 = tkinter.Menubutton(s.root, text='版本历史')
         s.verion_menu1.config(state='disable')
+
         s.main_menu.bind('<Button-1>',lambda x:s.display_main_frame())
         s.verion_menu.bind('<Button-1>',lambda x:s.display_version_frame())
         s.screen_menu.bind('<Button-1>',lambda x:s.display_screenshot_frame())
         s.linux_menu.bind('<Button-1>',lambda x:s.display_linux_frame())
+        s.install_menu.bind('<Button-1>',lambda x:s.display_install_frame())
+
         s.main_menu.place(x=0,y=0)
         s.screen_menu.place(x=60, y=0)
-        s.linux_menu.place(x=120,y=0)
-        s.verion_menu.place(x=180,y=0)
+        s.install_menu.place(x=120,y=0)
+        s.linux_menu.place(x=180,y=0)
+        s.verion_menu.place(x=240,y=0)
 
         # 连接设备功能
         s.devices_state_label = tkinter.Label(s.root,text='设备连接状态：')
@@ -140,12 +148,14 @@ class MainForm(object):
         s.quickly_frame()
         s.verion_menu1.place_forget()
         s.screen_menu1.place_forget()
+        s.install_menu1.place_forget()
         s.linux_menu1.place_forget()
         s.main_menu1.place(x=0, y=0)
         try:
             s.screen_frame1.place_forget()
             s.linux_frame1.place_forget()
             s.verion_frame.place_forget()
+            s.install_frame1.place_forget()
         except AttributeError:
             print('所选窗口未启动 -警告信息Logs（可忽略）')
             pass
@@ -153,29 +163,50 @@ class MainForm(object):
     def display_screenshot_frame(s):
         # 显示截图录屏窗口
         s.screen_frame()
-        s.quickly_frame1.place_forget()
         s.main_menu1.place_forget()
         s.linux_menu1.place_forget()
+        s.install_menu1.place_forget()
         s.screen_menu1.place(x=60, y=0)
         s.verion_menu1.place_forget()
         try:
+            s.quickly_frame1.place_forget()
             s.linux_frame1.place_forget()
             s.verion_frame.place_forget()
+            s.install_frame1.place_forget()
+        except AttributeError:
+            print('所选窗口未启动 -警告信息Logs（可忽略）')
+            pass
+
+    def display_install_frame(s):
+        # 显示安装卸载窗口
+        s.install_menu1.place(x=120, y=0)
+        s.install_frame()
+        s.screen_menu1.place_forget()
+        s.main_menu1.place_forget()
+        s.verion_menu1.place_forget()
+        s.linux_menu1.place_forget()
+        try:
+            s.quickly_frame1.place_forget()
+            s.screen_frame1.place_forget()
+            s.verion_frame.place_forget()
+            s.linux_frame1.place_forget()
         except AttributeError:
             print('所选窗口未启动 -警告信息Logs（可忽略）')
             pass
 
     def display_linux_frame(s):
         # 显示Linux模式窗口
+        s.linux_menu1.place(x=180, y=0)
         s.linux_frame()
-        s.quickly_frame1.place_forget()
         s.screen_menu1.place_forget()
         s.main_menu1.place_forget()
         s.verion_menu1.place_forget()
-        s.linux_menu1.place(x=120,y=0)
+        s.install_menu1.place_forget()
         try:
+            s.quickly_frame1.place_forget()
             s.screen_frame1.place_forget()
             s.verion_frame.place_forget()
+            s.install_frame1.place_forget()
         except AttributeError:
             print('所选窗口未启动 -警告信息Logs（可忽略）')
             pass
@@ -183,14 +214,16 @@ class MainForm(object):
     def display_version_frame(s):
         # 显示版本历史窗口
         s.version_history_frame()
-        s.quickly_frame1.place_forget()
         s.main_menu1.place_forget()
         s.screen_menu1.place_forget()
         s.linux_menu1.place_forget()
-        s.verion_menu1.place(x=180, y=0)
+        s.install_menu1.place_forget()
+        s.verion_menu1.place(x=240, y=0)
         try:
+            s.quickly_frame1.place_forget()
             s.linux_frame1.place_forget()
             s.screen_frame1.place_forget()
+            s.install_frame1.place_forget()
         except AttributeError:
             print('所选窗口未启动 -警告信息Logs（可忽略）')
             pass
@@ -375,6 +408,26 @@ class MainForm(object):
         s.reset_button.place(x=200, y=370)
 
         s.screen_frame1.place(y=20)
+
+    def install_frame(s):
+        # 显示安装与卸载模式窗口
+        s.install_frame1 = tkinter.Frame(s.root, width=width, height=height)
+
+        # 卸载状态栏
+        s.uninstall_str = tkinter.StringVar()
+        s.uninstall_label = tkinter.Label(s.install_frame1, textvariable=s.uninstall_str, bg='black', fg='#FFFFFF',
+                                           width=46, height=2)
+        s.uninstall_label.place(x=20, y=20)
+        s.uninstall_str.set('此处显示卸载apk状态')
+
+        # 检测包名按钮
+        s.check_package_name_button = tkinter.Button(s.install_frame1, text='点击检测当前包名', width=width_button)
+        # s.check_package_name_button.bind('<Button-1>', lambda x: s.screenshot_bind())
+        s.check_package_name_button_disable = tkinter.Button(s.install_frame1, text='正在检测中...', width=width_button)
+        s.check_package_name_button_disable.config(state='disable')
+        s.check_package_name_button.place(x=20, y=80)
+
+        s.install_frame1.place(y=20)
 
     def linux_frame(s):
         # 显示Linux模式窗口
@@ -1023,7 +1076,7 @@ class MainForm(object):
         t_install_close.setDaemon(True)
         t_install_close.start()
 
-    def  linux_camera_bind(s):
+    def linux_camera_bind(s):
         def t_camera():
             # 初始化取图页面的状态
             with open(camera_page, 'w') as fp:
@@ -1053,3 +1106,13 @@ class MainForm(object):
         t_camera_close = threading.Thread(target=t_camera_close)
         t_camera_close.setDaemon(True)
         t_camera_close.start()
+
+    def check_package_name_bind(s):
+        def t_check_package_name():
+            # 检测当前包名
+            package_name = public.found_packages()
+            print(package_name)
+
+        t_check_package_name = threading.Thread(target=t_check_package_name)
+        t_check_package_name.setDaemon(True)
+        t_check_package_name.start()
