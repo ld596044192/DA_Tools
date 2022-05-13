@@ -221,7 +221,24 @@ def get_files(file_dir):
 
 
 def linux_only_read():
+    # 检测只读权限 - 适用于Linux系统
     check_only_read = execute_cmd('adb shell ls -lh /data/.overlay')
     only_read = ' '.join(check_only_read.split()).split(':')[-1]
     print(only_read)
     return only_read
+
+
+def temporary_environ(path_value):
+    # 临时配置环境变量
+    os.environ["PATH"] += ";" + path_value
+    # 查看已配置的环境变量
+    print(os.environ["PATH"])
+
+
+def permanent_environ(path_value):
+    # 永久配置环境变量
+    # /m代表系统变量。 不加 /m为用户变量
+    command = r"setx WORK1 %s /m" % path_value
+    result = execute_cmd(command)
+    print(result)
+

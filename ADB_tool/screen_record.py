@@ -32,16 +32,21 @@ record_dirname = 'ADB工具-录屏（DA）'
 record_save = 'C:\\Users\\' + username + '\\Desktop\\' + record_dirname + '\\'
 
 
-def cd_screenshots():
+def cd_screenshots(screen_str):
     # 进入截图临时保存文件夹
     command = 'adb shell cd /sdcard/da_screenshots'
     screenshot = public.execute_cmd(command)
     print(screenshot)
-    mkdir_state = screenshot.split(':')[-1]
-    # 创建截图临时保存文件夹
-    if mkdir_state == ' No such file or directory\r\n':
-        make_state = public.execute_cmd('adb shell mkdir /sdcard/da_screenshots')
+    if screenshot.strip() == "/bin/sh: cd: line 1: can't cd to /sdcard/da_screenshots":
+        make_state = 'Non-Android Devices'
+        print(make_state)
         return make_state
+    else:
+        mkdir_state = screenshot.split(':')[-1]
+        # 创建截图临时保存文件夹
+        if mkdir_state == ' No such file or directory\r\n':
+            make_state = public.execute_cmd('adb shell mkdir /sdcard/da_screenshots')
+            return make_state
 
 
 def main_screenshots(touch_name):

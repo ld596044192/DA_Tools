@@ -1,4 +1,5 @@
 import re
+import shutil
 import time
 import tkinter,tkinter.ttk,tkinter.messagebox
 import threading
@@ -8,6 +9,8 @@ import quickly,screen_record,linux_main
 
 # 全局变量标记-设备类型
 devices_linux_flag = False
+# 全局变量标记-设备检测
+adb_service_flag = True
 
 username = getpass.getuser()
 LOGO_path = public.resource_path(os.path.join('icon', 'android.ico'))
@@ -27,6 +30,10 @@ screen_page = make_dir + 'screen_page_state.txt'
 install_page = make_dir + 'install_page_state.txt'
 # 取图页面启动标志
 camera_page = make_dir + 'camera_page_state.txt'
+# 简易ADB - adb-tools检测标志
+adb_tools_flag = make_dir + 'adb-tools'
+# 卸载APK标记
+uninstall_flag = True
 # ------------------------------- 录屏功能
 # 录屏状态
 record_screen_state = make_dir + 'record_state.txt'
@@ -219,9 +226,9 @@ class MainForm(object):
         s.linux_menu1.place_forget()
         s.install_menu1.place_forget()
         s.verion_menu1.place(x=240, y=0)
+        s.linux_frame1.place_forget()
         try:
             s.quickly_frame1.place_forget()
-            s.linux_frame1.place_forget()
             s.screen_frame1.place_forget()
             s.install_frame1.place_forget()
         except AttributeError:
@@ -422,10 +429,17 @@ class MainForm(object):
 
         # 检测包名按钮
         s.check_package_name_button = tkinter.Button(s.install_frame1, text='点击检测当前包名', width=width_button)
-        # s.check_package_name_button.bind('<Button-1>', lambda x: s.screenshot_bind())
+        s.check_package_name_button.bind('<Button-1>', lambda x: s.check_package_name_bind(uninstall_flag))
         s.check_package_name_button_disable = tkinter.Button(s.install_frame1, text='正在检测中...', width=width_button)
         s.check_package_name_button_disable.config(state='disable')
         s.check_package_name_button.place(x=20, y=80)
+
+        # 检测包名按钮
+        s.uninstall_button = tkinter.Button(s.install_frame1, text='一键卸载APK', width=width_button)
+        s.uninstall_button.bind('<Button-1>', lambda x: s.uninstall_bind())
+        s.uninstall_button_disable = tkinter.Button(s.install_frame1, text='正在卸载中...', width=width_button)
+        s.uninstall_button_disable.config(state='disable')
+        s.uninstall_button.place(x=200, y=80)
 
         s.install_frame1.place(y=20)
 
@@ -646,6 +660,30 @@ class MainForm(object):
         t_awake.start()
 
     def devices_bind(s):
+        def adb_flag():
+            global adb_service_flag
+            # 判断ADB状态，需要内置ADB则需要延迟5S后再检测
+            # 中文状态下
+            adb_finally = public.adb_connect()[1]
+            try:
+                # 英文状态下
+                adb_english = ' '.join(public.adb_connect()).split(',')[1]
+                if adb_finally == '不是内部或外部命令，也不是可运行的程序' or adb_english == ' operable program or batch file.':
+                    adb_service_flag = False
+                    print('检测为内置ADB，需要延迟5S后才能设备连接')
+                else:
+                    adb_service_flag = False
+                    print('检测为本地ADB，无需延迟')
+                return adb_service_flag
+            except IndexError:
+                if adb_finally == '不是内部或外部命令，也不是可运行的程序':
+                    adb_service_flag = False
+                    print('检测为内置ADB，需要延迟5S后才能设备连接')
+                else:
+                    adb_service_flag = False
+                    print('检测为本地ADB，无需延迟')
+                return adb_service_flag
+
         def t_devices():
             s.devices_str.set('正在检测设备连接状态...')
             while True:
@@ -715,25 +753,36 @@ class MainForm(object):
 
     def adb_bind(s):
         # 检测ADB服务状态
+        def adb_install():
+            # 内置简易ADB
+            if not os.path.exists(adb_tools_flag):
+                shutil.copy(adb_path,make_dir)
+
         def t_adb():
-            time.sleep(5)  # 等待ADB服务启动完毕
-            # 中文状态下
-            adb_finally = public.adb_connect()[1]
-            try:
-                # 英文状态下
-                adb_english = ' '.join(public.adb_connect()).split(',')[1]
-                if adb_finally == '不是内部或外部命令，也不是可运行的程序' or adb_english == ' operable program or batch file.':
-                    os.chdir(adb_path)
-                    s.adb_str.set('内置ADB已开启！')
-                else:
-                    s.adb_str.set('本地ADB已开启！')
-            except IndexError:
-                print('IndexError异常，无影响！')
-                if adb_finally == '不是内部或外部命令，也不是可运行的程序':
-                    os.chdir(adb_path)
-                    s.adb_str.set('内置ADB已开启！')
-                else:
-                    s.adb_str.set('本地ADB已开启！')
+            # time.sleep(5)  # 等待ADB服务启动完毕
+            while True:
+                time.sleep(1)
+                # 中文状态下
+                adb_finally = public.adb_connect()[1]
+                try:
+                    # 英文状态下
+                    adb_english = ' '.join(public.adb_connect()).split(',')[1]
+                    if adb_finally == '不是内部或外部命令，也不是可运行的程序' or adb_english == ' operable program or batch file.':
+                        os.chdir(adb_path)
+                        s.adb_str.set('内置ADB已开启！')
+                        break
+                    else:
+                        s.adb_str.set('本地ADB已开启！')
+                        break
+                except IndexError:
+                    print('IndexError异常，无影响！')
+                    if adb_finally == '不是内部或外部命令，也不是可运行的程序':
+                        os.chdir(adb_path)
+                        s.adb_str.set('内置ADB已开启！')
+                        break
+                    else:
+                        s.adb_str.set('本地ADB已开启！')
+                        break
 
         t_adb = threading.Thread(target=t_adb)
         t_adb.setDaemon(True)
@@ -757,16 +806,19 @@ class MainForm(object):
                     s.screen_str.set('请连接设备后再截图！')
                 else:
                     # 创建临时文件
-                    make_state = screen_record.cd_screenshots()
-                    if not make_state:
-                        s.main_screenshot(touch_name)
+                    make_state = screen_record.cd_screenshots(s.screen_str)
+                    if make_state == 'Non-Android Devices':
+                        s.screen_str.set('检测到非安卓设备\n请使用安卓设备进行操作')
                     else:
-                        make_state_finally = make_state.split(':')[-1]
-                        print(make_state_finally)
-                        if make_state_finally == ' No such file or directory\r\n':
-                            s.screen_str.set('别着急截图，系统都还没完全启动呢...')
-                        else:
+                        if not make_state:
                             s.main_screenshot(touch_name)
+                        else:
+                            make_state_finally = make_state.split(':')[-1]
+                            print(make_state_finally)
+                            if make_state_finally == ' No such file or directory\r\n':
+                                s.screen_str.set('别着急截图，系统都还没完全启动呢...')
+                            else:
+                                s.main_screenshot(touch_name)
             else:
                 s.screen_str.set('截图文件名过长，请重新输入！')
             s.screen_button_disable.place_forget()
@@ -1107,11 +1159,47 @@ class MainForm(object):
         t_camera_close.setDaemon(True)
         t_camera_close.start()
 
-    def check_package_name_bind(s):
+    def uninstall_bind(s):
+        def t_uninstall():
+            global uninstall_flag
+            # 卸载APK流程
+            s.uninstall_button_disable.place(x=200,y=80)
+            s.uninstall_str.set('正在卸载APK中...')
+            # 卸载标记
+            uninstall_flag = False
+            s.check_package_name_bind(uninstall_flag)
+            s.uninstall_button_disable.place_forget()
+
+        t_uninstall = threading.Thread(target=t_uninstall)
+        t_uninstall.setDaemon(True)
+        t_uninstall.start()
+
+    def check_package_name_bind(s,uninstall_flag):
         def t_check_package_name():
+            global uninstall_flag
             # 检测当前包名
-            package_name = public.found_packages()
-            print(package_name)
+            s.check_package_name_button_disable.place(x=20,y=80)
+            devices_state = public.device_connect()
+            if not devices_state:
+                s.uninstall_str.set('请连接设备后再重新检测')
+            else:
+                try:
+                    s.uninstall_str.set('正在检测当前包名...')
+                    package_name = public.found_packages()
+                    print(package_name)
+                    s.uninstall_str.set('已检测到当前包名\n' + package_name)
+
+                    if not uninstall_flag:
+                        s.uninstall_str.set('检测到' + package_name + '\n正在卸载中...')
+                        public.execute_cmd('adb uninstall ' + package_name)
+                        uninstall_flag = True
+                        s.uninstall_str.set('APK已卸载成功！')
+                    else:
+                        pass
+                except IndexError:
+                    s.uninstall_str.set('检测到非安卓设备\n请使用安卓设备进行操作')
+
+            s.check_package_name_button_disable.place_forget()
 
         t_check_package_name = threading.Thread(target=t_check_package_name)
         t_check_package_name.setDaemon(True)

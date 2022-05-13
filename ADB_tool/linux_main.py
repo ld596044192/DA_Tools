@@ -47,6 +47,10 @@ camera_page = make_dir + 'camera_page_state.txt'
 # Entry输入框焦点标记（用于右键菜单粘贴逻辑使用）
 install_library_entry_focus_flag = False
 install_software_entry_focus_flag = False
+# 限制截图提示弹框标记
+screen_click_flag = False
+# 限制截图重置提示弹框标记
+screen_reset_flag = False
 
 
 def main_init(init_str,init_Button,init_Button_disable):
@@ -351,7 +355,11 @@ class Linux_Screen(object):
                         # 截图保存后自动打开判断
                         if self.auto_show_on.get() == 1:
                             self.screen_str.set('自动显示截图模式已打开\n可以进行编辑、添加文字提示')
+                            # 开启窗口置顶
+                            self.screen_root.wm_attributes('-topmost', 1)
                             img_rotate.show()
+                            # 关闭窗口置顶
+                            self.screen_root.wm_attributes('-topmost', 0)
                             self.screen_str.set('截图已关闭\n自动显示截图说明：方便编辑图片、添加文字')
                         else:
                             pass
@@ -368,7 +376,14 @@ class Linux_Screen(object):
         t_screen.start()
 
     def linux_screen_disable_bind(self):
-        tkinter.messagebox.showwarning(title='重复警告',message='已有截图任务正在进行中...\n请勿重复截图')
+        # 限制弹出框次数为1，防止每次点击都弹出新的对话框
+        global screen_click_flag
+        if not screen_click_flag:
+            screen_click_flag = True
+            tkinter.messagebox.showwarning(title='重复警告',message='已有截图任务正在进行中...\n请勿重复截图')
+            screen_click_flag = False
+        else:
+            pass
 
     def open_linux_screen_bind(self):
         # 打开Linux截图文件夹
@@ -396,7 +411,14 @@ class Linux_Screen(object):
         t_linux_reset.start()
 
     def linux_reset_disable_bind(self):
-        tkinter.messagebox.showwarning(title='录屏警告',message='正在进行截图，无法重置！！！')
+        # 限制弹出框次数为1，防止每次点击都弹出新的对话框
+        global screen_reset_flag
+        if not screen_reset_flag:
+            screen_reset_flag = True
+            tkinter.messagebox.showwarning(title='重置警告',message='正在进行截图，无法重置！！！')
+            screen_reset_flag = False
+        else:
+            pass
 
 
 # 安装应用界面

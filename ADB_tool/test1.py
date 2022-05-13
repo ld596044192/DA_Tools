@@ -1,14 +1,25 @@
-import public
+import getpass,os
+import sys
 
-yuv_dirs = public.get_dirs(r'C:\Users\lida\Desktop\ADB_get_yuv\get_yuv8')
-print(yuv_dirs)
-for yuv_dir_path in yuv_dirs:
-    try:
-        yuv_files = public.get_files(yuv_dir_path)
-        if 'origin_320X240.yuv' in yuv_files:
-            yuv_dir_path_select = yuv_dir_path
-            print(yuv_dir_path)
-            break
-    except TypeError:
-        pass
+username = getpass.getuser()
+make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
 
+
+# #输出环境变量
+# env=os.environ
+# for key in env:
+#  print (key + ' : ' + env[key])
+
+#只看PATH变量
+
+print(os.environ["PATH"])
+
+#增加路径到环境中
+os.environ["PATH"] += ";" + make_dir
+#
+# #注意这些环境变量都会动态的，就是重新打开变量就没有了，需要继续添加
+# env=os.environ
+# for key in env:
+#  print (key + ' : ' + env[key])
+
+print(os.environ["PATH"])
