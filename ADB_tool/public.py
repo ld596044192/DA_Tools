@@ -4,7 +4,7 @@ import subprocess
 import psutil,shutil
 import re
 from tkinter import *
-import win32con,win32gui,time
+import zipfile
 
 
 def resource_path(relative_path):
@@ -236,9 +236,20 @@ def temporary_environ(path_value):
 
 
 def permanent_environ(path_value):
-    # 永久配置环境变量
+    # 永久配置环境变量（添加到Path中）
     # /m代表系统变量。 不加 /m为用户变量
-    command = r"setx WORK1 %s /m" % path_value
+    command = r'setx "Path" ' + '"' + path_value + ';%path%" /m'
+    print(command)
     result = execute_cmd(command)
     print(result)
+
+
+def zip_extract(zip_path,zip_target_path):
+    # 解压zip文件
+    zip_f = zipfile.ZipFile(zip_path)
+    list_zip_f = zip_f.namelist()  # zip文件中的文件列表名
+    for zip_fn in list_zip_f:
+        zip_f.extract(zip_fn, zip_target_path)  # 第二个参数指定输出目录
+        print("%s done" % zip_fn)
+    zip_f.close()
 

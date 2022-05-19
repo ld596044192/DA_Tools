@@ -3,7 +3,7 @@ import shutil
 import time
 import tkinter,tkinter.ttk,tkinter.messagebox
 import threading
-import os,psutil
+import os,psutil,zipfile
 import public,getpass
 import quickly,screen_record,linux_main
 
@@ -15,7 +15,7 @@ adb_service_flag = True
 username = getpass.getuser()
 LOGO_path = public.resource_path(os.path.join('icon', 'android.ico'))
 version_path = public.resource_path(os.path.join('version','version_history.txt'))
-adb_path = public.resource_path(os.path.join('adb-tools'))
+adb_path = public.resource_path(os.path.join('resources','adb-tools.zip'))
 record_state = public.resource_path(os.path.join('temp','record_state.txt'))
 # 创建临时文件夹
 make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
@@ -226,8 +226,8 @@ class MainForm(object):
         s.linux_menu1.place_forget()
         s.install_menu1.place_forget()
         s.verion_menu1.place(x=240, y=0)
-        s.linux_frame1.place_forget()
         try:
+            s.linux_frame1.place_forget()
             s.quickly_frame1.place_forget()
             s.screen_frame1.place_forget()
             s.install_frame1.place_forget()
@@ -660,30 +660,6 @@ class MainForm(object):
         t_awake.start()
 
     def devices_bind(s):
-        def adb_flag():
-            global adb_service_flag
-            # 判断ADB状态，需要内置ADB则需要延迟5S后再检测
-            # 中文状态下
-            adb_finally = public.adb_connect()[1]
-            try:
-                # 英文状态下
-                adb_english = ' '.join(public.adb_connect()).split(',')[1]
-                if adb_finally == '不是内部或外部命令，也不是可运行的程序' or adb_english == ' operable program or batch file.':
-                    adb_service_flag = False
-                    print('检测为内置ADB，需要延迟5S后才能设备连接')
-                else:
-                    adb_service_flag = False
-                    print('检测为本地ADB，无需延迟')
-                return adb_service_flag
-            except IndexError:
-                if adb_finally == '不是内部或外部命令，也不是可运行的程序':
-                    adb_service_flag = False
-                    print('检测为内置ADB，需要延迟5S后才能设备连接')
-                else:
-                    adb_service_flag = False
-                    print('检测为本地ADB，无需延迟')
-                return adb_service_flag
-
         def t_devices():
             s.devices_str.set('正在检测设备连接状态...')
             while True:
@@ -754,9 +730,19 @@ class MainForm(object):
     def adb_bind(s):
         # 检测ADB服务状态
         def adb_install():
-            # 内置简易ADB
+            # 一键配置ADB核心步骤
             if not os.path.exists(adb_tools_flag):
                 shutil.copy(adb_path,make_dir)
+                # 解压
+                zip_path = make_dir + 'adb-tools.zip'
+                public.zip_extract(zip_path,make_dir)
+                # 清理压缩包
+                os.remove(zip_path)
+                # 配置环境变量
+                public.temporary_environ(adb_tools_flag)
+                public.permanent_environ(adb_tools_flag)
+                # 打印测试
+                print(public.execute_cmd('adb version'))
 
         def t_adb():
             # time.sleep(5)  # 等待ADB服务启动完毕
@@ -768,20 +754,32 @@ class MainForm(object):
                     # 英文状态下
                     adb_english = ' '.join(public.adb_connect()).split(',')[1]
                     if adb_finally == '不是内部或外部命令，也不是可运行的程序' or adb_english == ' operable program or batch file.':
-                        os.chdir(adb_path)
-                        s.adb_str.set('内置ADB已开启！')
+                        # os.chdir(adb_path)
+                        # s.adb_str.set('内置ADB已开启！')
+                        s.adb_str.set('正在配置ADB...')
+                        adb_install()
+                        s.adb_str.set('ADB已配置成功！')
+                        time.sleep(3)
+                        s.adb_str.set('本地ADB已开启！')
                         break
                     else:
                         s.adb_str.set('本地ADB已开启！')
+                        print(public.execute_cmd('adb version'))
                         break
                 except IndexError:
                     print('IndexError异常，无影响！')
                     if adb_finally == '不是内部或外部命令，也不是可运行的程序':
-                        os.chdir(adb_path)
-                        s.adb_str.set('内置ADB已开启！')
+                        # os.chdir(adb_path)
+                        # s.adb_str.set('内置ADB已开启！')
+                        s.adb_str.set('正在配置ADB...')
+                        adb_install()
+                        s.adb_str.set('ADB已配置成功！')
+                        time.sleep(3)
+                        s.adb_str.set('本地ADB已开启！')
                         break
                     else:
                         s.adb_str.set('本地ADB已开启！')
+                        print(public.execute_cmd('adb version'))
                         break
 
         t_adb = threading.Thread(target=t_adb)
@@ -866,42 +864,42 @@ class MainForm(object):
 
                 # 记录录屏模式
                 s.record_model_selected = s.record_model_str.get()
+                print('录屏模式：' + str(s.record_model_selected))
                 with open(record_model_log,'w') as fp:
-                    print('录屏模式：' + str(s.record_model_selected))
                     fp.write(str(s.record_model_selected))
 
                 # 获取录屏时间
                 s.record_time_get = s.record_time.get()
                 s.record_time_re = re.findall('(.*?)秒',s.record_time_get)
                 s.record_time_selected = ''.join(s.record_time_re)
-                with open(record_time_txt,'w') as fp:
-                    fp.write(s.record_time_selected)
+                # with open(record_time_txt,'w') as fp:
+                #     fp.write(s.record_time_selected)
 
-                # 记录当前程序位置
-                now_path = os.getcwd()
-                print(now_path)
-                with open(exe_path,'w') as fp:
-                    fp.write(now_path)
+                # # 记录当前程序位置
+                # now_path = os.getcwd()
+                # print(now_path)
+                # with open(exe_path,'w') as fp:
+                #     fp.write(now_path)
 
-                # 切换到内置adb-tools路径，使录屏命令生效
-                os.chdir(adb_path)
-                # 响应内置ADB（防止切换到内置ADB时导致失效）
-                public.execute_cmd('adb start-server')
+                # # 切换到内置adb-tools路径，使录屏命令生效
+                # os.chdir(adb_path)
+                # # 响应内置ADB（防止切换到内置ADB时导致失效）
+                # public.execute_cmd('adb start-server')
 
-                # 确保切换内置ADB并连接上设备后再执行停止机制
-                while True:
-                    devices_states = devices_state
-                    if devices_states:
-                        record_stop_flag = True
-                        break
+                # # 确保切换内置ADB并连接上设备后再执行停止机制
+                # while True:
+                #     devices_states = devices_state
+                #     if devices_states:
+                #         record_stop_flag = True
+                #         break
 
                 with open(record_stop_config, 'w') as fp:
                     fp.write('0')
                 # 获取录屏名称
                 s.record_name = s.record_entry.get()
-                with open(record_name,'w') as fp:
-                    fp.write(s.record_name)
-                screen_record.open_record_main()
+                # with open(record_name,'w') as fp:
+                #     fp.write(s.record_name)
+                screen_record.record(s.record_name,s.record_time_selected,str(s.record_model_selected))
 
         def record_time():
             # 显示录屏状态
@@ -916,24 +914,29 @@ class MainForm(object):
                 record_model_get = open(record_model_log, 'r').read()
                 if record_model_get == '0':
                     s.record_str.set('正在保存录屏文件，请稍等...')
-                    s.record_name = open(record_name,'r').read()
-                    screen_record.record_pull(s.record_name)
+                    # s.record_name = open(record_name,'r').read()
+                    s.record_name = s.record_entry.get()
+                    screen_record.record_pull(s.record_name, record_model_get)
+                    time.sleep(3)  # 延迟3S同步状态
                     # s.record_str.set('注意：录屏时间仅供参考，具体查看文件时长\n录屏文件保存成功！录屏时间为：' + record_end_finally)
                     s.record_str.set('录屏文件保存成功！\n打开录屏文件夹即可查看哦~')
                 elif record_model_get == '1':
-
-                    # 返回原始地址，防止与本地ADB服务发生冲突导致无法使用
-                    original_path = open(exe_path, 'r').read()
-                    os.chdir(original_path)
-
-                    # 关闭ADB服务，以免影响本地ADB服务的开启
-                    public.execute_cmd('adb kill-server')
+                    # # 返回原始地址，防止与本地ADB服务发生冲突导致无法使用
+                    # original_path = open(exe_path, 'r').read()
+                    # os.chdir(original_path)
+                    #
+                    # # 关闭ADB服务，以免影响本地ADB服务的开启
+                    # public.execute_cmd('adb kill-server')
 
                     # 连续模式计数
                     r = int(open(record_count, 'r').read())
                     r += 1
                     with open(record_count, 'w') as fp:
                         fp.write(str(r))
+                    s.record_str.set('正在保存连续模式录屏文件，请稍等...')
+                    s.record_name = s.record_entry.get()
+                    screen_record.record_pull(s.record_name,record_model_get)
+                    time.sleep(3)  # 延迟3S同步状态
                     s.record_str.set('连续模式已结束！（录屏文件已保存）')
                 s.record_button_disable.place_forget()
                 s.record_stop_button_disable.place(x=200, y=330)
@@ -951,9 +954,9 @@ class MainForm(object):
                 record_device = public.device_connect()
                 record_stop_state = open(record_screen_state,'r').read()
                 record_stop_ini = open(record_stop_config,'r').read()
-                if record_stop_state == 'Stop recording screen' and record_stop_ini == '0' and record_stop_flag:
-                    os.popen('taskkill /F /IM %s ' % 'adb.exe /T', 'r')
-                    os.popen('taskkill /F /IM %s ' % 'record_main.exe /T', 'r')
+                if record_stop_state == 'Stop recording screen' and record_stop_ini == '0':
+                    # os.popen('taskkill /F /IM %s ' % 'adb.exe /T', 'r')
+                    # os.popen('taskkill /F /IM %s ' % 'record_main.exe /T', 'r')
                     try:
                         public.stop_thread(t_record)
                         public.stop_thread(record_time)
@@ -964,17 +967,31 @@ class MainForm(object):
                     s.reset_button_disable.place_forget()
                     s.record_str.set('录屏已被中断！！！')
                     break
-                elif record_stop_state == 'Stop recording screen' and record_stop_ini == '1' and record_stop_flag:
-                    os.popen('taskkill /F /IM %s ' % 'record_main.exe /T', 'r')
-                    # 等待文件保存完毕再复原按钮
-                    time.sleep(4)
+                elif record_stop_state == 'Stop recording screen' and record_stop_ini == '1':
+                    # os.popen('taskkill /F /IM %s ' % 'record_main.exe /T', 'r')
+                    # 通过关闭并重启ADB达到录屏命令的自动断开，以便自动生成录屏文件
+                    print('正在断开并重启ADB服务...')
+                    # 关闭ADB服务
+                    public.execute_cmd('adb kill-server')
+                    # 重启ADB服务
+                    public.execute_cmd('adb start-server')
+                    print('ADB服务重启成功！！！')
+                    try:
+                        # 连续模式停止
+                        public.stop_thread(t_record)
+                        print('主动中断连续模式！！！')
+                    except ValueError:
+                        print('手动模式无需强制中断线程---')
+                        pass
+                    # 等待文件保存完毕或ADB服务完全启动再复原按钮
+                    time.sleep(7)
                     s.record_button_disable.place_forget()
                     s.record_stop_button_disable.place(x=200, y=330)
                     s.reset_button_disable.place_forget()
                     break
-                elif not record_device and record_stop_ini == '0' and record_stop_flag:
+                elif not record_device and record_stop_ini == '0':
                     # 未录屏前断开设备
-                    os.popen('taskkill /F /IM %s ' % 'record_main.exe /T', 'r')
+                    # os.popen('taskkill /F /IM %s ' % 'record_main.exe /T', 'r')
                     s.record_str.set('设备突然中断连接，录屏结束！')
                     s.record_button_disable.place_forget()
                     s.record_stop_button_disable.place(x=200, y=330)
