@@ -77,9 +77,18 @@ def device_connect():
     return devices_re
 
 
-def found_packages():
+def adb_version():
+    # 检测ADB调试桥版本
+    adb_version_str = execute_cmd('adb version')
+    adb_version_re = re.findall('Android Debug Bridge version (.*?)\\r\\n',adb_version_str)
+    adb_version_finally = ''.join(''.join(adb_version_re).split('.'))
+    print('Android Debug Bridge version code: ' + adb_version_finally)
+    return adb_version_finally
+
+
+def found_packages(device):
     # 查找当前包名
-    package_cmd = execute_cmd('adb shell dumpsys window | findstr mCurrentFocus')
+    package_cmd = execute_cmd('adb -s ' + device + ' shell dumpsys window | findstr mCurrentFocus')
     package_name = package_cmd.split()[(-1)].split('/')[0]
     return package_name
 
@@ -105,9 +114,9 @@ def get_pid_name():
     return Processes
 
 
-def device_type_android():
+def device_type_android(device):
     # 检测安卓方法
-    device_type = execute_cmd('adb shell getprop net.bt.name')
+    device_type = execute_cmd('adb -s ' + device + ' shell getprop net.bt.name')
     # print(device_type)  # 调试
     return device_type
 
@@ -220,9 +229,9 @@ def get_files(file_dir):
             return files
 
 
-def linux_only_read():
+def linux_only_read(device):
     # 检测只读权限 - 适用于Linux系统
-    check_only_read = execute_cmd('adb shell ls -lh /data/.overlay')
+    check_only_read = execute_cmd('adb -s ' + device + ' shell ls -lh /data/.overlay')
     only_read = ' '.join(check_only_read.split()).split(':')[-1]
     print(only_read)
     return only_read
@@ -252,4 +261,12 @@ def zip_extract(zip_path,zip_target_path):
         zip_f.extract(zip_fn, zip_target_path)  # 第二个参数指定输出目录
         print("%s done" % zip_fn)
     zip_f.close()
+
+
+# 检验字符串是否含有中文字符
+def is_contains_chinese(strs):
+    for _char in strs:
+        if '\u4e00' <= _char <= '\u9fa5':
+            return True
+    return False
 

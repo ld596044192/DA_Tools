@@ -12,10 +12,12 @@ devices_linux_flag = False
 # 全局变量标记-设备检测
 adb_service_flag = True
 
+
 username = getpass.getuser()
 LOGO_path = public.resource_path(os.path.join('icon', 'android.ico'))
 version_path = public.resource_path(os.path.join('version','version_history.txt'))
 adb_path = public.resource_path(os.path.join('resources','adb-tools.zip'))
+adb_version_path = public.resource_path(os.path.join('resources','Android Debug Bridge version.txt'))
 record_state = public.resource_path(os.path.join('temp','record_state.txt'))
 # 创建临时文件夹
 make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
@@ -49,11 +51,16 @@ record_count = make_dir + 'record_count.txt'
 # 录屏停止处理
 record_stop_config = make_dir + 'record_stop.ini'
 # ------------------------------- 录屏功能
+# ADB升级状态
+adb_upgrade_flag = make_dir + 'adb_state.ini'
+# 启动前初始化
+with open(adb_upgrade_flag,'w') as fp:
+    fp.write('ADB is the latest version')
 # 统一修改版本号
-version = 'V1.0.0.12'
-version_code = 1001.2
+version = 'V1.0.0.14'
+version_code = 1001.4
 # 统一修改frame的宽高
-width = 600
+width = 367
 height = 405
 # 统一按钮宽度
 width_button = 20
@@ -150,6 +157,59 @@ class MainForm(object):
         s.devices_type_label.place(x=270,y=425)
         s.devices_type_success.place(x=325,y=425)
 
+        # 设备序列号下拉框说明
+        content = '''
+                连接多设备时所有序列号都在下面哦~
+                可根据序列号选择对应设备进行操作
+                '''
+        s.more_devices_label = tkinter.Label(s.root, text=content, fg='red')
+        s.more_devices_label.place(x=310, y=20)
+
+        # 所有设备序列号下拉框选择
+        s.more_devices_list = [' ']
+        s.more_devices_value = tkinter.StringVar()
+        s.more_devices_combobox = tkinter.ttk.Combobox(s.root, state="readonly", width=25,
+                                                             textvariable=s.more_devices_value)
+        s.more_devices_combobox.config(command=s.more_devices_bind())
+        # state：“正常”，“只读”或“禁用”之一。在“只读”状态下，可能无法直接编辑该值，并且用户只能从下拉列表中选择值。在“正常”状态下，文本字段可直接编辑。在“禁用”状态下，不可能进行交互。
+        s.more_devices_combobox.place(x=380, y=80)
+
+    def more_devices_bind(s):
+        def t_more_devices():
+            devices_current_flag = False
+            # 多设备连接匹配
+            while True:
+                adb_install_state = open(adb_upgrade_flag, 'r').read()
+                if adb_install_state == 'ADB upgrade':
+                    s.more_devices_list = ['ADB升级中不可用']
+                    s.more_devices_combobox['value'] = s.more_devices_list
+                    s.more_devices_combobox.current(0)
+                    print('ADB升级中3...')
+                else:
+                    devices_list = public.device_connect()
+                    # print(devices_list)
+                    if not devices_list:
+                        s.more_devices_list = ['没有连接任何设备']
+                        s.more_devices_combobox['value'] = s.more_devices_list
+                        s.more_devices_combobox.current(0)
+                        devices_current_flag = False
+                        continue
+                    else:
+                        s.more_devices_list = devices_list
+                        s.more_devices_combobox['value'] = s.more_devices_list
+                        if not devices_current_flag:
+                            # 首次连接设备后只匹配首个序列号一次
+                            s.more_devices_combobox.current(0)
+                            devices_current_flag = True
+                            continue
+                        else:
+                            pass
+                time.sleep(1)
+
+        t_more_devices = threading.Thread(target=t_more_devices)
+        t_more_devices.setDaemon(True)
+        t_more_devices.start()
+
     def display_main_frame(s):
         # 显示快捷模式主窗口
         s.quickly_frame()
@@ -161,7 +221,7 @@ class MainForm(object):
         try:
             s.screen_frame1.place_forget()
             s.linux_frame1.place_forget()
-            s.verion_frame.place_forget()
+            s.verion_frame_full.place_forget()
             s.install_frame1.place_forget()
         except AttributeError:
             print('所选窗口未启动 -警告信息Logs（可忽略）')
@@ -178,7 +238,7 @@ class MainForm(object):
         try:
             s.quickly_frame1.place_forget()
             s.linux_frame1.place_forget()
-            s.verion_frame.place_forget()
+            s.verion_frame_full.place_forget()
             s.install_frame1.place_forget()
         except AttributeError:
             print('所选窗口未启动 -警告信息Logs（可忽略）')
@@ -195,7 +255,7 @@ class MainForm(object):
         try:
             s.quickly_frame1.place_forget()
             s.screen_frame1.place_forget()
-            s.verion_frame.place_forget()
+            s.verion_frame_full.place_forget()
             s.linux_frame1.place_forget()
         except AttributeError:
             print('所选窗口未启动 -警告信息Logs（可忽略）')
@@ -212,7 +272,7 @@ class MainForm(object):
         try:
             s.quickly_frame1.place_forget()
             s.screen_frame1.place_forget()
-            s.verion_frame.place_forget()
+            s.verion_frame_full.place_forget()
             s.install_frame1.place_forget()
         except AttributeError:
             print('所选窗口未启动 -警告信息Logs（可忽略）')
@@ -458,20 +518,21 @@ class MainForm(object):
         s.linux_init_Button_disable = tkinter.Button(s.linux_frame1, text='初始化设备', width=width_button)
         s.linux_init_Button_disable.config(state='disable')
         s.linux_init_Button.bind('<Button-1>', lambda x: linux_main.devices_init(s.init_str,s.linux_init_Button
-                                                                                 ,s.linux_init_Button_disable))
+                                                    ,s.linux_init_Button_disable,s.more_devices_value.get()))
         s.linux_init_Button_disable.place(x=200, y=110)
 
         # 重新检测按钮
         s.init_again_Button = tkinter.Button(s.linux_frame1, text='点击重新检测', width=width_button)
         s.init_again_Button.bind('<Button-1>',lambda x:linux_main.check_init(s.init_str,s.linux_init_Button
-                                    ,s.linux_init_Button_disable,devices_linux_flag,s.linux_all_button_close))
+                                    ,s.linux_init_Button_disable,devices_linux_flag,s.linux_all_button_close
+                                    ,s.more_devices_value.get()))
         s.init_again_Button.place(x=20,y=110)
 
         # 初始化状态栏
         s.init_label = tkinter.Label(s.linux_frame1, textvariable=s.init_str, bg='black', fg='#FFFFFF',
                                        width=46, height=2)
         s.init_label.config(command=linux_main.check_init(s.init_str,s.linux_init_Button,s.linux_init_Button_disable,
-                                                          devices_linux_flag,s.linux_all_button_close))
+                                devices_linux_flag,s.linux_all_button_close,s.more_devices_value.get()))
         s.init_label.place(x=20, y=60)
         s.init_str.set('此处显示初始化状态')
 
@@ -555,7 +616,8 @@ class MainForm(object):
 
     def version_history_frame(s):
         # 历史版本信息窗口
-        s.verion_frame = tkinter.Frame(s.root,width=width,height=height)
+        s.verion_frame_full = tkinter.Frame(s.root,width=width,height=height)
+        s.verion_frame = tkinter.Frame(s.verion_frame_full,width=width,height=height)
         s.scrollbar = tkinter.Scrollbar(s.verion_frame)
         s.version_listbox = tkinter.Listbox(s.verion_frame, width=50, height=19,yscrollcommand=(s.scrollbar.set))
         s.version_listbox.bindtags((s.version_listbox,'all'))
@@ -566,12 +628,14 @@ class MainForm(object):
         for readline in version_read.readlines():
             s.version_listbox.insert(tkinter.END, readline)
         version_read.close()
-        s.verion_frame.place(y=75)
+        s.verion_frame.place(y=55)
+        s.verion_frame_full.place(y=20)
 
     def back_bind(s):
         def t_back():
             s.back_button_disable.place(x=20,y=20)
-            quickly.android_back()
+            devices_SN = s.more_devices_value.get()
+            quickly.android_back(devices_SN)
             s.back_button_disable.place_forget()
 
         t_back = threading.Thread(target=t_back)
@@ -581,7 +645,8 @@ class MainForm(object):
     def settings_bind(s):
         def t_settings():
             s.settings_button_disable.place(x=190,y=20)
-            quickly.android_settings()
+            devices_SN = s.more_devices_value.get()
+            quickly.android_settings(devices_SN)
             s.settings_button_disable.place_forget()
 
         t_settings = threading.Thread(target=t_settings)
@@ -592,13 +657,14 @@ class MainForm(object):
         def t_reboot():
             s.reboot_button_disable.place(x=20,y=60)
             s.reboot_str.set('正在重启...')
-            state = quickly.android_reboot()
+            devices_SN = s.more_devices_value.get()
+            state = quickly.android_reboot(devices_SN)
             # 若设备没有连接，获取的是None，则恢复正常按钮状态
             if not state:
                 s.reboot_button_disable.place_forget()
             else:
                 while True:
-                    android_os_status = public.execute_cmd('adb shell getprop sys.boot_completed')
+                    android_os_status = public.execute_cmd('adb -s ' + devices_SN + ' shell getprop sys.boot_completed')
                     if '1' in android_os_status:
                         s.reboot_str.set('重启完成，正在等待开机...')
                         break
@@ -612,7 +678,8 @@ class MainForm(object):
     def shutdown_bind(s):
         def t_shutdown():
             s.shutdown_button_disable.place(x=190,y=60)
-            quickly.android_shutdown()
+            devices_SN = s.more_devices_value.get()
+            quickly.android_shutdown(devices_SN)
             s.shutdown_button_disable.place_forget()
 
         t_shutdown = threading.Thread(target=t_shutdown)
@@ -622,7 +689,8 @@ class MainForm(object):
     def clear_bind(s):
         def t_clear():
             s.clear_button_disable.place(x=20,y=100)
-            quickly.clear_cache()
+            devices_SN = s.more_devices_value.get()
+            quickly.clear_cache(devices_SN)
             s.clear_button_disable.place_forget()
 
         t_clear = threading.Thread(target=t_clear)
@@ -632,7 +700,8 @@ class MainForm(object):
     def kill_bind(s):
         def t_kill():
             s.kill_button_disable.place(x=190,y=100)
-            quickly.terminate_program()
+            devices_SN = s.more_devices_value.get()
+            quickly.terminate_program(devices_SN)
             s.kill_button_disable.place_forget()
 
         t_kill = threading.Thread(target=t_kill)
@@ -642,7 +711,8 @@ class MainForm(object):
     def desktop_bind(s):
         def t_desktop():
             s.desktop_button_disable.place(x=20,y=140)
-            quickly.android_desktop()
+            devices_SN = s.more_devices_value.get()
+            quickly.android_desktop(devices_SN)
             s.desktop_button_disable.place_forget()
 
         t_desktop = threading.Thread(target=t_desktop)
@@ -652,7 +722,8 @@ class MainForm(object):
     def awake_bind(s):
         def t_awake():
             s.awake_button_disable.place(x=190,y=140)
-            quickly.android_awake()
+            devices_SN = s.more_devices_value.get()
+            quickly.android_awake(devices_SN)
             s.awake_button_disable.place_forget()
 
         t_awake = threading.Thread(target=t_awake)
@@ -664,59 +735,91 @@ class MainForm(object):
             s.devices_str.set('正在检测设备连接状态...')
             while True:
                 # 获取设备序列号
-                devices_finally = public.device_connect()
-                # print(devices_finally)
-                if not devices_finally:
-                    s.devices_fail.place(x=470, y=0)
-                    s.devices_type_fail.place(x=325,y=425)
-                    s.devices_success.place_forget()
-                    s.devices_type_success.place_forget()
-                    s.devices_null.set('未连接任何设备！')
-                    s.devices_type_error.set('未连接任何设备！')
-                    # 确保切换设备类型时Linux相关功能按钮不会主动显示出来
-                    try:
-                        s.linux_all_button_close()
-                    except AttributeError:
-                        pass
-                # elif devices_finally == 'error: device not found':
-                #     s.devices_null.set('获取设备失败，正在重新获取...')
-                #     continue
-                else:
+                adb_install_state = open(adb_upgrade_flag, 'r').read()
+                if adb_install_state == 'ADB upgrade':
+                    print('ADB正在升级1....')
                     s.devices_fail.place_forget()
                     s.devices_type_fail.place_forget()
-                    s.devices_success.place(x=450,y=0)
-                    s.devices_type_success.place(x=325,y=425)
-                    for devices in devices_finally:
-                        if len(devices_finally) == 1:
-                            s.devices_str.set(devices + ' 已连接')
-                        elif len(devices_finally) > 1:
-                            s.devices_str.set('多部设备已连接')
-                    time.sleep(1)
+                    s.devices_type_success.place(x=325, y=425)
+                    s.devices_success.place(x=450, y=0)
+                    s.devices_str.set('ADB正在升级中...')
+                    s.devices_type_str.set('ADB正在升级中...')
+                else:
+                    devices_finally = public.device_connect()
+                    # print(devices_finally)
+                    if not devices_finally:
+                        s.devices_fail.place(x=470, y=0)
+                        s.devices_type_fail.place(x=325,y=425)
+                        s.devices_success.place_forget()
+                        s.devices_type_success.place_forget()
+                        s.devices_null.set('未连接任何设备！')
+                        s.devices_type_error.set('未连接任何设备！')
+                        # 确保切换设备类型时Linux相关功能按钮不会主动显示出来
+                        try:
+                            s.linux_all_button_close()
+                        except AttributeError:
+                            pass
+                    # elif devices_finally == 'error: device not found':
+                    #     s.devices_null.set('获取设备失败，正在重新获取...')
+                    #     continue
+                    else:
+                        # print('成功检测设备 ++++++ ')
+                        s.devices_fail.place_forget()
+                        s.devices_type_fail.place_forget()
+                        s.devices_success.place(x=450,y=0)
+                        s.devices_type_success.place(x=325,y=425)
+                        for devices in devices_finally:
+                            if len(devices_finally) == 1:
+                                s.devices_str.set(devices + ' 已连接')
+                                continue
+                            elif len(devices_finally) > 1:
+                                s.devices_str.set('多部设备已连接')
+                                continue
+                time.sleep(1)
 
         def devices_type():
             try:
                 s.devices_type_str.set('正在检测设备类型...')
             except AttributeError:
                 pass
+            # 设置停顿时间放置线程阻塞
+            time.sleep(2)
             while True:
-                global devices_linux_flag
                 # 检测设备类型
-                device_type = public.device_type_android()
-                # print(device_type.strip())  # 调试Logs
-                # 增加strip方法，去掉结果的两边空格以便进行识别
-                if device_type.strip() == 'Android':
-                    s.devices_type_str.set('Android（安卓）')
-                    devices_linux_flag = False
-                elif device_type.strip() == '/bin/sh: getprop: not found':
-                    # Linux无法使用adb shell getprop命令
-                    device_type_linux = public.execute_cmd('adb shell cat /proc/version')
-                    device_type_linux_finally = device_type_linux.split(' ')[0]
-                    # print(device_type_linux_finally)  # 调试Logs
-                    if device_type_linux_finally == 'Linux':
-                        s.devices_type_str.set('Linux')
-                        devices_linux_flag = True
-                    else:
-                        s.devices_type_str.set('未知设备')
+                global devices_linux_flag
+                adb_install_state = open(adb_upgrade_flag,'r').read()
+                # print(adb_install_state)
+                if adb_install_state == 'ADB upgrade':
+                    print('ADB正在升级2....')
+                else:
+                    # print('正在检测设备类型 -----------')
+                    try:
+                        device_SN = s.more_devices_value.get()
+                        device_type = public.device_type_android(device_SN)
+                        # print(device_type.strip())  # 调试Logs
+                        # 增加strip方法，去掉结果的两边空格以便进行识别
+                        if device_type.strip() == 'Android':
+                            s.devices_type_str.set('Android（安卓）')
+                            devices_linux_flag = False
+                            # print('安卓')
+                            continue
+                        elif device_type.strip() == '/bin/sh: getprop: not found':
+                            # Linux无法使用adb shell getprop命令
+                            device_type_linux = public.execute_cmd('adb -s ' + device_SN + ' shell cat /proc/version')
+                            device_type_linux_finally = device_type_linux.split(' ')[0]
+                            # print(device_type_linux_finally)  # 调试Logs
+                            if device_type_linux_finally == 'Linux':
+                                s.devices_type_str.set('Linux')
+                                devices_linux_flag = True
+                                # print('Linux')
+                                continue
+                            else:
+                                s.devices_type_str.set('未知设备')
+                                # print('未知设备')
+                                continue
+                    except AttributeError:
+                        print('出现AttributeError无影响，请忽略')
+                        pass
                 time.sleep(1)
 
         t_devices = threading.Thread(target=t_devices)
@@ -729,20 +832,61 @@ class MainForm(object):
 
     def adb_bind(s):
         # 检测ADB服务状态
-        def adb_install():
-            # 一键配置ADB核心步骤
+        def adb_install_main():
+             # 一键配置ADB核心步骤
+             shutil.copy(adb_path, make_dir)
+             # 解压
+             zip_path = make_dir + 'adb-tools.zip'
+             public.zip_extract(zip_path, make_dir)
+             # 清理压缩包
+             os.remove(zip_path)
+             # 配置环境变量
+             public.temporary_environ(adb_tools_flag)
+             public.permanent_environ(adb_tools_flag)
+             # 打印测试
+             print(public.execute_cmd('adb version'))
+
+        def adb_install_upgrade():
             if not os.path.exists(adb_tools_flag):
-                shutil.copy(adb_path,make_dir)
-                # 解压
-                zip_path = make_dir + 'adb-tools.zip'
-                public.zip_extract(zip_path,make_dir)
-                # 清理压缩包
-                os.remove(zip_path)
-                # 配置环境变量
-                public.temporary_environ(adb_tools_flag)
-                public.permanent_environ(adb_tools_flag)
-                # 打印测试
-                print(public.execute_cmd('adb version'))
+                adb_install_main()
+            else:
+                # ADB调试桥版本升级
+                adb_version_new = int(open(adb_version_path,'r').read())
+                print(adb_version_new)
+                adb_version = int(public.adb_version())
+                if adb_version < adb_version_new:
+                    # 升级启动状态
+                    with open(adb_upgrade_flag, 'w') as fp:
+                        fp.write('ADB upgrade')
+                    s.adb_str.set('ADB有新版本，正在升级...')
+                    # 需要时间停掉所有ADB的行为
+                    time.sleep(5)
+                    public.execute_cmd('adb kill-server')  # 关闭ADB服务
+                    shutil.rmtree(adb_tools_flag)  # 删除旧版本ADB文件
+                    adb_install_main()
+
+                    # 版本号格式处理
+                    adb_version_list = []
+                    adb_version_new_finally = '.'.join(str(adb_version_new)).split('.')
+                    i = 1
+                    for adb_version in adb_version_new_finally:
+                        if i <= 2:
+                            adb_version += '.'
+                            adb_version_list.append(adb_version)
+                        else:
+                            adb_version = adb_version
+                            adb_version_list.append(adb_version)
+                        i += 1
+
+                    adb_version_finally = ''.join(adb_version_list)
+                    s.adb_str.set('ADB成功升级为 ' + adb_version_finally)
+                    print('ADB升级已完成！')
+                    # 升级完成状态
+                    with open(adb_upgrade_flag, 'w') as fp:
+                        fp.write('ADB upgrade is complete')
+                    time.sleep(3)
+                else:
+                    pass
 
         def t_adb():
             # time.sleep(5)  # 等待ADB服务启动完毕
@@ -757,12 +901,13 @@ class MainForm(object):
                         # os.chdir(adb_path)
                         # s.adb_str.set('内置ADB已开启！')
                         s.adb_str.set('正在配置ADB...')
-                        adb_install()
+                        adb_install_upgrade()
                         s.adb_str.set('ADB已配置成功！')
                         time.sleep(3)
                         s.adb_str.set('本地ADB已开启！')
                         break
                     else:
+                        adb_install_upgrade()  # 用于ADB升级
                         s.adb_str.set('本地ADB已开启！')
                         print(public.execute_cmd('adb version'))
                         break
@@ -772,12 +917,13 @@ class MainForm(object):
                         # os.chdir(adb_path)
                         # s.adb_str.set('内置ADB已开启！')
                         s.adb_str.set('正在配置ADB...')
-                        adb_install()
+                        adb_install_upgrade()
                         s.adb_str.set('ADB已配置成功！')
                         time.sleep(3)
                         s.adb_str.set('本地ADB已开启！')
                         break
                     else:
+                        adb_install_upgrade()  # 用于ADB升级
                         s.adb_str.set('本地ADB已开启！')
                         print(public.execute_cmd('adb version'))
                         break
@@ -789,7 +935,8 @@ class MainForm(object):
     def main_screenshot(s,touch_name):
         # 截图功能核心逻辑代码
         s.screen_str.set('正在截图中...')
-        screenshot_success = screen_record.main_screenshots(touch_name)
+        devices_SN = s.more_devices_value.get()
+        screenshot_success = screen_record.main_screenshots(touch_name,devices_SN)
         s.screen_str.set(screenshot_success)
 
     def screenshot_bind(s):
@@ -804,7 +951,8 @@ class MainForm(object):
                     s.screen_str.set('请连接设备后再截图！')
                 else:
                     # 创建临时文件
-                    make_state = screen_record.cd_screenshots(s.screen_str)
+                    devices_SN = s.more_devices_value.get()
+                    make_state = screen_record.cd_screenshots(devices_SN)
                     if make_state == 'Non-Android Devices':
                         s.screen_str.set('检测到非安卓设备\n请使用安卓设备进行操作')
                     else:
@@ -899,7 +1047,8 @@ class MainForm(object):
                 s.record_name = s.record_entry.get()
                 # with open(record_name,'w') as fp:
                 #     fp.write(s.record_name)
-                screen_record.record(s.record_name,s.record_time_selected,str(s.record_model_selected))
+                devices_SN = s.more_devices_value.get()
+                screen_record.record(s.record_name,s.record_time_selected,str(s.record_model_selected),devices_SN)
 
         def record_time():
             # 显示录屏状态
@@ -912,14 +1061,19 @@ class MainForm(object):
                 # record_end_finally = screen_record.record_time(s.record_str)
                 screen_record.record_time(s.record_str)
                 record_model_get = open(record_model_log, 'r').read()
+                record_state_finally = open(record_screen_state,'r').read()
                 if record_model_get == '0':
-                    s.record_str.set('正在保存录屏文件，请稍等...')
-                    # s.record_name = open(record_name,'r').read()
-                    s.record_name = s.record_entry.get()
-                    screen_record.record_pull(s.record_name, record_model_get)
-                    time.sleep(3)  # 延迟3S同步状态
-                    # s.record_str.set('注意：录屏时间仅供参考，具体查看文件时长\n录屏文件保存成功！录屏时间为：' + record_end_finally)
-                    s.record_str.set('录屏文件保存成功！\n打开录屏文件夹即可查看哦~')
+                    if record_state_finally == 'Non-Android Devices':
+                        pass
+                    else:
+                        s.record_str.set('正在保存录屏文件，请稍等...')
+                        # s.record_name = open(record_name,'r').read()
+                        s.record_name = s.record_entry.get()
+                        devices_SN = s.more_devices_value.get()
+                        screen_record.record_pull(s.record_name, record_model_get,devices_SN)
+                        time.sleep(3)  # 延迟3S同步状态
+                        # s.record_str.set('注意：录屏时间仅供参考，具体查看文件时长\n录屏文件保存成功！录屏时间为：' + record_end_finally)
+                        s.record_str.set('录屏文件保存成功！\n打开录屏文件夹即可查看哦~')
                 elif record_model_get == '1':
                     # # 返回原始地址，防止与本地ADB服务发生冲突导致无法使用
                     # original_path = open(exe_path, 'r').read()
@@ -928,16 +1082,20 @@ class MainForm(object):
                     # # 关闭ADB服务，以免影响本地ADB服务的开启
                     # public.execute_cmd('adb kill-server')
 
-                    # 连续模式计数
-                    r = int(open(record_count, 'r').read())
-                    r += 1
-                    with open(record_count, 'w') as fp:
-                        fp.write(str(r))
-                    s.record_str.set('正在保存连续模式录屏文件，请稍等...')
-                    s.record_name = s.record_entry.get()
-                    screen_record.record_pull(s.record_name,record_model_get)
-                    time.sleep(3)  # 延迟3S同步状态
-                    s.record_str.set('连续模式已结束！（录屏文件已保存）')
+                    if record_state_finally == 'Non-Android Devices':
+                        pass
+                    else:
+                        # 连续模式计数
+                        r = int(open(record_count, 'r').read())
+                        r += 1
+                        with open(record_count, 'w') as fp:
+                            fp.write(str(r))
+                        s.record_str.set('正在保存连续模式录屏文件，请稍等...')
+                        s.record_name = s.record_entry.get()
+                        devices_SN = s.more_devices_value.get()
+                        screen_record.record_pull(s.record_name,record_model_get,devices_SN)
+                        time.sleep(3)  # 延迟3S同步状态
+                        s.record_str.set('连续模式已结束！（录屏文件已保存）')
                 s.record_button_disable.place_forget()
                 s.record_stop_button_disable.place(x=200, y=330)
                 s.reset_button_disable.place_forget()
@@ -971,10 +1129,11 @@ class MainForm(object):
                     # os.popen('taskkill /F /IM %s ' % 'record_main.exe /T', 'r')
                     # 通过关闭并重启ADB达到录屏命令的自动断开，以便自动生成录屏文件
                     print('正在断开并重启ADB服务...')
+                    devices_SN = s.more_devices_value.get()
                     # 关闭ADB服务
-                    public.execute_cmd('adb kill-server')
+                    public.execute_cmd('adb -s ' + devices_SN + ' kill-server')
                     # 重启ADB服务
-                    public.execute_cmd('adb start-server')
+                    public.execute_cmd('adb -s ' + devices_SN + ' start-server')
                     print('ADB服务重启成功！！！')
                     try:
                         # 连续模式停止
@@ -993,6 +1152,13 @@ class MainForm(object):
                     # 未录屏前断开设备
                     # os.popen('taskkill /F /IM %s ' % 'record_main.exe /T', 'r')
                     s.record_str.set('设备突然中断连接，录屏结束！')
+                    s.record_button_disable.place_forget()
+                    s.record_stop_button_disable.place(x=200, y=330)
+                    s.reset_button_disable.place_forget()
+                    break
+                elif record_stop_state == 'Non-Android Devices':
+                    print('检测到非安卓设备，无法正常录屏')
+                    s.record_str.set('检测到非安卓设备\n请使用安卓设备进行操作')
                     s.record_button_disable.place_forget()
                     s.record_stop_button_disable.place(x=200, y=330)
                     s.reset_button_disable.place_forget()
@@ -1042,7 +1208,8 @@ class MainForm(object):
     def linux_button_bind(s):
         def t_linux_button():
             def check_only_read():
-                check_only_read = public.execute_cmd('adb shell ls -lh /data/.overlay')
+                devices_SN = s.more_devices_value.get()
+                check_only_read = public.execute_cmd('adb -s ' + devices_SN + ' shell ls -lh /data/.overlay')
                 only_read = ' '.join(check_only_read.split()).split(':')[-1]
                 return only_read
 
@@ -1069,7 +1236,8 @@ class MainForm(object):
             with open(screen_page, 'w') as fp:
                 fp.write('')
             linux_screen = linux_main.Linux_Screen()
-            linux_screen.screen_form(s.init_str,s.linux_screen_Button,s.linux_screen_Button_disable)
+            device_SN = s.more_devices_value.get()
+            linux_screen.screen_form(s.init_str,s.linux_screen_Button,s.linux_screen_Button_disable,device_SN)
 
         def t_screen_close():
             # 监听截图页面的关闭状态
@@ -1103,8 +1271,9 @@ class MainForm(object):
                 s.init_str.set('正在关闭开发者模式并重启设备中...')
                 s.linux_developer_mode_Button_close.place_forget()
                 s.linux_developer_mode_Button_close_disable.place(x=200,y=190)
-                public.execute_cmd('adb shell rm -rf /data/.adb_config')
-                public.execute_cmd('adb shell reboot')
+                device_SN = s.more_devices_value.get()
+                public.execute_cmd('adb -s ' + device_SN + ' shell rm -rf /data/.adb_config')
+                public.execute_cmd('adb -s ' + device_SN + ' shell reboot')
                 time.sleep(18)
                 s.init_str.set('现在可以访问设备本地盘了\nADB命令不可用')
             else:
@@ -1120,7 +1289,8 @@ class MainForm(object):
             with open(install_page, 'w') as fp:
                 fp.write('')
             linux_install = linux_main.Linux_Install()
-            linux_install.install_form(s.init_str,s.linux_install,s.linux_install_disable)
+            device_SN = s.more_devices_value.get()
+            linux_install.install_form(s.init_str,s.linux_install,s.linux_install_disable,device_SN)
 
         def t_install_close():
             # 监听安装页面的关闭状态
@@ -1151,7 +1321,8 @@ class MainForm(object):
             with open(camera_page, 'w') as fp:
                 fp.write('')
             linux_camera = linux_main.Linux_Camera()
-            linux_camera.camera_form(s.init_str,s.linux_camera,s.linux_camera_disable)
+            device_SN = s.more_devices_value.get()
+            linux_camera.camera_form(s.init_str,s.linux_camera,s.linux_camera_disable,device_SN)
 
         def t_camera_close():
             # 监听取图页面的关闭状态
@@ -1202,7 +1373,8 @@ class MainForm(object):
             else:
                 try:
                     s.uninstall_str.set('正在检测当前包名...')
-                    package_name = public.found_packages()
+                    device_SN = s.more_devices_value.get()
+                    package_name = public.found_packages(device_SN)
                     print(package_name)
                     s.uninstall_str.set('已检测到当前包名\n' + package_name)
 

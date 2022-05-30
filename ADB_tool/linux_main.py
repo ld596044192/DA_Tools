@@ -53,15 +53,16 @@ screen_click_flag = False
 screen_reset_flag = False
 
 
-def main_init(init_str,init_Button,init_Button_disable):
+def main_init(init_str,init_Button,init_Button_disable,device):
     # 检测设备核心函数
     # 设备初始化
     init_str.set('正在检测设备是否初始化...')
     # 检测该设备是否初始化
     # 检测权限文件是否存在
-    only_read = public.linux_only_read()
-    init_final = public.execute_cmd('adb shell cat /data/adb_init.ini')
-    if init_final == 'The device initialized' and only_read != ' No such file or directory':
+    only_read = public.linux_only_read(device)
+    init_final = public.execute_cmd('adb -s ' + device + ' shell cat /data/adb_init.ini')
+    # if init_final == 'The device initialized' and only_read != ' No such file or directory':
+    if only_read != ' No such file or directory':
         init_str.set('该设备已初始化\n无需初始化，可正常使用下方功能')
         init_Button.place_forget()
         init_Button_disable.place(x=200, y=110)
@@ -71,7 +72,7 @@ def main_init(init_str,init_Button,init_Button_disable):
         init_Button.place(x=200, y=110)
 
 
-def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux_all_button_close):
+def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux_all_button_close,device):
     def t_check_init():
         init_str.set('正在检测设备初始化状态...')
         # 打印设备类型判断标记flag
@@ -85,7 +86,7 @@ def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux
         else:
             # 延时1秒等待flag响应
             time.sleep(1)
-            device_type = public.device_type_android()
+            device_type = public.device_type_android(device)
             if not devices_linux_flag and device_type.strip() == 'Android':
                 init_str.set('您所连接的设备为Android\n无法使用Linux模式所有功能')
                 init_Button.place_forget()
@@ -100,12 +101,12 @@ def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux
                     # 判断是否为内置ADB，如果为内置ADB需要延迟5S，如果为本地ADB则无需延迟
                     if adb_finally == '不是内部或外部命令，也不是可运行的程序' or adb_english == ' operable program or batch file.':
                         time.sleep(5)
-                        main_init(init_str, init_Button, init_Button_disable)
+                        main_init(init_str, init_Button, init_Button_disable,device)
                     else:
-                        main_init(init_str, init_Button, init_Button_disable)
+                        main_init(init_str, init_Button, init_Button_disable,device)
                 except IndexError:
                     print('出现IndexError,无需处理该异常，继续检测')
-                    main_init(init_str, init_Button, init_Button_disable)
+                    main_init(init_str, init_Button, init_Button_disable,device)
                     pass
 
     t_check_init = threading.Thread(target=t_check_init)
@@ -113,7 +114,7 @@ def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux
     t_check_init.start()
 
 
-def devices_init(init_str,init_Button,init_Button_disable):
+def devices_init(init_str,init_Button,init_Button_disable,device):
     def t_init():
         while True:
             devices_state = public.device_connect()
@@ -125,14 +126,14 @@ def devices_init(init_str,init_Button,init_Button_disable):
                 init_Button.place_forget()
                 init_Button_disable.place(x=200, y=110)
                 # 检测只读系统
-                check_only_read = public.execute_cmd('adb shell ls -lh /data/.overlay')
+                check_only_read = public.execute_cmd('adb -s ' + device + ' shell ls -lh /data/.overlay')
                 only_read = ' '.join(check_only_read.split()).split(':')[-1]
                 print(only_read)
                 if only_read == ' No such file or directory':
                     print('设备系统为只读，无法上传文件等操作')
                     init_str.set('检测到系统为只读\n正在获取权限并重启设备...')
-                    public.execute_cmd('adb shell touch /data/.overlay')
-                    public.execute_cmd('adb shell reboot')
+                    public.execute_cmd('adb -s ' + device + ' shell touch /data/.overlay')
+                    public.execute_cmd('adb -s ' + device + ' shell reboot')
                     time.sleep(15)
                     continue
                 else:
@@ -140,8 +141,8 @@ def devices_init(init_str,init_Button,init_Button_disable):
                     break
 
         time.sleep(2)
-        public.execute_cmd('adb push ' + init_path + ' /data')
-        init_final = public.execute_cmd('adb shell cat /data/adb_init.ini')
+        public.execute_cmd('adb  -s ' + device + ' push ' + init_path + ' /data')
+        init_final = public.execute_cmd('adb -s ' + device + ' shell cat /data/adb_init.ini')
         print(init_final)
         init_str.set('该设备已初始化\n无需初始化，可正常使用下方功能')
 
@@ -152,7 +153,7 @@ def devices_init(init_str,init_Button,init_Button_disable):
 
 # 截图工具界面
 class Linux_Screen(object):
-    def screen_form(self,init_str,linux_screen_Button,linux_screen_Button_disable):
+    def screen_form(self,init_str,linux_screen_Button,linux_screen_Button_disable,device):
         self.screen_root = tkinter.Toplevel()
         self.screen_root.title('Linux截图工具')
         # screenWidth = self.screen_root.winfo_screenwidth()
@@ -169,7 +170,7 @@ class Linux_Screen(object):
         self.screen_startup(linux_screen_Button,linux_screen_Button_disable)
 
         self.screen_root.protocol('WM_DELETE_WINDOW',self.close_handle)
-        self.main_frame()
+        self.main_frame(device)
         # self.device_monitor(init_str)
 
         return self.screen_root
@@ -200,18 +201,18 @@ class Linux_Screen(object):
     #             pass
     #         time.sleep(1)
 
-    def main_frame(self):
+    def main_frame(self,device):
         # 截图状态栏
         self.screen_str = tkinter.StringVar()
         self.screen_label = tkinter.Label(self.screen_root, textvariable=self.screen_str, bg='black', fg='#FFFFFF',
                                            width=35, height=2)
-        self.screen_label.config(command=self.check_gsnap())
+        self.screen_label.config(command=self.check_gsnap(device))
         self.screen_label.place(x=35, y=10)
         self.screen_str.set('此处显示截图状态')
 
         # 截图按钮
         self.linux_screen_button = tkinter.Button(self.screen_root, text='一键截图', width=15)
-        self.linux_screen_button.bind('<Button-1>', lambda x: self.screen_main())
+        self.linux_screen_button.bind('<Button-1>', lambda x: self.screen_main(device))
         self.linux_screen_button_disable = tkinter.Button(self.screen_root, text='正在截图...', width=15)
         self.linux_screen_button_disable.bind('<Button-1>', lambda x: self.linux_screen_disable_bind())
         self.linux_screen_button_disable.config(state='disable')
@@ -271,7 +272,7 @@ class Linux_Screen(object):
         self.linux_reset_button_disable.bind('<Button-1>', lambda x: self.linux_reset_disable_bind())
         self.linux_reset_button.place(x=100, y=140)
 
-    def check_gsnap(self):
+    def check_gsnap(self,device):
         def t_check_gsnap():
             devices_state = public.device_connect()
             if not devices_state:
@@ -279,14 +280,14 @@ class Linux_Screen(object):
             else:
                 # 检测 是否内置 gsnap 截图工具
                 self.screen_str.set('正在检测是否内置截图工具...')
-                check_gsnap_cmd = public.execute_cmd('adb shell gsnap')
+                check_gsnap_cmd = public.execute_cmd('adb -s ' + device + ' shell gsnap')
                 check_gsnap_cmd_finally = ' '.join(check_gsnap_cmd.split()).split(':')[-1]
                 if check_gsnap_cmd_finally == ' not found':
                     self.screen_str.set('无法找到内置截图工具，正在初始化...')
                     # 内置截图工具到设备中
-                    public.execute_cmd('adb push ' + gsnap_path + ' /usr/bin')
+                    public.execute_cmd('adb -s ' + device + ' push ' + gsnap_path + ' /usr/bin')
                     # 为内置的截图工具赋予执行权限
-                    public.execute_cmd('adb shell chmod a+x /usr/bin/gsnap')
+                    public.execute_cmd('adb -s ' + device + ' shell chmod a+x /usr/bin/gsnap')
                     self.screen_str.set('截图工具初始化成功\n可以正常开始截图')
                 else:
                     self.screen_str.set('已内置gsnap截图工具\n可以正常开始截图')
@@ -295,7 +296,7 @@ class Linux_Screen(object):
         t_check_gsnap.setDaemon(True)
         t_check_gsnap.start()
 
-    def screen_main(self):
+    def screen_main(self,device):
         # linux截图核心函数
         def t_screen():
             devices_state = public.device_connect()
@@ -307,14 +308,14 @@ class Linux_Screen(object):
                 self.linux_screen_button_disable.place(x=20, y=60)
                 self.linux_reset_button.place_forget()
                 self.linux_reset_button_disable.place(x=100, y=140)
-                only_read = public.linux_only_read()
+                only_read = public.linux_only_read(device)
                 if only_read == ' No such file or directory':
                     self.screen_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
                 else:
-                    check_gsnap_cmd = public.execute_cmd('adb shell gsnap')
+                    check_gsnap_cmd = public.execute_cmd('adb -s ' + device + ' shell gsnap')
                     check_gsnap_cmd_finally = ' '.join(check_gsnap_cmd.split()).split(':')[-1]
                     if check_gsnap_cmd_finally == ' not found':
-                        self.check_gsnap()
+                        self.check_gsnap(device)
                     else:
                         if not os.path.exists(linux_save_path):
                             os.makedirs(linux_save_path)
@@ -329,9 +330,9 @@ class Linux_Screen(object):
                         # 截图
                         f = int(open(linux_screen_count, 'r').read())
                         f += 1
-                        public.execute_cmd('adb shell gsnap /data/1.png /dev/fb0')
+                        public.execute_cmd('adb -s ' + device + ' shell gsnap /data/1.png /dev/fb0')
                         time.sleep(1)
-                        pull_output = public.execute_cmd('adb pull /data/1.png ' + linux_save_path + str(f) + '.png')
+                        pull_output = public.execute_cmd('adb -s ' + device + ' pull /data/1.png ' + linux_save_path + str(f) + '.png')
                         # 打印下载信息
                         print(pull_output)
 
@@ -365,7 +366,7 @@ class Linux_Screen(object):
                             pass
 
             # 删除截图缓存
-            public.execute_cmd('adb shell rm -rf /data/1.png')
+            public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/1.png')
             self.linux_screen_button_disable.place_forget()
             self.linux_screen_button.place(x=20, y=60)
             self.linux_reset_button_disable.place_forget()
@@ -423,7 +424,7 @@ class Linux_Screen(object):
 
 # 安装应用界面
 class Linux_Install(object):
-    def install_form(self,init_str,linux_screen_Button,linux_screen_Button_disable):
+    def install_form(self,init_str,linux_screen_Button,linux_screen_Button_disable,device):
         self.install_root = tkinter.Toplevel()
         self.install_root.title('Linux一键安装工具')
         # screenWidth = self.install_root.winfo_screenwidth()
@@ -441,7 +442,7 @@ class Linux_Install(object):
         self.install_startup(linux_screen_Button,linux_screen_Button_disable)
 
         self.install_root.protocol('WM_DELETE_WINDOW',self.close_handle)
-        self.main_frame()
+        self.main_frame(device)
         # self.device_monitor(init_str)
 
         return self.install_root
@@ -470,7 +471,7 @@ class Linux_Install(object):
     #             pass
     #         time.sleep(1)
 
-    def main_frame(self):
+    def main_frame(self,device):
         # 安装状态栏
         self.install_str = tkinter.StringVar()
         self.install_label = tkinter.Label(self.install_root, textvariable=self.install_str, bg='black', fg='#FFFFFF',
@@ -569,7 +570,7 @@ class Linux_Install(object):
 
         # 一键安装按钮
         self.linux_install_button = tkinter.Button(self.install_root, text='一键安装（Linux）', width=15)
-        self.linux_install_button.bind('<Button-1>', lambda x: self.linux_install_bind())
+        self.linux_install_button.bind('<Button-1>', lambda x: self.linux_install_bind(device))
         self.linux_install_button_disable = tkinter.Button(self.install_root, text='一键安装（Linux）', width=15)
         self.linux_install_button_disable.config(state='disable')
         self.linux_install_button.place(x=130, y=215)
@@ -653,10 +654,14 @@ class Linux_Install(object):
             self.open_software_button_disable.place(x=358,y=90)
             software_file = tkinter.filedialog.askopenfile(mode='r', filetypes=[('Amr Files', '*.amr')], title='选择应用包安装文件')
             software_file_string = str(software_file)
+            print(software_file_string)
             if not software_file:
                 self.install_str.set('没有成功选择应用包文件\n请重新选择应用包文件')
             else:
-                software_file_finally = eval(software_file_string.split()[1].split('=')[1])
+                try:
+                    software_file_finally = eval(software_file_string.split()[1].split('=')[1])
+                except SyntaxError:
+                    software_file_finally = software_file_string.split("'")[1]
                 self.install_software_entry_str.set(software_file_finally)
                 print(software_file_finally)
             self.open_software_button_disable.place_forget()
@@ -666,7 +671,7 @@ class Linux_Install(object):
         t_open_software_file.setDaemon(True)
         t_open_software_file.start()
 
-    def linux_install_bind(self):
+    def linux_install_bind(self,device):
         def t_linux_install():
             # 安装软件核心代码
             self.linux_install_button_disable.place(x=130,y=215)
@@ -675,7 +680,7 @@ class Linux_Install(object):
             if not devices_state:
                 self.install_str.set('检测到没有连接到设备\n请连接设备后再使用本功能')
             else:
-                only_read = public.linux_only_read()
+                only_read = public.linux_only_read(device)
                 if only_read == ' No such file or directory':
                     self.install_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
                 else:
@@ -702,34 +707,40 @@ class Linux_Install(object):
                                 self.install_str.set('正在导入库...')
                                 library_files_path = self.install_library_entry_str.get()
                                 if self.install_library_value.get().strip() == 'Liunx库默认位置':
-                                    public.execute_cmd('adb push ' + library_files_path + ' /usr/lib')
-                                    print(library_files_path + '已上传')
+                                    main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + library_files_path + '"' + ' /usr/lib')
+                                    print(main_result)
+                                    print(library_files_path + ' 已上传')
                                 elif self.install_library_value.get().strip() == 'dosmono指定位置 /etc/miniapp/jsapis/':
-                                    public.execute_cmd('adb push ' + library_files_path + ' /etc/miniapp/jsapis/')
-                                    print(library_files_path + '已上传')
+                                    main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + library_files_path + '"' + ' /etc/miniapp/jsapis/')
+                                    print(main_result)
+                                    print(library_files_path + ' 已上传')
 
                             # 安装应用包
                             if self.install_software_str.get() == 1:
                                 self.install_str.set('正在导入应用包..')
                                 software_files_path = self.install_software_entry_str.get()
                                 if self.install_software_value.get().strip() == '主程序默认安装位置':
-                                    public.execute_cmd('adb push ' + software_files_path +
+                                    main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + software_files_path + '"' +
                                                                                ' /etc/miniapp/resources/presetpkgs/8180000000000020.amr')
-                                    print(software_files_path + '已上传')
+                                    print(main_result)
+                                    print(software_files_path + ' 已上传')
                                 elif self.install_software_value.get().strip() == '引导页默认安装位置':
-                                    public.execute_cmd('adb push ' + software_files_path +
+                                    main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + software_files_path + '"' +
                                                                                ' /etc/miniapp/resources/presetpkgs/8180000000000026.amr')
+                                    print(main_result)
+                                    print(software_files_path + ' 已上传')
                                 elif self.install_software_value.get().strip() == '喜马拉雅默认安装位置':
-                                    public.execute_cmd('adb push ' + software_files_path +
+                                    main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + software_files_path + '"' +
                                                        ' /etc/miniapp/resources/presetpkgs/8080231999314849.amr')
-                                    print(software_files_path + '已上传')
+                                    print(main_result)
+                                    print(software_files_path + ' 已上传')
 
                             # 安装后需要清理缓存
                             self.install_str.set('正在清理缓存并重启设备..')
-                            public.execute_cmd('adb shell rm -rf /data/miniapp/data')
+                            public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/miniapp/data')
 
                             # 重启
-                            public.execute_cmd('adb shell reboot')
+                            public.execute_cmd('adb -s ' + device + ' shell reboot')
                             self.install_str.set('安装应用完成\n等待设备重启后使用即可')
 
             self.linux_install_button_disable.place_forget()
@@ -741,7 +752,7 @@ class Linux_Install(object):
 
 # 获取扫描帧数图片界面
 class Linux_Camera(object):
-    def camera_form(self,init_str,linux_camera,linux_camera_disable):
+    def camera_form(self,init_str,linux_camera,linux_camera_disable,device):
         self.camera_root = tkinter.Toplevel()
         self.camera_root.title('Linux获取扫描帧数图片工具')
         # screenWidth = self.install_root.winfo_screenwidth()
@@ -759,7 +770,7 @@ class Linux_Camera(object):
         self.camera_startup(linux_camera,linux_camera_disable)
         #
         self.camera_root.protocol('WM_DELETE_WINDOW',self.close_handle)
-        self.main_frame(linux_camera_disable)
+        self.main_frame(linux_camera_disable,device)
 
         return self.camera_root
 
@@ -777,19 +788,19 @@ class Linux_Camera(object):
             fp.write('0')
         self.camera_root.destroy()
 
-    def main_frame(self,linux_camera_disable):
+    def main_frame(self,linux_camera_disable,device):
         # 获取图片状态栏
         self.camera_str = tkinter.StringVar()
         self.camera_label = tkinter.Label(self.camera_root, textvariable=self.camera_str, bg='black', fg='#FFFFFF',
                                            width=40, height=2)
         self.camera_label.place(x=30, y=10)
-        self.camera_label.config(command=self.check_system(linux_camera_disable))
+        self.camera_label.config(command=self.check_system(linux_camera_disable,device))
         self.camera_str.set('此处显示获取图片状态')
 
         # 开启取图模式按钮
         self.take_image_mode_close = False
         self.linux_camera_button = tkinter.Button(self.camera_root, text='开启取图模式', width=15)
-        self.linux_camera_button.bind('<Button-1>', lambda x: self.open_camera_bind(linux_camera_disable))
+        self.linux_camera_button.bind('<Button-1>', lambda x: self.open_camera_bind(linux_camera_disable,device))
         self.linux_camera_button.place(x=30, y=60)
         self.linux_camera_button_disable = tkinter.Button(self.camera_root, text='开启取图模式', width=15)
         self.linux_camera_button_disable_open = tkinter.Button(self.camera_root, text='正在开启中...', width=15)
@@ -800,7 +811,7 @@ class Linux_Camera(object):
 
         # 关闭取图模式按钮
         self.linux_camera_button_close = tkinter.Button(self.camera_root, text='关闭取图模式', width=15)
-        self.linux_camera_button_close.bind('<Button-1>', lambda x: self.close_camera_bind(linux_camera_disable))
+        self.linux_camera_button_close.bind('<Button-1>', lambda x: self.close_camera_bind(linux_camera_disable,device))
         self.linux_camera_button_close_disable = tkinter.Button(self.camera_root, text='关闭取图模式', width=15)
         self.linux_camera_button_close_disable_open = tkinter.Button(self.camera_root, text='正在关闭中...', width=15)
         self.linux_camera_button_close_disable_final = tkinter.Button(self.camera_root, text='取图模式已关闭', width=15)
@@ -815,7 +826,7 @@ class Linux_Camera(object):
 
         # 一键取图按钮
         self.linux_get_camera_button = tkinter.Button(self.camera_root, text='一键取图', width=15)
-        self.linux_get_camera_button.bind('<Button-1>',lambda x:self.camera_pywinauto_main(linux_camera_disable))
+        self.linux_get_camera_button.bind('<Button-1>',lambda x:self.camera_pywinauto_main(linux_camera_disable,device))
         self.linux_get_camera_button_disable_final = tkinter.Button(self.camera_root, text='正在取图中...', width=15)
         self.linux_get_camera_button_disable = tkinter.Button(self.camera_root, text='一键取图', width=15)
         self.linux_get_camera_button_disable.config(state='disable')
@@ -836,11 +847,11 @@ class Linux_Camera(object):
                                                             '适用于懒人必备功能或避免过多重复性动作造成时间浪费')
         self.linux_camera_checkbutton.select()
 
-    def check_system(self,linux_camera_disable):
+    def check_system(self,linux_camera_disable,device):
         def t_check_system():
             # 检测 是否配置 适用于取图的system文件
             self.camera_str.set('正在检测是否配置system文件...')
-            check_system_cmd = public.execute_cmd('adb shell ls -lh /data/camera_system.ini')
+            check_system_cmd = public.execute_cmd('adb -s ' + device + ' shell ls -lh /data/camera_system.ini')
             check_system_cmd_finally = ' '.join(check_system_cmd.split()).split(':')[-1]
             print(check_system_cmd_finally)
             if check_system_cmd_finally.strip() == 'No such file or directory':
@@ -848,10 +859,10 @@ class Linux_Camera(object):
                 if tkinter.messagebox.askokcancel(title='温馨提示', message=message):
                     self.camera_str.set('检测没有配置过system，正在初始化...')
                     # 内置取图配置文件到设备中
-                    public.execute_cmd('adb push ' + system_path + ' /etc/config/uci/system')
-                    public.execute_cmd('adb push ' + camera_system_path + ' /data/')
+                    public.execute_cmd('adb -s ' + device + ' push ' + system_path + ' /etc/config/uci/system')
+                    public.execute_cmd('adb -s ' + device + ' push ' + camera_system_path + ' /data/')
                     # 需要重启生效
-                    public.execute_cmd('adb shell reboot')
+                    public.execute_cmd('adb -s ' + device + ' shell reboot')
                     time.sleep(18)
                     self.camera_str.set('取图工具初始化成功\n请点击“开启取图模式”按钮开启')
 
@@ -864,7 +875,7 @@ class Linux_Camera(object):
                     linux_camera_disable.place_forget()
             else:
                 self.camera_str.set('已内置system配置文件\n可以开始使用取图功能')
-                take_image_mode_info = public.execute_cmd('adb shell cat /data/camera_system.ini')
+                take_image_mode_info = public.execute_cmd('adb -s ' + device + ' shell cat /data/camera_system.ini')
                 if take_image_mode_info.strip() == 'Take image mode on':
                     self.camera_str.set('取图模式已打开\n可以取图啦~')
                     self.linux_camera_button_disable.place_forget()
@@ -885,18 +896,18 @@ class Linux_Camera(object):
         t_check_system.setDaemon(True)
         t_check_system.start()
 
-    def open_camera_bind(self,linux_camera_disable):
+    def open_camera_bind(self,linux_camera_disable,device):
         def t_open_camera():
             devices_state = public.device_connect()
             if not devices_state:
                 self.camera_str.set('检测到没有连接到设备\n请连接设备后再使用本功能')
             else:
-                only_read = public.linux_only_read()
+                only_read = public.linux_only_read(device)
                 if only_read == ' No such file or directory':
-                    public.execute_cmd('adb shell rm -rf /data/camera_system.ini')
+                    public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/camera_system.ini')
                     self.camera_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
                 else:
-                    check_system_cmd = public.execute_cmd('adb shell ls -lh /data/camera_system.ini')
+                    check_system_cmd = public.execute_cmd('adb -s ' + device + ' shell ls -lh /data/camera_system.ini')
                     check_system_cmd_finally = ' '.join(check_system_cmd.split()).split(':')[-1]
                     print(check_system_cmd_finally)
                     if check_system_cmd_finally.strip() == 'No such file or directory':
@@ -904,30 +915,30 @@ class Linux_Camera(object):
                         self.linux_camera_button_disable.place(x=30, y=60)
                         self.linux_camera_button_close_disable.place(x=200, y=60)
                         self.linux_get_camera_button_disable.place(x=30, y=100)
-                        self.check_system(linux_camera_disable)
+                        self.check_system(linux_camera_disable,device)
                     else:
                         # 开启取图模式
                         self.take_image_mode_close = False
                         # 设置 打开取图模式后的标志
-                        public.execute_cmd('adb push ' + camera_open_path + ' /data/')
-                        self.main_camera_bind(self.take_image_mode_close)
+                        public.execute_cmd('adb -s ' + device + ' push ' + camera_open_path + ' /data/')
+                        self.main_camera_bind(self.take_image_mode_close,device)
 
         t_open_camera = threading.Thread(target=t_open_camera)
         t_open_camera.setDaemon(True)
         t_open_camera.start()
 
-    def close_camera_bind(self,linux_camera_disable):
+    def close_camera_bind(self,linux_camera_disable,device):
         def t_close_camera():
             devices_state = public.device_connect()
             if not devices_state:
                 self.camera_str.set('检测到没有连接到设备\n请连接设备后再使用本功能')
             else:
-                only_read = public.linux_only_read()
+                only_read = public.linux_only_read(device)
                 if only_read == ' No such file or directory':
-                    public.execute_cmd('adb shell rm -rf /data/camera_system.ini')
+                    public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/camera_system.ini')
                     self.camera_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
                 else:
-                    check_system_cmd = public.execute_cmd('adb shell ls -lh /data/camera_system.ini')
+                    check_system_cmd = public.execute_cmd('adb -s ' + device + ' shell ls -lh /data/camera_system.ini')
                     check_system_cmd_finally = ' '.join(check_system_cmd.split()).split(':')[-1]
                     print(check_system_cmd_finally)
                     if check_system_cmd_finally.strip() == 'No such file or directory':
@@ -935,20 +946,20 @@ class Linux_Camera(object):
                         self.linux_camera_button_disable.place(x=30, y=60)
                         self.linux_camera_button_close_disable.place(x=200, y=60)
                         self.linux_get_camera_button_disable.place(x=30, y=100)
-                        self.check_system(linux_camera_disable)
+                        self.check_system(linux_camera_disable,device)
                     else:
                         # 关闭取图模式
                         # 取图模式标志
                         self.take_image_mode_close = True
                         # 设置 打开取图模式后的标志
-                        public.execute_cmd('adb push ' + camera_close_path + ' /data/')
-                        self.main_camera_bind(self.take_image_mode_close)
+                        public.execute_cmd('adb -s ' + device + ' push ' + camera_close_path + ' /data/')
+                        self.main_camera_bind(self.take_image_mode_close,device)
 
         t_close_camera = threading.Thread(target=t_close_camera)
         t_close_camera.setDaemon(True)
         t_close_camera.start()
 
-    def main_camera_bind(self,take_image_mode_close):
+    def main_camera_bind(self,take_image_mode_close,device):
         def t_main_camera():
             # 取图模式核心流程
             if take_image_mode_close:
@@ -956,16 +967,16 @@ class Linux_Camera(object):
                 self.linux_get_camera_button_disable.place(x=30,y=100)
                 # 设置取图模式为False (关闭取图模式)
                 self.camera_str.set('正在关闭取图模式并重启...')
-                public.execute_cmd('adb shell uci set system.algo_imageParameter.isSaveOriginalImage=false')
+                public.execute_cmd('adb -s ' + device + ' shell uci set system.algo_imageParameter.isSaveOriginalImage=false')
             else:
                 self.linux_camera_button_disable_open.place(x=30, y=60)
                 # 设置取图模式为True (开启取图模式)
                 self.camera_str.set('正在启动取图模式并重启...')
-                public.execute_cmd('adb shell uci set system.algo_imageParameter.isSaveOriginalImage=true')
+                public.execute_cmd('adb -s ' + device + ' shell uci set system.algo_imageParameter.isSaveOriginalImage=true')
             # 上传到system
-            public.execute_cmd('adb shell uci commit system')
+            public.execute_cmd('adb -s ' + device + ' shell uci commit system')
             # 重启
-            public.execute_cmd('adb shell reboot')
+            public.execute_cmd('adb -s ' + device + ' shell reboot')
             time.sleep(18)
             if take_image_mode_close:
                 self.camera_str.set('取图模式已关闭\n请重新开启取图模式')
@@ -985,19 +996,19 @@ class Linux_Camera(object):
         t_main_camera.setDaemon(True)
         t_main_camera.start()
 
-    def camera_pywinauto_main(self,linux_camera_disable):
+    def camera_pywinauto_main(self,linux_camera_disable,device):
         def t_camera_pywinauto():
             devices_state = public.device_connect()
             if not devices_state:
                 self.camera_str.set('检测到没有连接到设备\n请连接设备后再使用本功能')
             else:
-                only_read = public.linux_only_read()
+                only_read = public.linux_only_read(device)
                 if only_read == ' No such file or directory':
-                    public.execute_cmd('adb shell rm -rf /data/camera_system.ini')
+                    public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/camera_system.ini')
                     self.camera_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
                 else:
                     # 取图核心主流程
-                    check_system_cmd = public.execute_cmd('adb shell ls -lh /data/camera_system.ini')
+                    check_system_cmd = public.execute_cmd('adb -s ' + device + ' shell ls -lh /data/camera_system.ini')
                     check_system_cmd_finally = ' '.join(check_system_cmd.split()).split(':')[-1]
                     print(check_system_cmd_finally)
                     if check_system_cmd_finally.strip() == 'No such file or directory':
@@ -1005,7 +1016,7 @@ class Linux_Camera(object):
                         self.linux_camera_button_disable.place(x=30, y=60)
                         self.linux_camera_button_close_disable.place(x=200, y=60)
                         self.linux_get_camera_button_disable.place(x=30, y=100)
-                        self.check_system(linux_camera_disable)
+                        self.check_system(linux_camera_disable,device)
                     else:
                         self.linux_get_camera_button_disable_final.place(x=30, y=100)
                         self.camera_str.set('正在检查取图环境...')
@@ -1024,7 +1035,7 @@ class Linux_Camera(object):
                         f += 1
                         get_yuv_path = linux_camera_save + 'get_yuv' + str(f)
                         # 取图到指定位置
-                        command = 'adb  pull /tmp/yuv_data ' + get_yuv_path
+                        command = 'adb -s ' + device + ' pull /tmp/yuv_data ' + get_yuv_path
                         # yuv_download = public.execute_cmd('adb  pull /tmp/yuv_data ' + get_yuv_path)
                         # print(yuv_download)
                         p = subprocess.Popen(command, shell=False, stdout=(subprocess.PIPE), stderr=(subprocess.STDOUT))
@@ -1061,8 +1072,8 @@ class Linux_Camera(object):
                                         pywinauto_yuv.carmera_automation(yuvplayer_exist, yuv_path_dir[0])
                                         # 清理yuv文件缓存
                                         self.camera_str.set('正在清理yuv文件缓存...')
-                                        public.execute_cmd('adb shell rm -rf /tmp/yuv_data/ping/*.yuv')
-                                        public.execute_cmd('adb shell rm -rf /tmp/yuv_data/pong/*.yuv')
+                                        public.execute_cmd('adb -s ' + device + ' shell rm -rf /tmp/yuv_data/ping/*.yuv')
+                                        public.execute_cmd('adb -s ' + device + ' shell rm -rf /tmp/yuv_data/pong/*.yuv')
                                         self.camera_str.set('取图完成！！！\n下次取图前请先关闭看图软件')
                                         break
                                     else:

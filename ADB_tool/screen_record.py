@@ -35,9 +35,9 @@ record_save = 'C:\\Users\\' + username + '\\Desktop\\' + record_dirname + '\\'
 record_model_save_1 = record_save + '连续模式' + '\\'
 
 
-def cd_screenshots(screen_str):
+def cd_screenshots(device):
     # 进入截图临时保存文件夹
-    command = 'adb shell cd /sdcard/da_screenshots'
+    command = 'adb -s ' + device + ' shell cd /sdcard/da_screenshots'
     screenshot = public.execute_cmd(command)
     print(screenshot)
     if screenshot.strip() == "/bin/sh: cd: line 1: can't cd to /sdcard/da_screenshots":
@@ -48,11 +48,11 @@ def cd_screenshots(screen_str):
         mkdir_state = screenshot.split(':')[-1]
         # 创建截图临时保存文件夹
         if mkdir_state == ' No such file or directory\r\n':
-            make_state = public.execute_cmd('adb shell mkdir /sdcard/da_screenshots')
+            make_state = public.execute_cmd('adb -s ' + device + ' shell mkdir /sdcard/da_screenshots')
             return make_state
 
 
-def main_screenshots(touch_name):
+def main_screenshots(touch_name,device):
     # 初始化截图缓存
     if not os.path.exists(save_path):
         os.makedirs(save_path)
@@ -63,17 +63,17 @@ def main_screenshots(touch_name):
     # 截图
     f = int(open(count_path, 'r').read())
     f += 1
-    public.execute_cmd('adb shell screencap -p /sdcard/da_screenshots/' + touch_name + '（' + str(f) + '）' + '.png')
+    public.execute_cmd('adb -s ' + device + ' shell screencap -p /sdcard/da_screenshots/' + touch_name + '（' + str(f) + '）' + '.png')
     # 默认等待2S，防止截图不完整
     time.sleep(2)
     # 后面pull目的文件夹中的目的文件，添加一样的文件后缀名，避免pull后的文件乱码且不是截图文件，确保是png格式的高清截图文件
-    pull_cmd = 'adb pull /sdcard/da_screenshots/' + touch_name + '（' + str(f) + '）' + '.png ' + save_path + touch_name + '（' + str(f) + '）' + '.png'
+    pull_cmd = 'adb -s ' + device + ' pull /sdcard/da_screenshots/' + touch_name + '（' + str(f) + '）' + '.png ' + save_path + touch_name + '（' + str(f) + '）' + '.png'
     public.execute_cmd(pull_cmd)
     with open(count_path, 'w') as fp:
         fp.write(str(f))
     fp.close()
     # 删除截图缓存（减少占用空间）
-    public.execute_cmd('adb shell rm -r /sdcard/da_screenshots/*.png')
+    public.execute_cmd('adb -s ' + device + ' shell rm -r /sdcard/da_screenshots/*.png')
     screenshot_success = '截图成功！文件保存在:\n ' + save_path + dirname + '\\' + touch_name + '（' + str(f) + '）' + '.png'
     # 超出显示范围状态提示处理
     if len(screenshot_success) > 58:
@@ -100,102 +100,108 @@ def open_screenshots():
 #     # 从V1.0.0.13版开始取消录屏后台程序
 
 
-def main_record(record_time_finally, record_name_model):
+def main_record(record_time_finally, record_name_model,device):
     # 开始录屏标记
     with open(record_began, 'w') as fp:
         fp.write('Began to record the screen')
     # 录屏 # 最大录屏时间为180秒
-    record_cmd = 'adb shell screenrecord --time-limit ' + record_time_finally + ' /sdcard/da_screenrecord/' + record_name_model
+    record_cmd = 'adb -s ' + device + ' shell screenrecord --time-limit ' + record_time_finally + ' /sdcard/da_screenrecord/' + record_name_model
     public.execute_cmd(record_cmd)
 
 
-def record(record_name,record_time,record_model_get):
+def record(record_name,record_time,record_model_get,device):
     # 设备录屏
     # print('程序获取权限成功，正在启动录屏...\n')
     print('正在启动录屏...\n')
 
     # 进入录屏临时保存文件夹
-    command = 'adb shell cd /sdcard/da_screenrecord'
+    command = 'adb -s ' + device + ' shell cd /sdcard/da_screenrecord'
     screenrecord = public.execute_cmd(command)
     print(screenrecord)
-    mkdir_state = screenrecord.split(':')[-1]
-    # 创建截图临时保存文件夹
-    if mkdir_state == ' No such file or directory\r\n':
-        public.execute_cmd('adb shell mkdir /sdcard/da_screenrecord')
+    if screenrecord.strip() == "/bin/sh: cd: line 1: can't cd to /sdcard/da_screenrecord":
+        make_state = 'Non-Android Devices'
+        print(make_state)
+        with open(record_began,'w') as fp:
+            fp.write(make_state)
+    else:
+        mkdir_state = screenrecord.split(':')[-1]
+        # 创建截图临时保存文件夹
+        if mkdir_state == ' No such file or directory\r\n':
+            public.execute_cmd('adb -s ' + device + ' shell mkdir /sdcard/da_screenrecord')
 
-    if not os.path.exists(record_count):
-        with open(record_count, 'w') as fp:
-            fp.write('0')
+        if not os.path.exists(record_count):
+            with open(record_count, 'w') as fp:
+                fp.write('0')
 
-    r = int(open(record_count, 'r').read())
-    r += 1
+        r = int(open(record_count, 'r').read())
+        r += 1
 
-    # 创建录屏视频保存文件夹
-    if not os.path.exists(record_save):
-        os.makedirs(record_save)
+        # 创建录屏视频保存文件夹
+        if not os.path.exists(record_save):
+            os.makedirs(record_save)
 
-    # 录屏前唤醒屏幕
-    public.execute_cmd('adb shell input keyevent 224')
+        # 录屏前唤醒屏幕
+        public.execute_cmd('adb -s ' + device + ' shell input keyevent 224')
 
-    # # 获取录屏文件名称
-    # record_name_finally = open(record_name, 'r').read()
-    #
-    # # 获取录屏设置时间
-    # record_time_finally = open(record_time, 'r').read()
+        # # 获取录屏文件名称
+        # record_name_finally = open(record_name, 'r').read()
+        #
+        # # 获取录屏设置时间
+        # record_time_finally = open(record_time, 'r').read()
 
-    # 停止标记
-    with open(record_stop, 'w') as fp:
-        fp.write('1')
+        # 停止标记
+        with open(record_stop, 'w') as fp:
+            fp.write('1')
 
-    # # 获取模式
-    # record_model_get = open(record_model_log, 'r').read()
-    # 手动模式
-    if record_model_get == '0':
-        print('已进入手动模式！！！')
-        record_name_model = record_name + '（' + str(r) + '）' + '.mp4'
-        main_record(record_time, record_name_model)
-    # 连续模式
-    elif record_model_get == '1':
-        print('已进入连续模式！！！')
-        i = 1
-        while True:
-            # 每轮录屏前状态需要初始化
-            with open(record_began, 'w') as fp:
-                fp.write('')
+        # # 获取模式
+        # record_model_get = open(record_model_log, 'r').read()
+        # 手动模式
+        if record_model_get == '0':
+            print('已进入手动模式！！！')
+            record_name_model = record_name + '（' + str(r) + '）' + '.mp4'
+            main_record(record_time, record_name_model,device)
+        # 连续模式
+        elif record_model_get == '1':
+            print('已进入连续模式！！！')
+            i = 1
+            while True:
+                # 每轮录屏前状态需要初始化
+                with open(record_began, 'w') as fp:
+                    fp.write('')
 
-            # 每轮录屏前唤醒屏幕
-            public.execute_cmd('adb shell input keyevent 224')
+                # 每轮录屏前唤醒屏幕
+                public.execute_cmd('adb -s ' + device + ' shell input keyevent 224')
 
-            devices_state = public.device_connect()
-            with open(record_began, 'w') as fp:
-                fp.write('Began to record the screen')
-            with open(record_count_1,'w') as fp:
-                fp.write(str(i))
-            record_name_model = record_name + '（' + str(r) + '）连续-' + str(i) + '.mp4'
-            main_record(record_time, record_name_model)
-            # 连续模式保存文件
-            if not os.path.exists(record_model_save_1):
-                os.makedirs(record_model_save_1)
+                devices_state = public.device_connect()
+                with open(record_began, 'w') as fp:
+                    fp.write('Began to record the screen')
+                with open(record_count_1,'w') as fp:
+                    fp.write(str(i))
+                record_name_model = record_name + '（' + str(r) + '）连续-' + str(i) + '.mp4'
+                main_record(record_time, record_name_model,device)
+                # 连续模式保存文件
+                if not os.path.exists(record_model_save_1):
+                    os.makedirs(record_model_save_1)
 
-            download_cmd = 'adb pull /sdcard/da_screenrecord/' + record_name_model + ' ' + record_model_save_1 + record_name_model
-            # print(download_cmd)
-            public.execute_cmd(download_cmd)
+                download_cmd = 'adb -s ' + device + ' pull /sdcard/da_screenrecord/' + record_name_model + ' ' + record_model_save_1 + record_name_model
+                # print(download_cmd)
+                public.execute_cmd(download_cmd)
 
-            # 删除录屏文件缓存（减少占用空间）
-            public.execute_cmd('adb shell rm -r /sdcard/da_screenrecord/*.mp4')
+                # 删除录屏文件缓存（减少占用空间）
+                public.execute_cmd('adb -s ' + device + ' shell rm -r /sdcard/da_screenrecord/*.mp4')
 
-            with open(record_began, 'w') as fp:
-                fp.write('continuous')
-            i += 1
-            time.sleep(2)
-            # 设备突然中断连接，连续模式结束
-            if not devices_state:
-                break
+                with open(record_began, 'w') as fp:
+                    fp.write('continuous')
+                i += 1
+                time.sleep(2)
+                # 设备突然中断连接，连续模式结束
+                if not devices_state:
+                    break
 
-    # 录屏各项异常处理
-    print('设备突然中断连接或录屏最大时间到了，录屏结束！')
-    with open(record_began, 'w') as fp:
-        fp.write('Stop recording screen')
+        # 录屏各项异常处理
+        print('设备突然中断连接或录屏最大时间到了，录屏结束！')
+        with open(record_began, 'w') as fp:
+            fp.write('Stop recording screen')
 
 
 def record_time(record_str):
@@ -227,6 +233,8 @@ def record_time(record_str):
             record_time_began = open(record_began, 'r').read()
             if record_time_began == 'Began to record the screen':
                 break
+            elif record_time_began == 'Non-Android Devices':
+                sys.exit()  # 终止线程，不会继续向下执行代码，也不会结束主程序
         except PermissionError:
             # sys.exit（）某种意义上也可以终止进程，不会继续向下执行代码，也不会结束主程序
             sys.exit()
@@ -288,7 +296,7 @@ def record_time(record_str):
     #         fp.write('no devices')
 
 
-def record_pull(record_name,record_model):
+def record_pull(record_name,record_model,device):
     # 保存录屏视频
 
     # 等待ADB服务完全重启成功
@@ -299,24 +307,24 @@ def record_pull(record_name,record_model):
         r = int(open(record_count,'r').read())
         r += 1
 
-        download_cmd = 'adb pull /sdcard/da_screenrecord/' + record_name + '（' + str(r) + '）' + '.mp4 ' + record_save + record_name + '（' + str(r) + '）' + '.mp4'
+        download_cmd = 'adb -s ' + device + ' pull /sdcard/da_screenrecord/' + record_name + '（' + str(r) + '）' + '.mp4 ' + record_save + record_name + '（' + str(r) + '）' + '.mp4'
         public.execute_cmd(download_cmd)
         with open(record_count, 'w') as fp:
             fp.write(str(r))
 
         # 删除录屏文件缓存（减少占用空间）
-        public.execute_cmd('adb shell rm -r /sdcard/da_screenrecord/*.mp4')
+        public.execute_cmd('adb -s ' + device + ' shell rm -r /sdcard/da_screenrecord/*.mp4')
     elif record_model == '1':
         print('已进入连续模式保存流程...')
         r = int(open(record_count, 'r').read())
         i = int(open(record_count_1,'r').read())
         record_name_model = record_name + '（' + str(r) + '）连续-' + str(i) + '.mp4'
-        download_cmd = 'adb pull /sdcard/da_screenrecord/' + record_name_model + ' ' + record_model_save_1 + record_name_model
+        download_cmd = 'adb -s ' + device + ' pull /sdcard/da_screenrecord/' + record_name_model + ' ' + record_model_save_1 + record_name_model
         # print(download_cmd)
         public.execute_cmd(download_cmd)
 
         # 删除录屏文件缓存（减少占用空间）
-        public.execute_cmd('adb shell rm -r /sdcard/da_screenrecord/*.mp4')
+        public.execute_cmd('adb -s ' + device + ' shell rm -r /sdcard/da_screenrecord/*.mp4')
 
     # # 返回原始地址，防止与本地ADB服务发生冲突导致无法使用
     # original_path = open(exe_path,'r').read()
@@ -349,9 +357,9 @@ def reset_delete(filename):
 
 def reset_screenrecord():
     # 需要删除的文件或文件夹filename_list
-    # 删除截图录屏保存文件夹 save_path，record_save 清空缓存 record_began，record_time_txt，record_name
+    # 删除截图录屏保存文件夹 save_path，record_save 清空缓存 record_time_txt，record_name
     # 计数重置为零 count_path，record_count,record_count_1
-    filename_list = [save_path,record_save,record_began,record_time_txt,record_name,count_path,record_count_1
+    filename_list = [save_path,record_save,record_time_txt,record_name,count_path,record_count_1
         ,record_count,record_stop]
     for filename in filename_list:
         reset_delete(filename)
