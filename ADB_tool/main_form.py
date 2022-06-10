@@ -32,6 +32,8 @@ screen_page = make_dir + 'screen_page_state.txt'
 install_page = make_dir + 'install_page_state.txt'
 # 取图页面启动标志
 camera_page = make_dir + 'camera_page_state.txt'
+# 写号工具页面启动标志
+write_number_page = make_dir + 'linux_write_number_state.txt'
 # 简易ADB - adb-tools检测标志
 adb_tools_flag = make_dir + 'adb-tools'
 # 卸载APK标记
@@ -57,8 +59,8 @@ adb_upgrade_flag = make_dir + 'adb_state.ini'
 with open(adb_upgrade_flag,'w') as fp:
     fp.write('ADB is the latest version')
 # 统一修改版本号
-version = 'V1.0.0.14'
-version_code = 1001.4
+version = 'V1.0.0.16'
+version_code = 1001.6
 # 统一修改frame的宽高
 width = 367
 height = 405
@@ -193,6 +195,11 @@ class MainForm(object):
                         s.more_devices_combobox['value'] = s.more_devices_list
                         s.more_devices_combobox.current(0)
                         devices_current_flag = False
+                        continue
+                    elif s.more_devices_value.get().strip() == 'List of':
+                        s.more_devices_list = ['检测异常，请重新拔插设备']
+                        s.more_devices_combobox['value'] = s.more_devices_list
+                        s.more_devices_combobox.current(0)
                         continue
                     else:
                         s.more_devices_list = devices_list
@@ -556,7 +563,7 @@ class MainForm(object):
         s.linux_developer_mode_Button_close.bind('<Button-1>', lambda x: s.linux_developer_mode_close_bind())
         s.linux_developer_mode_Button_close_disable.config(state='disable')
         s.linux_developer_mode_Button_close.place(x=200, y=190)
-        s.linux_developer_mode_content = """访问设备本地盘需要关闭ADB命令，届时本工具不能连接该设备\n恢复ADB命令需要手动在设备上的“设置-关于-固件版本”，连续点击5下后重启
+        s.linux_developer_mode_content = """访问设备本地盘需要关闭ADB命令，届时本工具不能连接该设备\n恢复ADB命令需要手动在设备上的“设置-关于-固件版本”，连续点击5下后输入密码“2022#888”后点击确定再重启
 恢复ADB命令后，计算机不能访问设备本地盘，但本工具可连接该设备\n在adb shell中通过cd /mnt/UDISK/ 也可访问到本地盘的数据"""
         public.CreateToolTip(s.linux_developer_mode_Button_close,s.linux_developer_mode_content)
 
@@ -574,6 +581,13 @@ class MainForm(object):
         s.linux_camera_disable.config(state='disable')
         s.linux_camera.place(x=20, y=270)
 
+        # 写号工具
+        s.write_number = tkinter.Button(s.linux_frame1, text='写号工具（Linux）', width=width_button)
+        s.write_number_disable = tkinter.Button(s.linux_frame1, text='写号工具（Linux）', width=width_button)
+        s.write_number.bind('<Button-1>', lambda x: s.write_number_bind())
+        s.write_number_disable.config(state='disable')
+        s.write_number.place(x=200, y=230)
+
         # 开始默认禁用，根据情况开启
         s.linux_all_button_close()
 
@@ -590,6 +604,8 @@ class MainForm(object):
             s.linux_install_disable.place_forget()
             s.linux_camera.place_forget()
             s.linux_camera_disable.place_forget()
+            s.write_number.place_forget()
+            s.write_number_disable.place_forget()
 
             s.linux_button_label.place(x=20, y=220)
 
@@ -613,6 +629,7 @@ class MainForm(object):
         s.linux_developer_mode_Button_close.place(x=200,y=190)
         s.linux_install.place(x=20,y=230)
         s.linux_camera.place(x=20,y=270)
+        s.write_number.place(x=200,y=230)
 
     def version_history_frame(s):
         # 历史版本信息窗口
@@ -817,6 +834,11 @@ class MainForm(object):
                                 s.devices_type_str.set('未知设备')
                                 # print('未知设备')
                                 continue
+                        elif s.more_devices_value.get().strip() == 'List of' or \
+                            s.more_devices_value.get().strip() == '检测异常，请重新拔插设备':
+                            s.devices_type_success.place_forget()
+                            s.devices_type_fail.place(x=325, y=425)
+                            s.devices_type_error.set('检测失败！重新拔插设备！')
                     except AttributeError:
                         print('出现AttributeError无影响，请忽略')
                         pass
@@ -1219,11 +1241,18 @@ class MainForm(object):
                 s.init_text = s.init_str.get()
                 only_read = check_only_read()
                 if s.init_text == '该设备没有初始化\n请点击下方按钮进行设备初始化' or s.init_text == '此处显示初始化状态'\
-                        or not devices_linux_flag or not devices_finally or only_read == ' No such file or directory':
+                        or not devices_linux_flag or not devices_finally or only_read.strip() == 'No such file or directory':
                     s.linux_all_button_close()
                 elif s.init_text == '该设备已初始化\n无需初始化，可正常使用下方功能' and devices_linux_flag and devices_finally\
-                          and only_read != ' No such file or directory':
+                          and only_read.strip() != 'No such file or directory':
                     s.linux_all_button_open()
+                elif only_read.strip() == 'ls requires an argument':
+                    error_content = '检测初始化只读权限异常错误，解决方案如下：' \
+                                    '1.重新拔插设备后点击重新检测' \
+                                    '2.重启软件后再重新检测初始化' \
+                                    'PS：建议按照以上方案进行操作，以免功能无法正常使用！'
+                    tkinter.messagebox.showerror(title='初始化错误',message=error_content)
+                    break
                 time.sleep(1)
 
         t_linux_button = threading.Thread(target=t_linux_button)
@@ -1393,3 +1422,35 @@ class MainForm(object):
         t_check_package_name = threading.Thread(target=t_check_package_name)
         t_check_package_name.setDaemon(True)
         t_check_package_name.start()
+
+    def write_number_bind(s):
+        def t_write_number():
+            # 初始化写号工具页面的状态
+            with open(write_number_page, 'w') as fp:
+                fp.write('')
+            linux_write_number = linux_main.Linux_WriteNumber()
+            device_SN = s.more_devices_value.get()
+            linux_write_number.write_number_form(s.init_str,s.write_number,s.write_number_disable,device_SN)
+
+        def t_write_number_close():
+            # 监听写号工具页面的关闭状态
+            with open(write_number_page, 'w') as fp:
+                fp.write('')
+            while True:
+                devices_connect = public.device_connect()
+                write_number_page_state = open(write_number_page, 'r').read()
+                if not devices_connect:
+                    break
+                else:
+                    if write_number_page_state == '0':
+                        s.write_number_disable.place_forget()
+                        s.write_number.place(x=200, y=230)
+                        break
+
+        t_write_number = threading.Thread(target=t_write_number)
+        t_write_number.setDaemon(True)
+        t_write_number.start()
+
+        t_write_number_close = threading.Thread(target=t_write_number_close)
+        t_write_number_close.setDaemon(True)
+        t_write_number_close.start()

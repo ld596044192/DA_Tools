@@ -14,6 +14,8 @@ camera_system_path = public.resource_path(os.path.join('resources','camera_syste
 camera_open_path = public.resource_path(os.path.join('resources','camera_open/camera_system.ini'))
 # 设置 关闭取图模式后的标志路径
 camera_close_path = public.resource_path(os.path.join('resources','camera_close/camera_system.ini'))
+# 写号结果日志路径
+SN_result_path = public.resource_path(os.path.join('temp','SN_result.log'))
 # 看图软件路径
 yuvplayer_path = public.resource_path(os.path.join('resources','yuvplayer.exe'))
 LOGO_path = public.resource_path(os.path.join('icon', 'android.ico'))
@@ -44,6 +46,12 @@ Image_rotate_path = make_dir + 'linux_screen_rotate.txt'
 install_page = make_dir + 'install_page_state.txt'
 # 取图页面启动标志
 camera_page = make_dir + 'camera_page_state.txt'
+# 写号工具页面启动标志
+write_number_page = make_dir + 'linux_write_number_state.txt'
+# 写号工具记录log
+write_SN_log = make_dir + 'write_SN_log.log'
+# SN号记录标记
+SN_path = make_dir + 'SN.txt'
 # Entry输入框焦点标记（用于右键菜单粘贴逻辑使用）
 install_library_entry_focus_flag = False
 install_software_entry_focus_flag = False
@@ -51,6 +59,10 @@ install_software_entry_focus_flag = False
 screen_click_flag = False
 # 限制截图重置提示弹框标记
 screen_reset_flag = False
+# 初始化写号工具记录log
+if not os.path.exists(write_SN_log):
+    with open(write_SN_log,'w') as fp:
+        fp.write('')
 
 
 def main_init(init_str,init_Button,init_Button_disable,device):
@@ -60,9 +72,9 @@ def main_init(init_str,init_Button,init_Button_disable,device):
     # 检测该设备是否初始化
     # 检测权限文件是否存在
     only_read = public.linux_only_read(device)
-    init_final = public.execute_cmd('adb -s ' + device + ' shell cat /data/adb_init.ini')
+    # init_final = public.execute_cmd('adb -s ' + device + ' shell cat /data/adb_init.ini')
     # if init_final == 'The device initialized' and only_read != ' No such file or directory':
-    if only_read != ' No such file or directory':
+    if only_read.strip() != 'No such file or directory':
         init_str.set('该设备已初始化\n无需初始化，可正常使用下方功能')
         init_Button.place_forget()
         init_Button_disable.place(x=200, y=110)
@@ -531,7 +543,7 @@ class Linux_Install(object):
         self.install_library_combobox = tkinter.ttk.Combobox(self.install_root, state="readonly", width=30,
                                                           textvariable=self.install_library_value)
         # state：“正常”，“只读”或“禁用”之一。在“只读”状态下，可能无法直接编辑该值，并且用户只能从下拉列表中选择值。在“正常”状态下，文本字段可直接编辑。在“禁用”状态下，不可能进行交互。
-        self.install_library_combobox['value'] = ('Liunx库默认位置','dosmono指定位置 /etc/miniapp/jsapis/')
+        self.install_library_combobox['value'] = ('Liunx库默认位置','dosmono指定位置 /etc/miniapp/jsapis/','牛津词典指定位置 /etc/miniapp/jsapis/')
         self.install_library_combobox.current(0)
         self.install_library_combobox.place(x=110, y=125)
 
@@ -541,14 +553,15 @@ class Linux_Install(object):
         public.CreateToolTip(self.install_software_combobox_label, '根据实际情况选择安装路径，否则出现问题\n备注：\n'
                                         '主程序默认安装路径：/etc/miniapp/resources/presetpkgs/8180000000000020.amr\n'
                                         '引导页默认安装路径：/etc/miniapp/resources/presetpkgs/8180000000000026.amr\n'
-                                        '喜马拉雅默认安装路径：/etc/miniapp/resources/presetpkgs/8080231999314849.amr')
+                                        '喜马拉雅默认安装路径：/etc/miniapp/resources/presetpkgs/8080231999314849.amr\n'
+                                        '牛津词典默认安装路径：/etc/miniapp/resources/presetpkgs/8080251822789980.amr')
 
         # 安装应用包文件目录位置下拉框
         self.install_software_value = tkinter.StringVar()
         self.install_software_combobox = tkinter.ttk.Combobox(self.install_root, state="readonly", width=30,
                                                              textvariable=self.install_software_value)
         # state：“正常”，“只读”或“禁用”之一。在“只读”状态下，可能无法直接编辑该值，并且用户只能从下拉列表中选择值。在“正常”状态下，文本字段可直接编辑。在“禁用”状态下，不可能进行交互。
-        self.install_software_combobox['value'] = ('主程序默认安装位置 ','引导页默认安装位置 ','喜马拉雅默认安装位置 ')
+        self.install_software_combobox['value'] = ('主程序默认安装位置 ','引导页默认安装位置 ','喜马拉雅默认安装位置 ','牛津词典默认安装位置 ')
         self.install_software_combobox.current(0)
         self.install_software_combobox.place(x=110, y=155)
 
@@ -710,7 +723,8 @@ class Linux_Install(object):
                                     main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + library_files_path + '"' + ' /usr/lib')
                                     print(main_result)
                                     print(library_files_path + ' 已上传')
-                                elif self.install_library_value.get().strip() == 'dosmono指定位置 /etc/miniapp/jsapis/':
+                                elif self.install_library_value.get().strip() == 'dosmono指定位置 /etc/miniapp/jsapis/' or \
+                                    self.install_library_value.get().strip() == '牛津词典指定位置 /etc/miniapp/jsapis/':
                                     main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + library_files_path + '"' + ' /etc/miniapp/jsapis/')
                                     print(main_result)
                                     print(library_files_path + ' 已上传')
@@ -732,6 +746,11 @@ class Linux_Install(object):
                                 elif self.install_software_value.get().strip() == '喜马拉雅默认安装位置':
                                     main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + software_files_path + '"' +
                                                        ' /etc/miniapp/resources/presetpkgs/8080231999314849.amr')
+                                    print(main_result)
+                                    print(software_files_path + ' 已上传')
+                                elif self.install_software_value.get().strip() == '牛津词典默认安装位置':
+                                    main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + software_files_path + '"' +
+                                                       ' /etc/miniapp/resources/presetpkgs/8080251822789980.amr')
                                     print(main_result)
                                     print(software_files_path + ' 已上传')
 
@@ -1091,3 +1110,312 @@ class Linux_Camera(object):
         t_camera_pywinauto = threading.Thread(target=t_camera_pywinauto)
         t_camera_pywinauto.setDaemon(True)
         t_camera_pywinauto.start()
+
+
+# 写号工具页面
+class Linux_WriteNumber(object):
+    def write_number_form(self,init_str,write_number_Button,write_number_Button_disable,device):
+        self.write_number_root = tkinter.Toplevel()
+        self.write_number_root.title('写号/工厂写码工具 - Linux')
+        screenWidth = self.write_number_root.winfo_screenwidth()
+        screenHeight = self.write_number_root.winfo_screenheight()
+        w = 560
+        h = 360
+        x = (screenWidth - w) / 2
+        y = (screenHeight - h) / 2
+        self.write_number_root.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        self.write_number_root.geometry('%dx%d' % (w, h))
+        self.write_number_root.iconbitmap(LOGO_path)
+        self.write_number_root.resizable(0, 0)
+        self.write_number_root.wm_attributes('-topmost', 1)
+
+        self.write_number_startup(write_number_Button,write_number_Button_disable)
+
+        self.write_number_root.protocol('WM_DELETE_WINDOW',self.close_handle)
+        self.main_frame(device)
+
+        return self.write_number_root
+
+    def write_number_startup(self,write_number_Button,write_number_Button_disable):
+        # 监听写号工具页面的打开状态
+        write_number_exists = self.write_number_root.winfo_exists()
+        print(write_number_exists)
+        if write_number_exists == 1:
+            write_number_Button.place_forget()
+            write_number_Button_disable.place(x=200, y=230)
+
+    def close_handle(self):
+        # 监听页面消失
+        with open(write_number_page,'w') as fp:
+            fp.write('0')
+        self.write_number_root.destroy()
+
+    def main_frame(self,device):
+        # 获取写号工具状态栏
+        self.write_number_str = tkinter.StringVar()
+        self.write_number_label = tkinter.Label(self.write_number_root, textvariable=self.write_number_str, bg='black', fg='#FFFFFF',
+                                          width=40, height=2)
+        self.write_number_label.place(x=60, y=10)
+        # self.write_number_label.config(command=self.check_system(linux_camera_disable, device))
+        self.write_number_str.set('此处显示写号/工厂写码工具状态')
+
+        self.write_code_label_factory = tkinter.Label(self.write_number_root,text='写码/三元组',fg='red',width=40,font=('华文行楷',15))
+        self.write_code_label_factory.place(x=20,y=60)
+
+        # MAC地址输入框
+        self.write_mac_entry_str = tkinter.StringVar()
+        self.write_mac_entry = tkinter.Entry(self.write_number_root, textvariable=self.write_mac_entry_str,
+                                                    width=40, highlightcolor='orange', validate="focusin"
+                                                    , highlightthickness=5)
+        self.write_mac_entry.place(x=55, y=90)
+        self.write_mac_entry.insert(0,'请输入<wifi mac地址>')
+        self.write_mac_entry.config(command=self.write_mac_entry_bind())
+
+        # 三元组输入框
+        self.write_secretkey_entry_str = tkinter.StringVar()
+        self.write_secretkey_entry = tkinter.Entry(self.write_number_root, textvariable=self.write_secretkey_entry_str,
+                                             width=40, highlightcolor='blue', validate="focusin"
+                                             , highlightthickness=5)
+        self.write_secretkey_entry.place(x=55, y=120)
+        self.write_secretkey_entry.insert(0, '请输入<三元组>')
+        self.write_secretkey_entry.config(command=self.write_secretkey_entry_bind())
+
+        # MD5值输入框
+        self.write_md5_entry_str = tkinter.StringVar()
+        self.write_md5_entry = tkinter.Entry(self.write_number_root, textvariable=self.write_md5_entry_str,
+                                                   width=40, highlightcolor='purple', validate="focusin"
+                                                   , highlightthickness=5)
+        self.write_md5_entry.place(x=55, y=150)
+        self.write_md5_entry.insert(0, '请输入<md5>')
+        self.write_md5_entry.config(command=self.write_md5_entry_bind())
+
+        # 写码复选框（勾选此项开启写码功能）
+        self.write_code_str = tkinter.IntVar()
+        self.write_code_checkbutton = tkinter.Checkbutton(self.write_number_root, onvalue=1, offvalue=0,
+                                            text='勾选此项开启写码',variable=self.write_code_str)
+        self.write_code_checkbutton.place(x=55, y=190)
+
+        # 写码按钮
+        self.write_code_button = tkinter.Button(self.write_number_root,text='开始写码')
+        self.write_code_button.config(state='disable')
+        self.write_code_button.place(x=200,y=190)
+
+        self.write_number_label_factory = tkinter.Label(self.write_number_root, text='写号', fg='red', width=40,
+                                                        font=('华文行楷', 15))
+        self.write_number_label_factory.place(x=20, y=230)
+
+        # SN号输入框
+        self.write_SN_entry_str = tkinter.StringVar()
+        self.write_SN_entry = tkinter.Entry(self.write_number_root, textvariable=self.write_SN_entry_str,
+                                             width=40, highlightcolor='red', validate="focusin"
+                                             , highlightthickness=5)
+        self.write_SN_entry.place(x=55, y=260)
+        self.write_SN_entry.insert(0, '请输入<SN号>')
+        self.write_SN_entry.config(command=self.write_SN_entry_bind())
+
+        # 写号单选按钮
+        self.write_15_str = tkinter.IntVar()
+        self.write_15_radio_button = tkinter.Radiobutton(self.write_number_root, text='15位数', variable=self.write_15_str, value=0)
+        self.write_15_radio_button.place(x=170, y=293)
+
+        # 写号按钮
+        self.write_SN_button = tkinter.Button(self.write_number_root, text='开始写号',width=20)
+        self.write_SN_button.bind('<Button-1>', lambda x: self.write_SN_bind(device))
+        self.write_SN_button_disable = tkinter.Button(self.write_number_root, text='正在写号...',width=20)
+        self.write_SN_button_disable.config(state='disable')
+        self.write_SN_button.place(x=130, y=320)
+
+        # 已写号记录ListBox
+        self.write_SN_listbox_frame = tkinter.Frame(self.write_number_root,width=200,height=198)
+        # 创建滚动条
+        self.write_SN_scrollbar = tkinter.Scrollbar(self.write_SN_listbox_frame)
+        # listbox控件创建并与滚动条绑定
+        self.write_SN_listbox = tkinter.Listbox(self.write_SN_listbox_frame,width=27,height=10,yscrollcommand=(self.write_SN_scrollbar.set))
+        # listbox内容数据联动滚动条
+        self.write_SN_scrollbar.config(command=(self.write_SN_listbox.yview))
+        # 显示滚动条
+        self.write_SN_scrollbar.pack(side=(tkinter.RIGHT), fill=(tkinter.Y))
+        self.write_SN_listbox.config(command=self.write_SN_listbox_bind())
+        self.write_SN_listbox.pack()
+        self.write_SN_listbox_frame.place(x=350,y=180)
+
+    def write_mac_entry_bind(self):
+        # MAC地址提示语逻辑
+        def t_write_mac_entry():
+            try:
+                while True:
+                    write_mac_result = self.write_mac_entry_str.get()
+                    # print(write_mac_result)
+                    if write_mac_result.strip() != '' and write_mac_result.strip() != '请输入<wifi mac地址>':
+                        def entry_pass():
+                            # 为空，不处理
+                            return
+                        self.write_mac_entry.bind('<FocusIn>',lambda x: entry_pass())
+                        self.write_mac_entry.bind('<FocusOut>', lambda x: entry_pass())
+                    else:
+                        self.write_mac_entry.bind('<FocusIn>', lambda x: self.write_mac_entry.delete(0, tkinter.END))
+                        self.write_mac_entry.bind('<FocusOut>', lambda x: self.write_mac_entry.insert(0, '请输入<wifi mac地址>'))
+                    time.sleep(1)
+            except tkinter.TclError:
+                print('退出警告，可忽略此消息')
+
+        t_write_mac_entry = threading.Thread(target=t_write_mac_entry)
+        t_write_mac_entry.setDaemon(True)
+        t_write_mac_entry.start()
+
+    def write_secretkey_entry_bind(self):
+        # 三元组提示语逻辑
+        def t_write_secretkey_entry():
+            try:
+                while True:
+                    write_secretkey_result = self.write_secretkey_entry_str.get()
+                    # print(write_mac_result)
+                    if write_secretkey_result.strip() != '' and write_secretkey_result.strip() != '请输入<三元组>':
+                        def entry_pass():
+                            # 为空，不处理
+                            return
+                        self.write_secretkey_entry.bind('<FocusIn>',lambda x: entry_pass())
+                        self.write_secretkey_entry.bind('<FocusOut>', lambda x: entry_pass())
+                    else:
+                        self.write_secretkey_entry.bind('<FocusIn>',
+                                                        lambda x: self.write_secretkey_entry.delete(0, tkinter.END))
+                        self.write_secretkey_entry.bind('<FocusOut>',
+                                                        lambda x: self.write_secretkey_entry.insert(0, '请输入<三元组>'))
+                    time.sleep(1)
+            except tkinter.TclError:
+                pass
+
+        t_write_secretkey_entry = threading.Thread(target=t_write_secretkey_entry)
+        t_write_secretkey_entry.setDaemon(True)
+        t_write_secretkey_entry.start()
+
+    def write_md5_entry_bind(self):
+        # MD5值提示语逻辑
+        def t_write_md5_entry():
+            try:
+                while True:
+                    write_md5_result = self.write_md5_entry_str.get()
+                    # print(write_mac_result)
+                    if write_md5_result.strip() != '' and write_md5_result.strip() != '请输入<md5>':
+                        def entry_pass():
+                            # 为空，不处理
+                            return
+                        self.write_md5_entry.bind('<FocusIn>',lambda x: entry_pass())
+                        self.write_md5_entry.bind('<FocusOut>', lambda x: entry_pass())
+                    else:
+                        self.write_md5_entry.bind('<FocusIn>',
+                                                        lambda x: self.write_md5_entry.delete(0, tkinter.END))
+                        self.write_md5_entry.bind('<FocusOut>',
+                                                        lambda x: self.write_md5_entry.insert(0, '请输入<md5>'))
+                    time.sleep(1)
+            except tkinter.TclError:
+                pass
+
+        t_write_md5_entry = threading.Thread(target=t_write_md5_entry)
+        t_write_md5_entry.setDaemon(True)
+        t_write_md5_entry.start()
+
+    def write_SN_listbox_bind(self):
+        # 实时检测SN写号记录
+        self.write_SN_listbox.insert(tkinter.END,'# 此处显示已写入SN号记录')
+        self.write_SN_listbox.insert(tkinter.END,'# 已写入的SN号和设备MAC地址')
+        write_SN_read = open(write_SN_log, 'r')
+        for readline in write_SN_read.readlines():
+            self.write_SN_listbox.insert(tkinter.END, readline)
+
+    def write_SN_entry_bind(self):
+        # SN号提示语逻辑
+        def t_write_SN_entry():
+            try:
+                while True:
+                    write_SN_result = self.write_SN_entry_str.get()
+                    # print(write_mac_result)
+                    if write_SN_result.strip() != '' and write_SN_result.strip() != '请输入<SN号>':
+                        def entry_pass():
+                            # 为空，不处理
+                            return
+                        self.write_SN_entry.bind('<FocusIn>',lambda x: entry_pass())
+                        self.write_SN_entry.bind('<FocusOut>', lambda x: entry_pass())
+                    else:
+                        self.write_SN_entry.bind('<FocusIn>',
+                                                        lambda x: self.write_SN_entry.delete(0, tkinter.END))
+                        self.write_SN_entry.bind('<FocusOut>',
+                                                        lambda x: self.write_SN_entry.insert(0, '请输入<SN号>'))
+                    time.sleep(1)
+            except tkinter.TclError:
+                pass
+
+        t_write_SN_entry = threading.Thread(target=t_write_SN_entry)
+        t_write_SN_entry.setDaemon(True)
+        t_write_SN_entry.start()
+
+    def write_SN_bind(self,device):
+        def write_SN_save(SN):
+            # 添加SN号记录并保存
+            wifi_mac = public.wifi_mac_result(device)
+            with open(write_SN_log,'a+') as fp:
+                fp.write('SN号：' + SN + '\n' + '设备MAC：' + wifi_mac + '\n')
+                fp.write('-------------------------\n')
+            # 创建设备内部SN号记录标记
+            with open(SN_path, 'w') as fp:
+                fp.write(SN)
+            sn_result = public.execute_cmd('adb -s ' + device + ' push ' + SN_path + ' /data/SN.txt')
+            print(sn_result)
+            # 记录完后删除缓存
+            os.remove(SN_path)
+            # 实时显示SN记录
+            self.write_SN_listbox.insert(tkinter.END,'SN号：' + SN)
+            self.write_SN_listbox.insert(tkinter.END,'设备MAC：' + wifi_mac)
+            self.write_SN_listbox.insert(tkinter.END,'-------------------------')
+            self.write_SN_listbox.see(tkinter.END)
+
+        def t_write_SN():
+            print('开始写号....')
+            self.write_SN_button_disable.place(x=130,y=320)
+            SN = self.write_SN_entry_str.get().strip()
+            print(SN)
+            print('当前输入的SN位数为 ' + str(len(SN)))
+            devices_state = public.device_connect()
+            if not devices_state:
+                self.write_number_str.set('请重新连接设备后再写号')
+            else:
+                # 已写入SN号无法再次写号
+                SN_list = []
+                write_SN_read = open(write_SN_log, 'r').readlines()
+                # print(write_SN_read)
+                for sn in write_SN_read:
+                    sn_finally = re.findall('SN号：(.*?)\n', sn)
+                    if sn_finally == []:
+                        pass
+                    else:
+                        SN_finally = ''.join(sn_finally)
+                        SN_list.append(SN_finally)
+                sn_read = public.execute_cmd('adb -s ' + device + ' shell cat /data/SN.txt')
+                if SN in SN_list and SN == sn_read:
+                    self.write_number_str.set(SN + '已被当前设备写入\n请看右侧列表查看对应设备MAC')
+                else:
+                    if self.write_15_str.get() == 0:
+                        # 15位数
+                        print('监听 15位数 选项')
+                        if len(SN) == 15:
+                            self.write_number_str.set('正在为设备写入\n' + SN)
+                            SN_result = public.execute_cmd('adb -s ' + device + ' shell factory ATE_SET_SN ' + SN)
+                            print(SN_result)
+                            with open(SN_result_path,'w') as fp:
+                                fp.write(SN_result)
+                            public.execute_cmd('adb -s ' + device + ' push ' + SN_result_path + ' /data')
+                            success = public.execute_cmd('adb -s ' + device + ' shell grep "SUCCESS" /data/SN_result.log')
+                            print(success)
+                            if success.strip() == 'SUCCESS':
+                                write_SN_save(SN)
+                                self.write_number_str.set(SN + '\n已被成功写入！！！')
+                            else:
+                                self.write_number_str.set('写号失败！！！\n请重新输入再试试')
+                        else:
+                            self.write_number_str.set('你输入的SN号不合法！！！')
+            self.write_SN_button_disable.place_forget()
+
+        t_write_SN = threading.Thread(target=t_write_SN)
+        t_write_SN.setDaemon(True)
+        t_write_SN.start()
+

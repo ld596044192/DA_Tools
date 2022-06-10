@@ -46,8 +46,9 @@ def cd_screenshots(device):
         return make_state
     else:
         mkdir_state = screenshot.split(':')[-1]
+        print(mkdir_state)
         # 创建截图临时保存文件夹
-        if mkdir_state == ' No such file or directory\r\n':
+        if mkdir_state.strip() == 'No such file or directory':
             make_state = public.execute_cmd('adb -s ' + device + ' shell mkdir /sdcard/da_screenshots')
             return make_state
 
@@ -126,7 +127,7 @@ def record(record_name,record_time,record_model_get,device):
     else:
         mkdir_state = screenrecord.split(':')[-1]
         # 创建截图临时保存文件夹
-        if mkdir_state == ' No such file or directory\r\n':
+        if mkdir_state.strip() == 'No such file or directory':
             public.execute_cmd('adb -s ' + device + ' shell mkdir /sdcard/da_screenrecord')
 
         if not os.path.exists(record_count):

@@ -1,0 +1,109 @@
+Launch factory ATE_SET_SN
+D/sec_key: (78) flash type = 2
+
+D/sec_key: (98) Boot type 2
+
+D/sec_key: (516) read item0 copy0
+
+E/sec_key: (279) Failed to open /dev/block/mmcblk0: No such file or directory
+E/sec_key: (280) try to open /dev/mmcblk0
+D/sec_key: (525) the secure storage item0 copy0 is good
+
+E/sec_key: (1225) secure storage key supported
+
+D/sec_key: (98) Boot type 2
+
+D/sec_key: (516) read item0 copy0
+
+E/sec_key: (279) Failed to open /dev/block/mmcblk0: No such file or directory
+E/sec_key: (280) try to open /dev/mmcblk0
+D/sec_key: (525) the secure storage item0 copy0 is good
+
+D/sec_key: (1055) name in map sst_info, len 0xc68
+
+D/sec_key: (1060) name sst_info exist
+
+D/sec_key: (78) flash type = 2
+
+D/sec_key: (98) Boot type 2
+
+D/sec_key: (516) read item0 copy0
+
+E/sec_key: (279) Failed to open /dev/block/mmcblk0: No such file or directory
+E/sec_key: (280) try to open /dev/mmcblk0
+D/sec_key: (525) the secure storage item0 copy0 is good
+
+E/sec_key: (1225) secure storage key supported
+
+D/sec_key: (98) Boot type 2
+
+D/sec_key: (516) read item0 copy0
+
+E/sec_key: (279) Failed to open /dev/block/mmcblk0: No such file or directory
+E/sec_key: (280) try to open /dev/mmcblk0
+D/sec_key: (525) the secure storage item0 copy0 is good
+
+D/sec_key: (829) secure storage read sst_info 
+
+D/sec_key: (663) __probe_name_in_map
+
+D/sec_key: (472) read item1 copy0
+
+E/sec_key: (279) Failed to open /dev/block/mmcblk0: No such file or directory
+E/sec_key: (280) try to open /dev/mmcblk0
+D/sec_key: (480) the secure storage item1 copy0 is good
+
+D/sec_key: (864) secure storage read sst_info done
+
+D/sec_key: (90) [private_data_read]: read data to secure storage done
+
+D/sec_key: (422) private bare key not supported
+
+D/sec_key: (78) flash type = 2
+
+D/sec_key: (98) Boot type 2
+
+D/sec_key: (516) read item0 copy0
+
+E/sec_key: (279) Failed to open /dev/block/mmcblk0: No such file or directory
+E/sec_key: (280) try to open /dev/mmcblk0
+D/sec_key: (525) the secure storage item0 copy0 is good
+
+E/sec_key: (1225) secure storage key supported
+
+D/sec_key: (98) Boot type 2
+
+D/sec_key: (516) read item0 copy0
+
+E/sec_key: (279) Failed to open /dev/block/mmcblk0: No such file or directory
+E/sec_key: (280) try to open /dev/mmcblk0
+D/sec_key: (525) the secure storage item0 copy0 is good
+
+D/sec_key: (663) __probe_name_in_map
+
+D/sec_key: (829) secure storage read sst_info 
+
+D/sec_key: (663) __probe_name_in_map
+
+D/sec_key: (472) read item1 copy0
+
+E/sec_key: (279) Failed to open /dev/block/mmcblk0: No such file or directory
+E/sec_key: (280) try to open /dev/mmcblk0
+D/sec_key: (480) the secure storage item1 copy0 is good
+
+D/sec_key: (864) secure storage read sst_info done
+
+E/sec_key: (1118) secure object name[sst_info] already in device
+
+D/sec_key: (733) name in map sst_info:3176
+
+E/sec_key: (412) Failed to open /dev/block/mmcblk0: No such file or directory
+E/sec_key: (413) try to open /dev/mmcblk0
+E/sec_key: (899) write secure storage: 1 ok
+
+E/sec_key: (412) Failed to open /dev/block/mmcblk0: No such file or directory
+E/sec_key: (413) try to open /dev/mmcblk0
+D/sec_key: (57) [private_data_write]: write data to secure storage done
+
+SUCCESS
+Factory test finished, exit now.

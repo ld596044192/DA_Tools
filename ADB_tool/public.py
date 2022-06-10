@@ -270,3 +270,10 @@ def is_contains_chinese(strs):
             return True
     return False
 
+
+def wifi_mac_result(device):
+    # 获取WIFI MAC地址
+    wifi_mac_result = os.popen('adb -s ' + device + ' shell ip addr show wlan0', 'r').read().replace('\n\n', '\n')
+    wifi_mac = ''.join(re.findall('link/ether(.*?)brd', wifi_mac_result)).strip()
+    print(wifi_mac)
+    return wifi_mac
