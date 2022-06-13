@@ -1,10 +1,17 @@
 import ctypes,inspect
 import sys,os
 import subprocess
-import psutil,shutil
+import time
+
+import psutil,shutil,getpass
 import re
 from tkinter import *
 import zipfile
+
+username = getpass.getuser()
+# 创建临时文件夹
+make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
+conflict_software_path = make_dir + 'conflict_software.txt'
 
 
 def resource_path(relative_path):
@@ -110,7 +117,8 @@ def get_pid_name():
             # 获取所有进程名称并添加到列表中
             Processes.append(pid_names)
     except psutil.NoSuchProcess:
-        print('不存在该进程，继续执行！')
+        # print('不存在该进程，继续执行！')
+        pass
     return Processes
 
 
@@ -277,3 +285,19 @@ def wifi_mac_result(device):
     wifi_mac = ''.join(re.findall('link/ether(.*?)brd', wifi_mac_result)).strip()
     print(wifi_mac)
     return wifi_mac
+
+
+def find_pid_name(software_name_list):
+    # 查找软件是否已打开
+    software_name_flag = True
+    Processes = get_pid_name()
+    # print(Processes)
+    for software_name in software_name_list:
+        if software_name in Processes:
+            # print('已发现目标软件 ' + software_name)
+            with open(conflict_software_path,'w') as fp:
+                fp.write(software_name)
+            software_name_flag = False
+            break
+    time.sleep(1)
+    return software_name_flag
