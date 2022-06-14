@@ -289,7 +289,7 @@ def wifi_mac_result(device):
 
 def find_pid_name(software_name_list):
     # 查找软件是否已打开
-    software_name_flag = True
+    software_name_flag = False
     Processes = get_pid_name()
     # print(Processes)
     for software_name in software_name_list:
@@ -297,7 +297,8 @@ def find_pid_name(software_name_list):
             # print('已发现目标软件 ' + software_name)
             with open(conflict_software_path,'w') as fp:
                 fp.write(software_name)
-            software_name_flag = False
+            software_name_flag = True
             break
-    time.sleep(1)
+        else:
+            software_name_flag = False
     return software_name_flag

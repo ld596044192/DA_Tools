@@ -4,7 +4,7 @@ import signal
 import time
 import tkinter,tkinter.ttk,tkinter.messagebox
 import threading
-import os,psutil,zipfile
+import os
 import public,getpass
 import quickly,screen_record,linux_main
 import logging
@@ -196,17 +196,17 @@ class MainForm(object):
                 conflict_software_name = open(conflict_software_path,'r').read()
                 adb_install_state = open(adb_upgrade_flag, 'r').read()
                 # print(conflict_software_flag)
-                if adb_install_state == 'ADB upgrade':
-                    s.more_devices_list = ['ADB升级中不可用']
+                if conflict_software_flag:
+                    s.more_devices_list = [conflict_software_name + '冲突不可用']
                     s.more_devices_combobox['value'] = s.more_devices_list
                     s.more_devices_combobox.current(0)
-                    print('ADB升级中3...')
+                    devices_current_flag = False
                 else:
-                    if not conflict_software_flag:
-                        s.more_devices_list = [conflict_software_name + '冲突不可用']
+                    if adb_install_state == 'ADB upgrade':
+                        s.more_devices_list = ['ADB升级中不可用']
                         s.more_devices_combobox['value'] = s.more_devices_list
                         s.more_devices_combobox.current(0)
-                        devices_current_flag = False
+                        print('ADB升级中3...')
                     else:
                         devices_list = public.device_connect()
                         # print(devices_list)
@@ -232,7 +232,6 @@ class MainForm(object):
                                 continue
                             else:
                                 pass
-                        time.sleep(1)
                 time.sleep(1)
 
         t_more_devices = threading.Thread(target=t_more_devices)
@@ -777,32 +776,33 @@ class MainForm(object):
                 conflict_software_flag = public.find_pid_name(conflict_software_list)
                 conflict_software_name = open(conflict_software_path, 'r').read()
                 adb_install_state = open(adb_upgrade_flag, 'r').read()
-                if adb_install_state == 'ADB upgrade':
-                    print('ADB正在升级1....')
-                    s.devices_fail.place_forget()
-                    s.devices_type_fail.place_forget()
-                    s.devices_type_success.place(x=325, y=425)
-                    s.devices_success.place(x=450, y=0)
-                    s.devices_str.set('ADB正在升级中...')
-                    s.devices_type_str.set('ADB正在升级中...')
+                if conflict_software_flag:
+                    s.devices_fail.place(x=450, y=0)
+                    s.devices_type_fail.place(x=325, y=425)
+                    s.devices_success.place_forget()
+                    s.devices_type_success.place_forget()
+                    s.devices_null.set(conflict_software_name + '冲突！！！')
+                    s.devices_type_error.set(conflict_software_name + ' - 检测不可用！')
+                    conflict_software_content = '检测到 ' + conflict_software_name + ' 正在启动中...\n' \
+                                                      '防冲突功能启动后本应用所有功能暂时无法使用！！！\n' \
+                                                      '该类软件会与本应用的ADB服务发生严重冲突导致闪退\n' \
+                                                      '解决方案：关闭冲突软件或本应用之一即可\n' \
+                                                      '是否强制关闭冲突软件' + conflict_software_name + '?\n' \
+                                                      '点击确定将会强制关闭的同时防冲突功能关闭，本应用所有功能恢复正常使用\n' \
+                                                      '特别注意:点击取消按钮将会重复弹出该提示！！！（提示可以移动到其他位置）'
+                    if tkinter.messagebox.askokcancel(title='防冲突功能启动', message=conflict_software_content):
+                        public.execute_cmd('taskkill /F /IM ' + conflict_software_name + ' /T')
+                        print('已强制停止 ' + conflict_software_name)
+                        public.execute_cmd('adb start-server')
                 else:
-                    if not conflict_software_flag:
-                        s.devices_fail.place(x=450, y=0)
-                        s.devices_type_fail.place(x=325, y=425)
-                        s.devices_success.place_forget()
-                        s.devices_type_success.place_forget()
-                        s.devices_null.set(conflict_software_name + '冲突！！！')
-                        s.devices_type_error.set(conflict_software_name + ' - 检测不可用！')
-                        conflict_software_content = '检测到 ' + conflict_software_name + ' 正在启动中...\n' \
-                                                                                      '防冲突功能启动后本应用所有功能暂时无法使用！！！\n' \
-                                                                                      '该类软件会与本应用的ADB服务发生严重冲突导致闪退\n' \
-                                                                                      '解决方案：关闭冲突软件或本应用之一即可\n' \
-                                                                                      '是否强制关闭冲突软件' + conflict_software_name + '?\n' \
-                                                                                                                              '点击确定将会强制关闭的同时防冲突功能关闭，本应用所有功能恢复正常使用\n' \
-                                                                                                                              '特别注意:点击取消按钮将会重复弹出该提示！！！（提示可以移动到其他位置）'
-                        # if tkinter.messagebox.askokcancel(title='防冲突功能启动',message=conflict_software_content):
-                        #     public.execute_cmd('taskkill /F /IM ' + conflict_software_name + ' /T')
-                        #     print('已强制停止 ' + conflict_software_name)
+                    if adb_install_state == 'ADB upgrade':
+                        print('ADB正在升级1....')
+                        s.devices_fail.place_forget()
+                        s.devices_type_fail.place_forget()
+                        s.devices_type_success.place(x=325, y=425)
+                        s.devices_success.place(x=450, y=0)
+                        s.devices_str.set('ADB正在升级中...')
+                        s.devices_type_str.set('ADB正在升级中...')
                     else:
                         devices_finally = public.device_connect()
                         # print(devices_finally)
@@ -834,7 +834,6 @@ class MainForm(object):
                                 elif len(devices_finally) > 1:
                                     s.devices_str.set('多部设备已连接')
                                     continue
-                        time.sleep(1)
                 time.sleep(1)
 
         def devices_type():
@@ -850,12 +849,12 @@ class MainForm(object):
                 conflict_software_flag = public.find_pid_name(conflict_software_list)
                 adb_install_state = open(adb_upgrade_flag,'r').read()
                 # print(adb_install_state)
-                if adb_install_state == 'ADB upgrade':
-                    print('ADB正在升级2....')
+                if conflict_software_flag:
+                    print('冲突中.........')
+                    pass
                 else:
-                    if not conflict_software_flag:
-                        print('冲突中.........')
-                        pass
+                    if adb_install_state == 'ADB upgrade':
+                        print('ADB正在升级2....')
                     else:
                         # print('正在检测设备类型 -----------')
                         try:
@@ -895,7 +894,6 @@ class MainForm(object):
                         except AttributeError:
                             print('出现AttributeError无影响，请忽略')
                             pass
-                        time.sleep(1)
                 time.sleep(1)
 
         t_devices = threading.Thread(target=t_devices)
@@ -925,9 +923,6 @@ class MainForm(object):
         def adb_install_upgrade():
             if not os.path.exists(adb_tools_flag):
                 adb_install_main()
-            conflict_software_flag = public.find_pid_name(conflict_software_list)
-            if conflict_software_flag:
-                pass
             else:
                 # ADB调试桥版本升级
                 adb_version_new = int(open(adb_version_path,'r').read())
@@ -1006,6 +1001,7 @@ class MainForm(object):
                         s.adb_str.set('本地ADB已开启！')
                         print(public.execute_cmd('adb version'))
                         break
+                time.sleep(1)
 
         t_adb = threading.Thread(target=t_adb)
         t_adb.setDaemon(True)
