@@ -261,6 +261,30 @@ def permanent_environ(path_value):
     print(result)
 
 
+def remove_environ(path_value):
+    # 删除指定的环境变量
+    environ_list = os.environ["PATH"].split(';')
+    print('旧环境变量列表:\n' + str(environ_list))
+    while True:
+        if path_value in environ_list:
+            environ_list.remove(path_value)
+        else:
+            break
+
+    # 过滤，模糊匹配
+    try:
+        grep_list = ''.join([x for x in environ_list if x.find('/m') != -1])
+        environ_list.remove(grep_list)
+    except ValueError:
+        print('无需过滤环境变量')
+    environ_list_finally = environ_list
+    print('已过滤的环境变量列表：\n' + str(environ_list_finally))
+    new_environ = ';'.join(environ_list_finally)
+
+    print('新环境变量列表:\n' + str(new_environ))
+    return new_environ
+
+
 def zip_extract(zip_path,zip_target_path):
     # 解压zip文件
     zip_f = zipfile.ZipFile(zip_path)
@@ -302,3 +326,6 @@ def find_pid_name(software_name_list):
         else:
             software_name_flag = False
     return software_name_flag
+
+
+
