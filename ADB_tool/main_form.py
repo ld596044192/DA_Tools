@@ -1,12 +1,13 @@
 import re
 import shutil
 import sys
+from pathlib import Path
 import time
 import tkinter,tkinter.ttk,tkinter.messagebox
 import threading
 import os
 import public,getpass
-import quickly,screen_record,linux_main,more_form
+import quickly,screen_record,linux_main
 import logging
 import traceback
 
@@ -68,6 +69,9 @@ conflict_software_path = make_dir + 'conflict_software.txt'
 # 启动前初始化
 with open(adb_upgrade_flag,'w') as fp:
     fp.write('ADB is the latest version')
+if not os.path.exists(conflict_software_path):
+    with open(conflict_software_path,'w') as fp:
+        fp.write('')
 # 统一修改版本号
 version = 'V1.0.0.16'
 version_code = 1001.6
@@ -203,13 +207,14 @@ class MainForm(object):
             while True:
                 adb_install_state = open(adb_upgrade_flag, 'r').read()
                 conflict_software_flag = public.find_pid_name(conflict_software_list)
+                conflict_software_state_finally = open(conflict_software_state, 'r').read()
                 if adb_install_state == 'ADB upgrade':
                     s.more_devices_list = ['ADB升级中不可用']
                     s.more_devices_combobox['value'] = s.more_devices_list
                     s.more_devices_combobox.current(0)
                     print('ADB升级中3...')
                 else:
-                    if conflict_software_flag:
+                    if conflict_software_flag and conflict_software_state_finally.strip() != 'Conflicting software is already compatible' :
                         # print('测试是否已屏蔽 - 多设备检测')
                         pass
                     else:
@@ -622,9 +627,9 @@ class MainForm(object):
 
         s.linux_frame1.place(y=20)
 
-    def conflict_frame(s,conflict_software_name):
+    def conflict_frame_main(s,conflict_software_name):
         # 防冲突窗口
-        s.conflict_frame1 = tkinter.Frame(s.root,width=main_width,height=main_height)
+        s.conflict_frame1 = tkinter.Frame(s.root,width=main_width,height=250)
 
         # 显示防冲突软件名称
         s.conflict_software_label = tkinter.Label(s.conflict_frame1,text='冲突软件名称：')
@@ -637,7 +642,73 @@ class MainForm(object):
         s.conflict_software_title_label = tkinter.Label(s.conflict_frame1,text='防冲突功能',fg='red',font=('华文行楷',50))
         s.conflict_software_title_label.place(x=145,y=50)
 
-        s.conflict_frame1.place(x=0,y=0)
+        # 防冲突注意事项显示
+        s.conflict_software_content = '注意事项:\n' \
+                                      '①检测到冲突软件 ' + conflict_software_name + ' 正在运行中...\n' \
+                                      '②该冲突软件会和本工具产生严重冲突导致出现闪退问题\n' \
+                                      '③当前解决方案为：\n' \
+                                      '（1）关闭冲突软件或本工具，只运行其中之一\n' \
+                                      '（2）进行冲突兼容，使用冲突软件的ADB服务，避免使用ADB服务冲突问题（推荐）\n' \
+                                      '④本工具默认使用推荐方案，当然也提供强制关闭该冲突软件的按钮，但强烈推荐使用默认方案！'
+        s.conflict_warnning_label = tkinter.Label(s.conflict_frame1,text=s.conflict_software_content)
+        s.conflict_warnning_label.place(x=30,y=130)
+
+        s.conflict_frame1.place(x=0, y=0)
+
+    def conflict_frame_main2(s,conflict_software_name):
+        s.conflict_frame2 = tkinter.Frame(s.root, width=main_width,height=200)
+        # 某些软件是绿色免安装的，需要自行手动输入绝对路径
+        conflict_software_path_content = '请手动输入 ' + conflict_software_name + ' 的安装或存放路径：'
+        s.conflict_software_path_label = tkinter.Label(s.conflict_frame2,text=conflict_software_path_content,fg='red')
+        s.conflict_software_path_label.place(x=20,y=20)
+
+        # 单行输入框 - 冲突软件安装或存放路径
+        s.conflict_software_path_str = tkinter.StringVar()
+        s.conflict_software_path_entry = tkinter.Entry(s.conflict_frame2,textvariable=s.conflict_software_path_str,width=70)
+        s.conflict_software_path_entry.place(x=20,y=50)
+
+        # 提醒需要点击冲突兼容
+        remind_content = '输入路径后，请点击下方“冲突兼容”开始进行兼容；点击“取消”将会关闭本工具！'
+        s.conflict_remind_label = tkinter.Label(s.conflict_frame2, text=remind_content, fg='red')
+        s.conflict_remind_label.place(x=20, y=80)
+
+        # 冲突兼容按钮
+        s.conflict_software_button = tkinter.Button(s.conflict_frame2,text='冲突兼容',width=width_button)
+        s.conflict_software_button_disable = tkinter.Button(s.conflict_frame2,text='冲突兼容',width=width_button)
+        s.conflict_software_button_disable.config(state='disable')
+        s.conflict_software_button.bind('<Button-1>',lambda x:s.confict_software_bind())
+        s.conflict_software_button.place(x=20,y=110)
+
+        # 冲突兼容取消按钮
+        s.conflict_software_cancel_button = tkinter.Button(s.conflict_frame2, text='取消', width=width_button)
+        s.conflict_software_cancel_button_disable = tkinter.Button(s.conflict_frame2, text='取消', width=width_button)
+        s.conflict_software_cancel_button_disable.config(state='disable')
+        s.conflict_software_cancel_button.place(x=400, y=110)
+
+        s.conflict_frame2.place(x=0,y=250)
+
+    def conflict_frame_main_console(s):
+        # 显示输出对话框
+        s.conflict_frame_console = tkinter.Frame(s.root, width=main_width, height=200)
+
+        # 兼容进度记录ListBox
+        s.conflict_software_listbox_frame = tkinter.Frame(s.conflict_frame_console, width=main_width, height=200)
+        # 创建滚动条
+        s.conflict_software_scrollbar = tkinter.Scrollbar(s.conflict_frame_console)
+        # listbox控件创建并与滚动条绑定
+        s.conflict_software_listbox = tkinter.Listbox(s.conflict_frame_console, width=82, height=10,
+                                                         bg='black',
+                                                         fg='#FFFFFF', font=('微软雅黑',9),
+                                                         yscrollcommand=(s.conflict_software_scrollbar.set))
+        # listbox内容数据联动滚动条
+        s.conflict_software_scrollbar.config(command=(s.conflict_software_listbox.yview))
+        # 显示滚动条
+        s.conflict_software_scrollbar.pack(side=(tkinter.RIGHT), fill=(tkinter.Y))
+        s.conflict_software_listbox.bindtags((s.conflict_software_listbox, 'all'))
+        s.conflict_software_listbox.pack()
+        s.conflict_software_listbox_frame.place(x=1, y=0)
+
+        s.conflict_frame_console.place(x=0,y=250)
 
     def linux_all_button_close(s):
         def linux_all_button_place_forget():
@@ -798,16 +869,14 @@ class MainForm(object):
             global adb_server_flag
             global conflict_model_flag
             s.devices_str.set('正在检测设备连接状态...')
-            # 每次检测前需要初始化一次
-            with open(conflict_software_state, 'w') as fp:
-                fp.write('')
             while True:
                 adb_install_state = open(adb_upgrade_flag, 'r').read()
                 conflict_software_flag = public.find_pid_name(conflict_software_list)
                 conflict_software_name = open(conflict_software_path,'r').read()
+                conflict_software_state_finally = open(conflict_software_state,'r').read()
                 # print(conflict_software_flag)
                 # print(conflict_software_name)
-                if conflict_software_flag:
+                if conflict_software_flag and conflict_software_state_finally.strip() != 'Conflicting software is already compatible':
                     if not conflict_model_flag:
                         print('只显示一次防冲突窗口，不循环操作')
                         # 冲突软件锁定（显示防冲突处理窗口）
@@ -848,7 +917,8 @@ class MainForm(object):
                             print('当前所有窗口已锁定 -警告信息Logs（可忽略）')
                             pass
                         # 显示防冲突窗口
-                        s.conflict_frame(conflict_software_name)
+                        s.conflict_frame_main(conflict_software_name)
+                        s.conflict_frame_main2(conflict_software_name)
 
                         conflict_model_flag = True
                     else:
@@ -868,6 +938,8 @@ class MainForm(object):
                             if conflict_model_flag:
                                 # 关闭防冲突窗口
                                 s.conflict_frame1.place_forget()
+                                s.conflict_frame2.place_forget()
+                                s.conflict_frame_console.place_forget()
                                 print('只恢复一次窗口，不循环操作')
                                 # 冲突软件关闭后防冲突功能解除，恢复当前所有控件和窗口
                                 s.main_menu.place(x=0,y=0)
@@ -943,10 +1015,11 @@ class MainForm(object):
                 global devices_linux_flag
                 adb_install_state = open(adb_upgrade_flag,'r').read()
                 conflict_software_flag = public.find_pid_name(conflict_software_list)
+                conflict_software_state_finally = open(conflict_software_state, 'r').read()
                 if adb_install_state == 'ADB upgrade':
                     print('ADB正在升级2....')
                 else:
-                    if conflict_software_flag:
+                    if conflict_software_flag and conflict_software_state_finally.strip() != 'Conflicting software is already compatible':
                         # print('测试是否屏蔽 - 检测设备类型')
                         pass
                     else:
@@ -1012,6 +1085,7 @@ class MainForm(object):
                 adb_version_new = int(open(adb_version_path,'r').read())
                 print(adb_version_new)
                 adb_version = int(public.adb_version())
+                print('当前ADB版本号：' + str(adb_version))
                 if adb_version < adb_version_new:
                     # 升级启动状态
                     with open(adb_upgrade_flag, 'w') as fp:
@@ -1051,16 +1125,19 @@ class MainForm(object):
             while True:
                 time.sleep(1)
                 conflict_software_flag = public.find_pid_name(conflict_software_list)
-                if conflict_software_flag:
+                conflict_software_state_finally = open(conflict_software_state, 'r').read()
+                if conflict_software_flag and conflict_software_state_finally.strip() != 'Conflicting software is already compatible':
                     # print('测试是否屏蔽 - ADB服务启动')
                     pass
                 else:
                     # 中文状态下
                     adb_finally = public.adb_connect()[1]
+                    print(adb_finally)
                     try:
                         # 英文状态下
                         adb_english = ' '.join(public.adb_connect()).split(',')[1]
-                        if adb_finally == '不是内部或外部命令，也不是可运行的程序' or adb_english == ' operable program or batch file.':
+                        print(adb_english)
+                        if adb_finally.strip() == '不是内部或外部命令，也不是可运行的程序' or adb_english.strip() == 'operable program or batch file.':
                             # os.chdir(adb_path)
                             # s.adb_str.set('内置ADB已开启！')
                             s.adb_str.set('正在配置ADB...')
@@ -1074,7 +1151,7 @@ class MainForm(object):
                             s.adb_str.set('本地ADB已开启！')
                             print(public.execute_cmd('adb version'))
                             break
-                    except IndexError:
+                    except (IndexError,ValueError):
                         print('IndexError异常，无影响！')
                         if adb_finally == '不是内部或外部命令，也不是可运行的程序':
                             # os.chdir(adb_path)
@@ -1596,5 +1673,62 @@ class MainForm(object):
         t_write_number_close.setDaemon(True)
         t_write_number_close.start()
 
+    def confict_software_bind(s):
+        def t_confict_software():
+            # 冲突兼容绑定事件
+            s.conflict_software_button_disable.place(x=20,y=350)
+            conflict_software_absolute_path = s.conflict_software_path_str.get()
+            print('已输入 冲突软件 路径：' + conflict_software_absolute_path)
+            if not os.path.exists(conflict_software_absolute_path):
+                if conflict_software_absolute_path == '':
+                    tkinter.messagebox.showwarning(title='路径为空', message='你所输入的路径不能为空，请重新输入正确的路径！！！')
+                else:
+                    tkinter.messagebox.showwarning(title='路径不存在', message='该路径不存在，请重新输入正确且存在的冲突软件路径！！！')
+                # 错误路径信息会被清空
+                s.conflict_software_path_str.set('')
+            else:
+                my_file = Path(conflict_software_absolute_path)
+                if my_file.is_dir():
+                    # 隐藏输入界面
+                    s.conflict_frame2.place_forget()
+                    # 显示兼容输出界面
+                    s.conflict_frame_main_console()
+                    s.conflict_software_listbox.insert(tkinter.END, '正在开始冲突兼容...')
+                    # 删除ADB测试工具默认锁定的环境变量
+                    s.conflict_software_listbox.insert(tkinter.END, '正在删除旧的ADB环境变量...')
+                    new_environ = public.remove_environ(adb_tools_flag)
+                    new_environ_finally = new_environ.split(';')
+                    s.conflict_software_listbox.insert(tkinter.END,'新环境变量内容：\n')
+                    # 通过处理不断遍历数据，以免超出内容
+                    for new_environ_new in new_environ_finally:
+                        s.conflict_software_listbox.insert(tkinter.END,new_environ_new)
+                        s.conflict_software_listbox.see(tkinter.END) # 使滚动条实时滚动到最下方
+                    # 重新配置ADB环境变量
+                    s.conflict_software_listbox.insert(tkinter.END, '正在重新配置ADB环境变量...')
+                    s.conflict_software_listbox.see(tkinter.END)
+                    # 先设置移除旧的新环境变量
+                    command = r'setx "Path" ' + '"' + new_environ + '" /m'
+                    print(command)
+                    result = public.execute_cmd(command)
+                    print(result)
+                    # 配置新的环境变量
+                    public.permanent_environ(conflict_software_absolute_path)
+                    s.conflict_software_listbox.insert(tkinter.END, '环境变量设置完成！！！')
+                    s.conflict_software_listbox.see(tkinter.END)
+                    # 10S后自动关闭该程序
+                    s.conflict_software_listbox.insert(tkinter.END, '3S后自动关闭防冲突功能...')
+                    s.conflict_software_listbox.see(tkinter.END)
+                    time.sleep(3)
+                    # 状态变更
+                    with open(conflict_software_state, 'w') as fp:
+                        fp.write('Conflicting software is already compatible')
+                else:
+                    tkinter.messagebox.showwarning(title='冲突路径不是目录', message='该路径不是文件夹或目录，无法进行冲突兼容！！！')
+                    # 不符合条件的目录将被清空
+                    s.conflict_software_path_str.set('')
+            s.conflict_software_button_disable.place_forget()
 
+        t_confict_software = threading.Thread(target=t_confict_software)
+        t_confict_software.setDaemon(True)
+        t_confict_software.start()
 

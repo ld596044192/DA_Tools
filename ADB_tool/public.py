@@ -87,6 +87,7 @@ def device_connect():
 def adb_version():
     # 检测ADB调试桥版本
     adb_version_str = execute_cmd('adb version')
+    print(adb_version_str)
     adb_version_re = re.findall('Android Debug Bridge version (.*?)\\r\\n',adb_version_str)
     adb_version_finally = ''.join(''.join(adb_version_re).split('.'))
     print('Android Debug Bridge version code: ' + adb_version_finally)
@@ -284,7 +285,7 @@ def remove_environ(path_value):
     print('已过滤的环境变量列表：\n' + str(environ_list_finally))
     new_environ = ';'.join(environ_list_finally)
 
-    print('新环境变量列表:\n' + str(new_environ))
+    print('新环境变量内容:\n' + str(new_environ))
     return new_environ
 
 
