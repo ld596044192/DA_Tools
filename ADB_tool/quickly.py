@@ -23,14 +23,20 @@ def android_shutdown(device):
 
 def clear_cache(device):
     # 清理缓存（初始化）
-    package_name = public.found_packages(device)
-    public.execute_cmd('adb -s ' + device + ' shell pm clear ' + package_name)
+    try:
+        package_name = public.found_packages(device)
+        public.execute_cmd('adb -s ' + device + ' shell pm clear ' + package_name)
+    except TypeError:
+        print('未连接设备，请连接设备后再尝试！！！')
 
 
 def terminate_program(device):
     # 结束应用（不是初始化，不会清理缓存，单纯kill程序）
-    package_name = public.found_packages(device)
-    public.execute_cmd('adb -s ' + device + ' shell am force-stop ' + package_name)
+    try:
+        package_name = public.found_packages(device)
+        public.execute_cmd('adb -s ' + device + ' shell am force-stop ' + package_name)
+    except TypeError:
+        print('未连接设备，请连接设备后再尝试！！！')
 
 
 def android_desktop(device):

@@ -95,9 +95,12 @@ def adb_version():
 
 def found_packages(device):
     # 查找当前包名
-    package_cmd = execute_cmd('adb -s ' + device + ' shell dumpsys window | findstr mCurrentFocus')
-    package_name = package_cmd.split()[(-1)].split('/')[0]
-    return package_name
+    try:
+        package_cmd = execute_cmd('adb -s ' + device + ' shell dumpsys window | findstr mCurrentFocus')
+        package_name = package_cmd.split()[(-1)].split('/')[0]
+        return package_name
+    except IndexError:
+        print('未连接设备，请连接设备后再尝试！！！')
 
 
 def adb_connect():
