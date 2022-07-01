@@ -12,6 +12,8 @@ username = getpass.getuser()
 # 创建临时文件夹
 make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
 conflict_software_path = make_dir + 'conflict_software.txt'
+# 记录设置环境变量日志
+environ_log = make_dir + 'environ_log.log'
 
 
 def resource_path(relative_path):
@@ -70,7 +72,7 @@ def get_pid(name):
     pids = psutil.process_iter()
     print("[" + name + "]'s pid is:")
     for pid in pids:
-        if(pid.name() == name):
+        if(pid.name() == name) and pid != None:
             print(pid.pid)
 
 
@@ -258,11 +260,26 @@ def temporary_environ(path_value):
 
 def permanent_environ(path_value):
     # 永久配置环境变量（添加到Path中）
+    environ_list = os.environ["PATH"].split(';')
+    # 过滤，模糊匹配
+    try:
+        grep_list = ''.join([x for x in environ_list if x.find('/m') != -1])
+        environ_list.remove(grep_list)
+    except ValueError:
+        print('无需过滤环境变量')
+    environ_list_finally = environ_list
+    print('已过滤的环境变量列表：\n' + str(environ_list_finally))
+    with open(environ_log, 'a+') as fp:
+        fp.write('已过滤的环境变量列表：\n' + str(environ_list_finally))
+    new_environ = ';'.join(environ_list_finally)
+
     # /m代表系统变量。 不加 /m为用户变量
-    command = r'setx "Path" ' + '"' + path_value + ';%path%" /m'
+    command = r'setx "Path" ' + '"' + path_value + ';' + new_environ + '"' + ' /m'
     print(command)
     result = execute_cmd(command)
     print(result)
+    with open(environ_log,'a+') as fp:
+        fp.write('最终设置的环境变量列表：\n' + command + '\n' + result)
 
 
 def remove_environ(path_value):
@@ -283,6 +300,8 @@ def remove_environ(path_value):
         print('无需过滤环境变量')
     environ_list_finally = environ_list
     print('已过滤的环境变量列表：\n' + str(environ_list_finally))
+    with open(environ_log,'a+') as fp:
+        fp.write('已过滤的环境变量列表：\n' + str(environ_list_finally))
     new_environ = ';'.join(environ_list_finally)
 
     print('新环境变量内容:\n' + str(new_environ))
@@ -330,6 +349,4 @@ def find_pid_name(software_name_list):
         else:
             software_name_flag = False
     return software_name_flag
-
-
 

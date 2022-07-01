@@ -1411,6 +1411,7 @@ class Linux_WriteNumber(object):
                                 self.write_number_str.set('正在清理数据缓存并重启...')
                                 # SN号写入后需要重新激活才会有效，否则无法绑定设备
                                 public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/miniapp/data')
+                                public.execute_cmd('adb -s ' + device + ' shell reboot')
                                 self.write_number_str.set(SN + '\n已被成功写入！！！')
                             else:
                                 self.write_number_str.set('写号失败！！！\n请重新输入再试试')
