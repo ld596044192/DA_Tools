@@ -80,9 +80,11 @@ syslog_log = make_dir + 'uuid.log'
 # 启动前初始化
 with open(adb_upgrade_flag,'w') as fp:
     fp.write('ADB is the latest version')
+with open(conflict_software_path,'w') as fp:
+    fp.write('')
 # 统一修改版本号
-version = 'V1.0.0.17'
-version_code = 1001.7
+version = 'V1.0.0.18（正式版）'
+version_code = 1001.8
 # 统一修改frame的宽高
 width = 367
 height = 405
@@ -102,7 +104,7 @@ logging.basicConfig(filename=make_dir + 'log.txt',
 class MainForm(object):
     def root_form(s):
         s.root = tkinter.Tk()
-        s.root.title('ADB测试工具' + version + ' tktiner版')
+        s.root.title('ADB测试工具' + version + ' tktiner（Windows）版')
         screenWidth = s.root.winfo_screenwidth()
         screenHeight = s.root.winfo_screenheight()
         w = main_width
@@ -909,7 +911,7 @@ class MainForm(object):
                 adb_install_state = open(adb_upgrade_flag, 'r').read()
                 conflict_software_flag = public.find_pid_name(conflict_software_list)
                 conflict_software_name = open(conflict_software_path,'r').read()
-                # print(conflict_software_flag)
+                # print('冲突软件标志：' + str(conflict_software_flag))
                 # print(conflict_software_name)
                 if conflict_software_flag:
                     # 强制关闭冲突软件
@@ -1754,6 +1756,8 @@ class MainForm(object):
                 # 初始化UUID
                 with open(uuid_path, 'w') as fp:
                     fp.write('')
+                with open(syslog_log, 'w') as fp:
+                    fp.write('')
                 device_SN = s.more_devices_value.get()
                 # 获取UUID文件
                 uuid_get_result = public.execute_cmd('adb -s ' + device_SN + ' shell ls -lh /data/UUID.ini')
@@ -1773,43 +1777,88 @@ class MainForm(object):
                             pass
 
                         s.uuid_str.set('还没有获取过UUID，正在重启设备中...')
+                        # 为了避免设备进入首页后日志被冲掉，因此先清除设备缓存数据
+                        # public.execute_cmd('adb -s ' + device_SN + ' shell rm -rf /data/miniapp/data')
                         # 首次必须要进行重启后才能获取
                         public.execute_cmd('adb -s ' + device_SN + ' shell reboot')
                         uuid_reboot_flag = True
-                        time.sleep(14)
+                        time.sleep(18)
                         uuid_count = 0
                         while True:
                             uuid_count += 1
-                            if uuid_count > 10:
+                            if uuid_count > 20:
                                 break
                             print('uuid_count:' + str(uuid_count))
                             s.uuid_str.set('正在获取UUID中，请耐心等待 ' + str(uuid_count))
-                            # 设备开机后先临时保存日志
-                            public.execute_cmd('adb -s ' + device_SN + ' pull /data/syslog.log ' + syslog_log)
-                            # 再上传到设备里面进行过滤读取
-                            public.execute_cmd('adb -s ' + device_SN + ' push ' + syslog_log + ' /data/uuid.log')
-                            try:
-                                uuid_result = public.execute_cmd('adb -s ' + device_SN + ' shell grep "set_deviceId" /data/uuid.log')
-                                print('查询设备UUID：\n' + uuid_result)
-                                uuid_re = re.findall('1=====(.*?)\s/home', uuid_result)
-                                print(uuid_re)
-                                uuid_finally = eval(''.join(uuid_re))
-                                print('成功获取到设备UUID dict...')
-                                s.uuid_str.set('成功获取到设备UUID...')
-                                # 注意：python3中dict没有has_key(key)方法,使用自带函数实现 __contains__('key')
-                                uuid_state = uuid_finally.__contains__('deviceId')
-                                print('uuid_state: ' + str(uuid_state))
-                                if not uuid_state:
-                                    continue
-                                for key, value in uuid_finally.items():
-                                    if key == 'deviceId':
-                                        print(value)
-                                        with open(uuid_path, 'w') as fp:
-                                            fp.write(value)
-                                        break
-                                break
-                            except (ValueError,IndexError,SyntaxError):
+                            # s.uuid_str.set('正在获取UUID中，请耐心等待...')
+                            # 新方法 - 查询系统底层返回的UUID，成功率极高，成功率高达99%
+                            # 临时储存过滤UUID结果
+                            # os.system('adb -s ' + device_SN + ' shell grep "UUID" /data/syslog.log > ' + syslog_log)
+                            public.execute_cmd('adb -s ' + device_SN + ' shell grep "UUID" /data/syslog.log > ' + syslog_log)
+                            uuid_result = open(syslog_log,'r',encoding='utf-8').read()
+                            print('查询设备UUID：\n' + uuid_result)
+                            uuid_result_local = public.execute_cmd('adb -s ' + device_SN + ' shell cat /data/agOsUUID.txt')
+                            uuid_result_local_finally = ' '.join(uuid_result_local.split()).split(':')[-1]
+                            # print(uuid_result_local_finally)
+                            uuid_re1 = ''.join(re.findall('\(dict\) UUID = (.*?)\n', uuid_result))
+                            print('uuid_re1 获取方法1：' + str(uuid_re1))
+                            uuid_re2 = ''.join(list(set(re.findall('ota: OtaParameters:mUUID:(.*?)!\n', uuid_result))))
+                            print('uuid_re2 获取方法2：' + str(uuid_re2))
+                            if uuid_re1 == '' and uuid_re2 == '' and uuid_result_local_finally.strip() == 'No such file or directory':
                                 print('没有获取到设备UUID，继续获取中...')
+                                continue
+                            else:
+                                s.uuid_str.set('成功获取到设备UUID...')
+                                # 按数据优先级
+                                if uuid_result_local_finally.strip() != 'No such file or directory'\
+                                    and uuid_result_local_finally.strip() != "device '" + device_SN + "' not found"\
+                                    and uuid_result_local_finally.strip() != 'closed':
+                                    print('成功获取到设备UUID...')
+                                    with open(uuid_path, 'w') as fp:
+                                        fp.write(uuid_result_local.strip())
+                                    break
+                                else:
+                                    if uuid_re1 != '':
+                                        print('成功获取到设备UUID...')
+                                        with open(uuid_path, 'w') as fp:
+                                            fp.write(uuid_re1.strip())
+                                        break
+                                    else:
+                                        if uuid_re2 != '':
+                                            print('成功获取到设备UUID...')
+                                            with open(uuid_path, 'w') as fp:
+                                                fp.write(uuid_re2.strip())
+                                            break
+                                        else:
+                                            continue
+
+                            # 旧方法 - 失败率极高
+                            # 设备开机后先临时保存日志
+                            # public.execute_cmd('adb -s ' + device_SN + ' pull /data/syslog.log ' + syslog_log)
+                            # 再上传到设备里面进行过滤读取
+                            # public.execute_cmd('adb -s ' + device_SN + ' push ' + syslog_log + ' /data/uuid.log')
+                            # try:
+                            #     uuid_result = public.execute_cmd('adb -s ' + device_SN + ' shell grep "set_deviceId" /data/uuid.log')
+                            #     print('查询设备UUID：\n' + uuid_result)
+                            #     uuid_re = re.findall('1=====(.*?)\s/home', uuid_result)
+                            #     print(uuid_re)
+                            #     uuid_finally = eval(''.join(uuid_re))
+                            #     print('成功获取到设备UUID dict...')
+                            #     s.uuid_str.set('成功获取到设备UUID...')
+                            #     # 注意：python3中dict没有has_key(key)方法,使用自带函数实现 __contains__('key')
+                            #     uuid_state = uuid_finally.__contains__('deviceId')
+                            #     print('uuid_state: ' + str(uuid_state))
+                            #     if not uuid_state:
+                            #         continue
+                            #     for key, value in uuid_finally.items():
+                            #         if key == 'deviceId':
+                            #             print(value)
+                            #             with open(uuid_path, 'w') as fp:
+                            #                 fp.write(value)
+                            #             break
+                            #     break
+                            # except (ValueError,IndexError,SyntaxError):
+                            #     print('没有获取到设备UUID，继续获取中...')
                         uuid_reboot_flag = False
                         # 写入UUID后上传到设备中进行读取
                         public.execute_cmd('adb -s ' + device_SN + ' push ' + uuid_path + ' /data/UUID.ini')

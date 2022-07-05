@@ -1,12 +1,5 @@
-import re,public,json
+import os
+import re,public,json,subprocess
 
 
-
-e = ['{"__APPID__": "8180000000000020", "deviceId": "DF6E072094422AAEE56D06C247D3A5BB"} ']
-print()
-d = eval(''.join(e))
-
-for key,value in d.items():
-    if key == 'deviceId':
-        print(value)
-        break
+uuid_result = public.execute_cmd('adb shell grep "UUID" /data/syslog.log > C:\Users\lida\Documents\ADB_Tools(DA)\uuid.log')
