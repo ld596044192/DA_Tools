@@ -1,5 +1,7 @@
 import os
 import re,public,json,subprocess
 
+a = "adb: error: remote object '/data/crash_reports' does not exist"
 
-uuid_result = public.execute_cmd('adb shell grep "UUID" /data/syslog.log > C:\Users\lida\Documents\ADB_Tools(DA)\uuid.log')
+d = a.split(':')[-1].strip()
+print(d)

@@ -33,12 +33,15 @@ screen_page = make_dir + 'screen_page_state.txt'
 # 自定义截图保存文件夹名
 linux_dirname = 'ADB工具-Linux截图（DA）'
 linux_save_path = 'C:\\Users\\' + username + '\\Desktop\\' + linux_dirname + '\\'
+# 自定义日志保存文件夹名
+linux_dirname_log = 'ADB_get_log(DA)'
+linux_log_path = 'C:\\Users\\' + username + '\\Desktop\\' + linux_dirname_log + '\\'
 # 取图保存路径
 linux_camera_name = 'ADB_get_yuv'
 linux_camera_save = 'C:\\Users\\' + username + '\\Desktop\\' + linux_camera_name + '\\'
 # Linux截图计数
 linux_screen_count = make_dir + 'linux_screen_count.txt'
-# 文件夹计数
+# 取图文件夹计数
 linux_camera_count = make_dir + 'linux_camera_count.txt'
 # 记录照片旋转角度
 Image_rotate_path = make_dir + 'linux_screen_rotate.txt'
@@ -48,6 +51,8 @@ install_page = make_dir + 'install_page_state.txt'
 camera_page = make_dir + 'camera_page_state.txt'
 # 写号工具页面启动标志
 write_number_page = make_dir + 'linux_write_number_state.txt'
+# 一键获取日志页面启动标志
+get_log_page = make_dir + 'get_log_state.txt'
 # 写号工具记录log
 write_SN_log = make_dir + 'write_SN_log.log'
 # SN号记录标记
@@ -646,13 +651,15 @@ class Linux_Install(object):
             self.open_library_button_disable.place(x=358,y=60)
             self.open_software_button_disable.place(x=358, y=90)
             library_file = tkinter.filedialog.askopenfile(mode='r', filetypes=[('So Files', '*.so')], title='选择库安装文件')
+            # print('获取地址：' + str(library_file))
             library_file_string = str(library_file)
             if not library_file:
                 self.install_str.set('没有成功选择库文件\n请重新选择库文件')
             else:
-                library_file_finally = eval(library_file_string.split()[1].split('=')[1])
+                # replace('/','\\')替换路径符号，提高最准确无误的文件绝对路径
+                library_file_finally = eval(library_file_string.split()[1].split('=')[1]).replace('/','\\')
                 self.install_library_entry_str.set(library_file_finally)
-                print(library_file_finally)
+                print('获取地址：' + str(library_file_finally))
             self.open_library_button_disable.place_forget()
             self.open_software_button_disable.place_forget()
 
@@ -1372,54 +1379,284 @@ class Linux_WriteNumber(object):
         def t_write_SN():
             print('开始写号....')
             self.write_SN_button_disable.place(x=130,y=320)
-            SN = self.write_SN_entry_str.get().strip()
-            print(SN)
-            print('当前输入的SN位数为 ' + str(len(SN)))
             devices_state = public.device_connect()
             if not devices_state:
-                self.write_number_str.set('请重新连接设备后再写号')
+                self.write_number_str.set('检测到没有连接到设备\n请连接设备后再使用本功能')
             else:
-                # 已写入SN号无法再次写号
-                SN_list = []
-                write_SN_read = open(write_SN_log, 'r').readlines()
-                # print(write_SN_read)
-                for sn in write_SN_read:
-                    sn_finally = re.findall('SN号：(.*?)\n', sn)
-                    if sn_finally == []:
-                        pass
-                    else:
-                        SN_finally = ''.join(sn_finally)
-                        SN_list.append(SN_finally)
-                sn_read = public.execute_cmd('adb -s ' + device + ' shell cat /data/SN.txt')
-                if SN in SN_list and SN == sn_read:
-                    self.write_number_str.set(SN + '已被当前设备写入\n请看右侧列表查看对应设备MAC')
+                only_read = public.linux_only_read(device)
+                if only_read == ' No such file or directory':
+                    self.write_number_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
                 else:
-                    if self.write_15_str.get() == 0:
-                        # 15位数
-                        print('监听 15位数 选项')
-                        if len(SN) == 15:
-                            self.write_number_str.set('正在为设备写入\n' + SN)
-                            SN_result = public.execute_cmd('adb -s ' + device + ' shell factory ATE_SET_SN ' + SN)
-                            print(SN_result)
-                            with open(SN_result_path,'w') as fp:
-                                fp.write(SN_result)
-                            public.execute_cmd('adb -s ' + device + ' push ' + SN_result_path + ' /data')
-                            success = public.execute_cmd('adb -s ' + device + ' shell grep "SUCCESS" /data/SN_result.log')
-                            print(success)
-                            if success.strip() == 'SUCCESS':
-                                write_SN_save(SN)
-                                self.write_number_str.set('正在清理数据缓存并重启...')
-                                # SN号写入后需要重新激活才会有效，否则无法绑定设备
-                                public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/miniapp/data')
-                                public.execute_cmd('adb -s ' + device + ' shell reboot')
-                                self.write_number_str.set(SN + '\n已被成功写入！！！')
+                    SN = self.write_SN_entry_str.get().strip()
+                    print(SN)
+                    print('当前输入的SN位数为 ' + str(len(SN)))
+                    devices_state = public.device_connect()
+                    if not devices_state:
+                        self.write_number_str.set('请重新连接设备后再写号')
+                    else:
+                        # 已写入SN号无法再次写号
+                        SN_list = []
+                        write_SN_read = open(write_SN_log, 'r').readlines()
+                        # print(write_SN_read)
+                        for sn in write_SN_read:
+                            sn_finally = re.findall('SN号：(.*?)\n', sn)
+                            if sn_finally == []:
+                                pass
                             else:
-                                self.write_number_str.set('写号失败！！！\n请重新输入再试试')
+                                SN_finally = ''.join(sn_finally)
+                                SN_list.append(SN_finally)
+                        sn_read = public.execute_cmd('adb -s ' + device + ' shell cat /data/SN.txt')
+                        if SN in SN_list and SN == sn_read:
+                            self.write_number_str.set(SN + '已被当前设备写入\n请看右侧列表查看对应设备MAC')
                         else:
-                            self.write_number_str.set('你输入的SN号不合法！！！')
+                            if self.write_15_str.get() == 0:
+                                # 15位数
+                                print('监听 15位数 选项')
+                                if len(SN) == 15:
+                                    self.write_number_str.set('正在为设备写入\n' + SN)
+                                    SN_result = public.execute_cmd('adb -s ' + device + ' shell factory ATE_SET_SN ' + SN)
+                                    print(SN_result)
+                                    with open(SN_result_path,'w') as fp:
+                                        fp.write(SN_result)
+                                    public.execute_cmd('adb -s ' + device + ' push ' + SN_result_path + ' /data')
+                                    success = public.execute_cmd('adb -s ' + device + ' shell grep "SUCCESS" /data/SN_result.log')
+                                    print(success)
+                                    if success.strip() == 'SUCCESS':
+                                        write_SN_save(SN)
+                                        self.write_number_str.set('正在清理数据缓存并重启...')
+                                        # SN号写入后需要重新激活才会有效，否则无法绑定设备
+                                        public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/miniapp/data')
+                                        public.execute_cmd('adb -s ' + device + ' shell reboot')
+                                        self.write_number_str.set(SN + '\n已被成功写入！！！')
+                                    else:
+                                        self.write_number_str.set('写号失败！！！\n请重新输入再试试')
+                                else:
+                                    self.write_number_str.set('你输入的SN号不合法！！！')
             self.write_SN_button_disable.place_forget()
 
         t_write_SN = threading.Thread(target=t_write_SN)
         t_write_SN.setDaemon(True)
         t_write_SN.start()
+
+
+# 一键获取日志界面
+class Linux_Log(object):
+    def log_form(self,init_str,linux_log_Button,linux_log_Button_disable,device):
+        self.log_root = tkinter.Toplevel()
+        self.log_root.title('Linux一键获取日志')
+        # screenWidth = self.log_root.winfo_screenwidth()
+        # screenHeight = self.log_root.winfo_screenheight()
+        w = 310
+        h = 250
+        # x = (screenWidth - w) / 2
+        # y = (screenHeight - h) / 2
+        # self.log_root.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        self.log_root.geometry('%dx%d' % (w, h))
+        self.log_root.iconbitmap(LOGO_path)
+        self.log_root.resizable(0, 0)
+        # self.log_root.wm_attributes('-topmost', 1)
+
+        self.log_startup(linux_log_Button,linux_log_Button_disable)
+
+        self.log_root.protocol('WM_DELETE_WINDOW',self.close_handle)
+        self.main_frame(device)
+
+        return self.log_root
+
+    def log_startup(self,linux_log_Button,linux_log_Button_disable):
+        # 监听截图页面的打开状态
+        log_exists = self.log_root.winfo_exists()
+        print(log_exists)
+        if log_exists == 1:
+            linux_log_Button.place_forget()
+            linux_log_Button_disable.place(x=200, y=270)
+
+    def close_handle(self):
+        # 监听页面消失
+        with open(get_log_page,'w') as fp:
+            fp.write('0')
+        self.log_root.destroy()
+
+    def main_frame(self,device):
+        # 一键获取日志状态栏
+        self.get_log_str = tkinter.StringVar()
+        self.get_log_label = tkinter.Label(self.log_root, textvariable=self.get_log_str, bg='black', fg='#FFFFFF',
+                                           width=35, height=2)
+        # self.screen_label.config(command=self.check_gsnap(device))
+        self.get_log_label.place(x=35, y=10)
+        self.get_log_str.set('此处显示获取日志状态')
+
+        # 一键获取crash_reports（崩溃）按钮
+        self.get_crash_reports_button = tkinter.Button(self.log_root, text='获取crash_reports（崩溃日志）', width=30)
+        self.get_crash_reports_button.bind('<Button-1>', lambda x: self.get_crash_reports_bind(device))
+        self.get_crash_reports_button_disable = tkinter.Button(self.log_root, text='正在获取crash_reports...', width=30)
+        self.get_crash_reports_button_disable.config(state='disable')
+        self.get_crash_reports_button.place(x=50, y=60)
+
+        # 一键获取syslog.log（系统日志）按钮
+        self.get_syslog_button = tkinter.Button(self.log_root, text='获取syslog（系统日志）', width=30)
+        self.get_syslog_button.bind('<Button-1>', lambda x: self.get_syslog_bind(device))
+        self.get_syslog_button_disable = tkinter.Button(self.log_root, text='正在获取syslog...', width=30)
+        self.get_syslog_button_disable.config(state='disable')
+        self.get_syslog_button.place(x=50, y=95)
+
+        # 打开日志文件夹按钮
+        self.open_syslog_button = tkinter.Button(self.log_root, text='打开日志文件夹', width=30)
+        self.open_syslog_button.bind('<Button-1>', lambda x: self.open_syslog_bind())
+        self.open_syslog_button_disable = tkinter.Button(self.log_root, text='正在打开日志文件夹...', width=30)
+        self.open_syslog_button_disable.config(state='disable')
+        self.open_syslog_button.place(x=50, y=130)
+
+        # 一键清空日志按钮
+        self.clean_syslog_button = tkinter.Button(self.log_root, text='一键清空日志', width=30)
+        self.clean_syslog_button.bind('<Button-1>', lambda x: self.clean_syslog_bind(device))
+        self.clean_syslog_button_disable = tkinter.Button(self.log_root, text='正在清空日志...', width=30)
+        self.clean_syslog_button_disable.config(state='disable')
+        self.clean_syslog_button.place(x=50, y=165)
+
+        # 一键重置日志文件夹按钮
+        self.reset_syslog_button = tkinter.Button(self.log_root, text='一键重置日志文件夹', width=30)
+        self.reset_syslog_button.bind('<Button-1>', lambda x: self.reset_syslog_bind())
+        self.reset_syslog_button_disable = tkinter.Button(self.log_root, text='正在重置日志文件夹...', width=30)
+        self.reset_syslog_button_disable.config(state='disable')
+        self.reset_syslog_button.place(x=50, y=200)
+
+    def get_crash_reports_bind(self,device):
+        def t_get_crash_reports():
+            # 一键获取crash_reports
+            self.get_crash_reports_button_disable.place(x=50, y=60)
+            self.get_log_str.set('正在获取崩溃日志crash_reports...')
+            devices_state = public.device_connect()
+            if not devices_state:
+                self.get_log_str.set('检测到没有连接到设备\n请连接设备后再使用本功能')
+            else:
+                only_read = public.linux_only_read(device)
+                if only_read == ' No such file or directory':
+                    self.get_log_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
+                else:
+                    crash_reports_dir = linux_log_path + 'crash_reports'
+                    if not os.path.exists(crash_reports_dir):
+                        os.makedirs(crash_reports_dir)
+                    now = time.localtime()
+                    now_time = time.strftime("%Y-%m-%d_%H%M%S", now)
+                    print('获取crash_reports时的当前时间：' + str(now_time))
+                    crash_reports_result = public.execute_cmd('adb -s ' + device + ' pull /data/crash_reports ' + crash_reports_dir + '\\crash_reports-' + now_time)
+                    print('crash_reports获取结果：' + crash_reports_result)
+                    crash_reports_result_str = crash_reports_result.split(':')[-1].strip()
+                    if crash_reports_result_str == "remote object '/data/crash_reports' does not exist":
+                        self.get_log_str.set('没有找到崩溃日志crash_reports\n无需保存文件！')
+                    else:
+                        self.get_log_str.set('崩溃日志crash_reports已保存！文件保存在:\n 桌面\\' + linux_dirname_log + '\\crash_reports')
+            self.get_crash_reports_button_disable.place_forget()
+
+        t_get_crash_reports = threading.Thread(target=t_get_crash_reports)
+        t_get_crash_reports.setDaemon(True)
+        t_get_crash_reports.start()
+
+    def get_syslog_bind(self,device):
+        def t_get_syslog():
+            # 一键获取syslog
+            self.get_syslog_button_disable.place(x=50, y=95)
+            self.get_log_str.set('正在获取系统日志syslog.log...')
+            devices_state = public.device_connect()
+            if not devices_state:
+                self.get_log_str.set('检测到没有连接到设备\n请连接设备后再使用本功能')
+            else:
+                only_read = public.linux_only_read(device)
+                if only_read == ' No such file or directory':
+                    self.get_log_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
+                else:
+                    syslog_dir = linux_log_path + 'syslog.log'
+                    if not os.path.exists(syslog_dir):
+                        os.makedirs(syslog_dir)
+                    now = time.localtime()
+                    now_time = time.strftime("%Y-%m-%d_%H%M%S", now)
+                    print('获取syslog.log时的当前时间：' + str(now_time))
+                    # 新建带日期存放日志的文件夹
+                    syslog_dir_all = syslog_dir + '\\syslog.log-' + now_time
+                    os.makedirs(syslog_dir_all)
+                    # 获取syslog文件夹
+                    self.get_log_str.set('正在pull 更早时间的syslog文件夹...')
+                    syslog_result = public.execute_cmd('adb -s ' + device + ' pull /data/syslog ' + syslog_dir_all)
+                    print('syslog文件夹获取结果：' + syslog_result)
+                    # 获取syslog.log文件
+                    self.get_log_str.set('正在pull syslog.log文件...')
+                    syslog_log_result = public.execute_cmd('adb -s ' + device + ' pull /data/syslog.log ' + syslog_dir_all)
+                    print('syslog.log获取结果：' + syslog_log_result)
+                    # 获取syslog.log.*文件（*代表数字0~8）
+                    for f in range(0,9):
+                        self.get_log_str.set('正在pull syslog.log.'+ str(f) +'文件...')
+                        syslog_log_result = public.execute_cmd('adb -s ' + device + ' pull /data/syslog.log.' + str(f) +
+                                             ' ' + syslog_dir_all)
+                        syslog_log_result_str = syslog_log_result.split(':')[-1].strip()
+                        if syslog_log_result_str == "remote object '/data/syslog.log.%s' does not exist" % str(f):
+                            # 搜索到没有的文件就停止pull
+                            break
+                        print('syslog.log.' + str(f) + '获取结果：' + syslog_log_result)
+                    self.get_log_str.set('系统日志syslog.log已保存！文件保存在:\n 桌面\\' + linux_dirname_log + '\\syslog.log')
+            self.get_syslog_button_disable.place_forget()
+
+        t_get_syslog = threading.Thread(target=t_get_syslog)
+        t_get_syslog.setDaemon(True)
+        t_get_syslog.start()
+
+    def open_syslog_bind(self):
+        # 打开日志文件夹
+        self.open_syslog_button_disable.place(x=50, y=130)
+        if not os.path.exists(linux_log_path):
+            os.makedirs(linux_log_path)
+        win32api.ShellExecute(0, 'open', linux_log_path, '', '', 1)
+        self.open_syslog_button_disable.place_forget()
+
+    def clean_syslog_bind(self,device):
+        def t_clean_syslog():
+            # 一键清空日志
+            self.clean_syslog_button_disable.place(x=50,y=165)
+            devices_state = public.device_connect()
+            if not devices_state:
+                self.get_log_str.set('检测到没有连接到设备\n请连接设备后再使用本功能')
+            else:
+                only_read = public.linux_only_read(device)
+                if only_read == ' No such file or directory':
+                    self.get_log_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
+                else:
+                    clean_log_content = '确定要一键清空设备中的所有日志吗？\n' \
+                                        '（1）清空设备中的所有崩溃日志crash_reports\n' \
+                                        '（2）清空设备中的所有系统日志syslog\n' \
+                                        '点击“确定”立刻清空设备中的所有日志，点击“取消”关闭'
+                    if tkinter.messagebox.askyesno('清空确认',clean_log_content):
+                        self.get_log_str.set('正在清空设备中的所有日志中...')
+                        public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/crash_reports')
+                        public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/syslog')
+                        public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/syslog.*')
+                        self.get_log_str.set('已清空设备中的所有日志！')
+            self.clean_syslog_button_disable.place_forget()
+
+        t_clean_syslog = threading.Thread(target=t_clean_syslog)
+        t_clean_syslog.setDaemon(True)
+        t_clean_syslog.start()
+
+    def reset_syslog_bind(self):
+        def t_reset_syslog():
+            # 一键重置日志文件夹
+            self.reset_syslog_button_disable.place(x=50,y=200)
+            devices_state = public.device_connect()
+            reset_log_content = '确定要一键重置日志文件夹吗？\n' \
+                                '（1）清空本地中的所有崩溃日志crash_reports\n' \
+                                '（2）清空本地中的所有系统日志syslog\n' \
+                                '（3）清空本地中的ADB_get_log(DA)文件夹\n' \
+                                '点击“确定”立刻清空本地中的所有日志，点击“取消”关闭'
+            if tkinter.messagebox.askyesno('重置确认',reset_log_content):
+                self.get_log_str.set('正在重置日志文件夹中...')
+                try:
+                    shutil.rmtree(linux_log_path)
+                    print(linux_log_path + ' 已删除！！！')
+                except FileNotFoundError:
+                    pass
+                self.get_log_str.set('已重置日志文件夹！')
+            self.reset_syslog_button_disable.place_forget()
+
+        t_reset_syslog = threading.Thread(target=t_reset_syslog)
+        t_reset_syslog.setDaemon(True)
+        t_reset_syslog.start()
 

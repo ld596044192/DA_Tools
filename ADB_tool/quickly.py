@@ -1,4 +1,4 @@
-import public
+import public,pyperclip,tkinter.messagebox
 
 
 def android_back(device):
@@ -11,8 +11,8 @@ def android_settings(device):
     public.execute_cmd('adb -s ' + device + ' shell am start com.android.settings/com.android.settings.Settings')
 
 
-def android_reboot(device):
-    # 重启设备
+def current_reboot(device):
+    # 重启设备（通用）
     public.execute_cmd('adb -s ' + device + ' shell reboot')
 
 
@@ -47,3 +47,16 @@ def android_desktop(device):
 def android_awake(device):
     # 唤醒屏幕
     public.execute_cmd('adb -s ' + device + ' shell input keyevent 224')
+
+
+def linux_shutdown(device):
+    # 关闭设备（Linux）
+    public.execute_cmd('adb -s ' + device + ' shell halt')
+
+
+def current_copy_SN(device):
+    # 一键复制SN序列号（通用）
+    pyperclip.copy(device)
+    # 从剪贴板那粘贴
+    pyperclip.paste()
+    tkinter.messagebox.showinfo('粘贴提醒','已复制粘贴 ' + device + ' 到剪贴板\n可以Ctrl+V粘贴到任意地方啦~')

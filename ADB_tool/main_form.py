@@ -48,6 +48,8 @@ install_page = make_dir + 'install_page_state.txt'
 camera_page = make_dir + 'camera_page_state.txt'
 # 写号工具页面启动标志
 write_number_page = make_dir + 'linux_write_number_state.txt'
+# 一键获取日志页面启动标志
+get_log_page = make_dir + 'get_log_state.txt'
 # 简易ADB - adb-tools检测标志
 adb_tools_flag = make_dir + 'adb-tools'
 # 卸载APK标记
@@ -83,8 +85,8 @@ with open(adb_upgrade_flag,'w') as fp:
 with open(conflict_software_path,'w') as fp:
     fp.write('')
 # 统一修改版本号
-version = 'V1.0.0.18（正式版）'
-version_code = 1001.8
+version = 'V1.0.0.19'
+version_code = 1001.9
 # 统一修改frame的宽高
 width = 367
 height = 405
@@ -104,7 +106,7 @@ logging.basicConfig(filename=make_dir + 'log.txt',
 class MainForm(object):
     def root_form(s):
         s.root = tkinter.Tk()
-        s.root.title('ADB测试工具' + version + ' tktiner（Windows）版')
+        s.root.title('ADB测试工具' + version + ' Windows版')
         screenWidth = s.root.winfo_screenwidth()
         screenHeight = s.root.winfo_screenheight()
         w = main_width
@@ -351,21 +353,21 @@ class MainForm(object):
         s.quickly_frame1 = tkinter.Frame(s.root,width=width,height=height)
 
         # 返回功能
-        s.back_button = tkinter.Button(s.quickly_frame1,text='返回 & 后退',width=width_button)
+        s.back_button = tkinter.Button(s.quickly_frame1,text='返回 & 后退（安卓）',width=width_button)
         s.back_button.bind('<Button-1>',lambda x: s.back_bind())
         s.back_button_disable = tkinter.Button(s.quickly_frame1,text='正在返回...',width=width_button)
         s.back_button_disable.config(state='disable')
         s.back_button.place(x=20,y=20)
 
         # 进入系统设置功能
-        s.settings_button = tkinter.Button(s.quickly_frame1,text='进入系统设置',width=width_button)
+        s.settings_button = tkinter.Button(s.quickly_frame1,text='进入系统设置（安卓）',width=width_button)
         s.settings_button.bind('<Button-1>',lambda x: s.settings_bind())
         s.settings_button_disable = tkinter.Button(s.quickly_frame1,text='正在进入中...',width=width_button)
         s.settings_button_disable.config(state='disable')
         s.settings_button.place(x=190,y=20)
 
-        # 重启设备功能
-        s.reboot_button = tkinter.Button(s.quickly_frame1,text='重启设备',width=width_button)
+        # 重启设备功能（通用）
+        s.reboot_button = tkinter.Button(s.quickly_frame1,text='重启设备（通用）',width=width_button)
         s.reboot_button.bind('<Button-1>',lambda x: s.reboot_bind())
         s.reboot_str = tkinter.StringVar()
         s.reboot_button_disable = tkinter.Button(s.quickly_frame1,textvariable=s.reboot_str,width=width_button)
@@ -373,48 +375,63 @@ class MainForm(object):
         s.reboot_button.place(x=20,y=60)
 
         # 关机设备功能
-        s.shutdown_button = tkinter.Button(s.quickly_frame1,text='设备关机',width=width_button)
+        s.shutdown_button = tkinter.Button(s.quickly_frame1,text='设备关机（安卓）',width=width_button)
         s.shutdown_button.bind('<Button-1>',lambda x: s.shutdown_bind())
         s.shutdown_button_disable = tkinter.Button(s.quickly_frame1,text='正在关机...',width=width_button)
         s.shutdown_button_disable.config(state='disable')
         s.shutdown_button.place(x=190,y=60)
 
         # 清理缓存（初始化）功能
-        s.clear_button = tkinter.Button(s.quickly_frame1,text='清理缓存（初始化）',width=width_button)
+        s.clear_button = tkinter.Button(s.quickly_frame1,text='清理缓存（初始化-安卓）',width=width_button)
         s.clear_button.bind('<Button-1>',lambda x: s.clear_bind())
         s.clear_button_disable = tkinter.Button(s.quickly_frame1,text='正在初始化...',width=width_button)
         s.clear_button_disable.config(state='disable')
         s.clear_button.place(x=20,y=100)
 
         # 终止（结束）程序
-        s.kill_button = tkinter.Button(s.quickly_frame1,text='终止（结束）应用',width=width_button)
+        s.kill_button = tkinter.Button(s.quickly_frame1,text='终止（结束）应用（安卓）',width=width_button)
         s.kill_button.bind('<Button-1>',lambda x: s.kill_bind())
         s.kill_button_disable = tkinter.Button(s.quickly_frame1,text='正在结束...',width=width_button)
         s.kill_button_disable.config(state='disable')
         s.kill_button.place(x=190,y=100)
 
         # 返回Launcher桌面
-        s.desktop_button = tkinter.Button(s.quickly_frame1,text='返回桌面',width=width_button)
+        s.desktop_button = tkinter.Button(s.quickly_frame1,text='返回桌面（安卓）',width=width_button)
         s.desktop_button.bind('<Button-1>',lambda x: s.desktop_bind())
         s.desktop_button_disable = tkinter.Button(s.quickly_frame1,text='正在返回...',width=width_button)
         s.desktop_button_disable.config(state='disable')
         s.desktop_button.place(x=20,y=140)
 
         # 唤醒屏幕
-        s.awake_button = tkinter.Button(s.quickly_frame1,text='唤醒屏幕',width=width_button)
+        s.awake_button = tkinter.Button(s.quickly_frame1,text='唤醒屏幕（安卓）',width=width_button)
         s.awake_button.bind('<Button-1>', lambda x: s.awake_bind())
         s.awake_button_disable = tkinter.Button(s.quickly_frame1, text='正在唤醒...', width=width_button)
         s.awake_button_disable.config(state='disable')
         s.awake_button.place(x=190, y=140)
+
+        # 关机设备功能（Linux）
+        s.linux_shutdown_button = tkinter.Button(s.quickly_frame1, text='设备关机（Linux）', width=width_button)
+        s.linux_shutdown_button.bind('<Button-1>', lambda x: s.linux_shutdown_bind())
+        s.linux_shutdown_button_disable = tkinter.Button(s.quickly_frame1, text='正在关机...', width=width_button)
+        s.linux_shutdown_button_disable.config(state='disable')
+        s.linux_shutdown_button.place(x=20, y=180)
+
+        # 一键复制SN序列号功能（通用）
+        s.copy_SN_button = tkinter.Button(s.quickly_frame1, text='一键复制序列号（通用）', width=width_button)
+        s.copy_SN_button.bind('<Button-1>', lambda x: s.copy_SN_bind())
+        s.copy_SN_button_disable = tkinter.Button(s.quickly_frame1, text='正在一键复制中...', width=width_button)
+        s.copy_SN_button_disable.config(state='disable')
+        s.copy_SN_button.place(x=190, y=180)
 
         # 使用说明
         content = '''
         使用说明：
         若没连接设备时，点击按钮无任何现象属于正常现象
         连接设备后点击按钮，可在设备上观察调试现象
+        若设备类型与按钮提示的类型不符合时无现象为正常
         '''
         s.instructions_label = tkinter.Label(s.quickly_frame1,text=content,fg='red')
-        s.instructions_label.place(x=20,y=180)
+        s.instructions_label.place(x=20,y=220)
         s.quickly_frame1.place(y=20)
 
     def screen_frame(s):
@@ -633,6 +650,13 @@ class MainForm(object):
         s.write_number_disable.config(state='disable')
         s.write_number.place(x=200, y=230)
 
+        # 一键获取日志
+        s.get_log = tkinter.Button(s.linux_frame1, text='一键获取日志（Linux）', width=width_button)
+        s.get_log_disable = tkinter.Button(s.linux_frame1, text='一键获取日志（Linux）', width=width_button)
+        s.get_log.bind('<Button-1>', lambda x: s.get_log_bind())
+        s.get_log_disable.config(state='disable')
+        s.get_log.place(x=200, y=270)
+
         # UUID状态栏
         s.uuid_str = tkinter.StringVar()
         s.uuid_label = tkinter.Label(s.linux_frame1, textvariable=s.uuid_str, bg='black', fg='#FFFFFF',
@@ -743,6 +767,8 @@ class MainForm(object):
             s.uuid_paste_disable.place_forget()
             s.uuid_get.place_forget()
             s.uuid_get_disable.place_forget()
+            s.get_log.place_forget()
+            s.get_log_disable.place_forget()
 
             # 恢复绑定事件的标识
             if not uuid_reboot_flag:
@@ -779,12 +805,12 @@ class MainForm(object):
         s.uuid_label.place(x=20, y=310)
         s.uuid_paste.place(x=200, y=360)
         s.uuid_get.place(x=20, y=360)
+        s.get_log.place(x=200,y=270)
 
         # 启动特定的绑定事件
         if not uuid_server_flag:
             s.uuid_get_bind()  # 自动获取设备UUID
             uuid_server_flag = True
-
 
     def version_history_frame(s):
         # 历史版本信息窗口
@@ -830,7 +856,7 @@ class MainForm(object):
             s.reboot_button_disable.place(x=20,y=60)
             s.reboot_str.set('正在重启...')
             devices_SN = s.more_devices_value.get()
-            state = quickly.android_reboot(devices_SN)
+            state = quickly.current_reboot(devices_SN)
             # 若设备没有连接，获取的是None，则恢复正常按钮状态
             if not state:
                 s.reboot_button_disable.place_forget()
@@ -901,6 +927,28 @@ class MainForm(object):
         t_awake = threading.Thread(target=t_awake)
         t_awake.setDaemon(True)
         t_awake.start()
+
+    def linux_shutdown_bind(s):
+        def t_linux_shutdown():
+            s.linux_shutdown_button_disable.place(x=20, y=180)
+            devices_SN = s.more_devices_value.get()
+            quickly.linux_shutdown(devices_SN)
+            s.linux_shutdown_button_disable.place_forget()
+
+        t_linux_shutdown = threading.Thread(target=t_linux_shutdown)
+        t_linux_shutdown.setDaemon(True)
+        t_linux_shutdown.start()
+
+    def copy_SN_bind(s):
+        def t_copy_SN():
+            s.copy_SN_button_disable.place(x=190, y=180)
+            devices_SN = s.more_devices_value.get()
+            quickly.current_copy_SN(devices_SN)
+            s.copy_SN_button_disable.place_forget()
+
+        t_copy_SN = threading.Thread(target=t_copy_SN)
+        t_copy_SN.setDaemon(True)
+        t_copy_SN.start()
 
     def devices_bind(s):
         def t_devices():
@@ -1748,6 +1796,7 @@ class MainForm(object):
 
             # 重新获取UUID
             s.uuid_get_disable.place(x=20,y=360)
+            s.uuid_paste_disable.place(x=200, y=360)
             devices_state = public.device_connect()
             s.uuid_str.set('正在获取设备UUID中...')
             if not devices_state:
@@ -1879,6 +1928,7 @@ class MainForm(object):
                     else:
                         s.uuid_str.set('已获取到该设备的UUID为\n' + devices_uuid)
             s.uuid_get_disable.place_forget()
+            s.uuid_paste_disable.place_forget()
 
         t_uuid_get = threading.Thread(target=t_uuid_get)
         t_uuid_get.setDaemon(True)
@@ -1908,3 +1958,34 @@ class MainForm(object):
         t_uuid_paste.setDaemon(True)
         t_uuid_paste.start()
 
+    def get_log_bind(s):
+        def t_get_log():
+            # 初始化一键获取日志页面的状态
+            with open(get_log_page, 'w') as fp:
+                fp.write('')
+            linux_get_log = linux_main.Linux_Log()
+            device_SN = s.more_devices_value.get()
+            linux_get_log.log_form(s.init_str,s.get_log,s.get_log_disable,device_SN)
+
+        def t_get_log_close():
+            # 监听一键获取日志页面的关闭状态
+            with open(get_log_page, 'w') as fp:
+                fp.write('')
+            while True:
+                devices_connect = public.device_connect()
+                get_log_page_state = open(get_log_page, 'r').read()
+                if not devices_connect:
+                    break
+                else:
+                    if get_log_page_state == '0':
+                        s.get_log_disable.place_forget()
+                        s.get_log.place(x=200, y=270)
+                        break
+
+        t_get_log = threading.Thread(target=t_get_log)
+        t_get_log.setDaemon(True)
+        t_get_log.start()
+
+        t_get_log_close = threading.Thread(target=t_get_log_close)
+        t_get_log_close.setDaemon(True)
+        t_get_log_close.start()
