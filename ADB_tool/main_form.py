@@ -79,14 +79,16 @@ conflict_path = make_dir + 'conflict_software_path.txt'
 environ_log = make_dir + 'environ_log.log'
 # 临时保存UUID日志
 syslog_log = make_dir + 'uuid.log'
+# 实时保存设备序列号
+devices_log = make_dir + 'devices.log'
 # 启动前初始化
 with open(adb_upgrade_flag,'w') as fp:
     fp.write('ADB is the latest version')
 with open(conflict_software_path,'w') as fp:
     fp.write('')
 # 统一修改版本号
-version = 'V1.0.0.19'
-version_code = 1001.9
+version = 'V1.0.0.20'
+version_code = 1002.0
 # 统一修改frame的宽高
 width = 367
 height = 405
@@ -125,11 +127,25 @@ class MainForm(object):
         # 主程序启动标志
         with open(root_state,'w') as fp:
             fp.write('1')
+
+        # 初始化
+        s.software_init()
+        # 默认显示窗口页面
         s.main_menu_bar()
         s.quickly_frame()
 
         s.root.mainloop()
         return s.root
+
+    def software_init(s):
+        # 每次启动本软件都需要进行初始化
+
+        # 初始化Linux模式下的特定按钮状态
+        os.remove(screen_page)
+        os.remove(install_page)
+        os.remove(camera_page)
+        os.remove(write_number_page)
+        os.remove(get_log_page)
 
     def main_menu_bar(s):
         # 切换窗口（选择模式）
@@ -251,6 +267,9 @@ class MainForm(object):
                     else:
                         s.more_devices_list = devices_list
                         s.more_devices_combobox['value'] = s.more_devices_list
+                        # 保存设备序列号以便后面功能使用，实时同步
+                        with open(devices_log, 'w') as fp:
+                            fp.write(s.more_devices_value.get())
                         if not devices_current_flag:
                             # 首次连接设备后只匹配首个序列号一次
                             s.more_devices_combobox.current(0)
@@ -793,19 +812,63 @@ class MainForm(object):
 
         # 先禁用初始化按钮
         s.linux_init_Button.place_forget()
-        s.linux_init_Button_disable.place(x=200,y=110)
+        s.linux_init_Button_disable.place(x=200, y=110)
+
+        # 先初始化按钮状态
+        if not os.path.exists(screen_page):
+            with open(screen_page,'w') as fp:
+                fp.write('0')
+        if not os.path.exists(install_page):
+            with open(install_page, 'w') as fp:
+                fp.write('0')
+        if not os.path.exists(camera_page):
+            with open(camera_page, 'w') as fp:
+                fp.write('0')
+        if not os.path.exists(write_number_page):
+            with open(write_number_page, 'w') as fp:
+                fp.write('0')
+        if not os.path.exists(get_log_page):
+            with open(get_log_page, 'w') as fp:
+                fp.write('0')
+
+        # 读取一次Linux所有页面状态
+        screen_page_state = open(screen_page,'r').read()
+        install_page_state = open(install_page,'r').read()
+        camera_page_state = open(camera_page,'r').read()
+        write_number_page_state = open(write_number_page,'r').read()
+        get_log_page_state = open(get_log_page,'r').read()
+        if screen_page_state == '':
+            s.linux_screen_Button_disable.place(x=20, y=190)
+        else:
+            s.linux_screen_Button_disable.place_forget()
+            s.linux_screen_Button.place(x=20, y=190)
+        if install_page_state == '':
+            s.linux_install_disable.place(x=20, y=230)
+        else:
+            s.linux_install_disable.place_forget()
+            s.linux_install.place(x=20, y=230)
+        if camera_page_state == '':
+            s.linux_camera_disable.place(x=20, y=270)
+        else:
+            s.linux_camera_disable.place_forget()
+            s.linux_camera.place(x=20, y=270)
+        if write_number_page_state == '':
+            s.write_number_disable.place(x=200, y=230)
+        else:
+            s.write_number_disable.place_forget()
+            s.write_number.place(x=200, y=230)
+        if get_log_page_state == '':
+            s.get_log_disable.place(x=200, y=270)
+        else:
+            s.get_log_disable.place_forget()
+            s.get_log.place(x=200, y=270)
 
         # 正常情况下开启linux模式所有功能
         s.linux_button_label.place_forget()
-        s.linux_screen_Button.place(x=20, y=190)
         s.linux_developer_mode_Button_close.place(x=200,y=190)
-        s.linux_install.place(x=20,y=230)
-        s.linux_camera.place(x=20,y=270)
-        s.write_number.place(x=200,y=230)
         s.uuid_label.place(x=20, y=310)
         s.uuid_paste.place(x=200, y=360)
         s.uuid_get.place(x=20, y=360)
-        s.get_log.place(x=200,y=270)
 
         # 启动特定的绑定事件
         if not uuid_server_flag:
@@ -942,8 +1005,12 @@ class MainForm(object):
     def copy_SN_bind(s):
         def t_copy_SN():
             s.copy_SN_button_disable.place(x=190, y=180)
-            devices_SN = s.more_devices_value.get()
-            quickly.current_copy_SN(devices_SN)
+            devices_state = public.device_connect()
+            if not devices_state:
+                tkinter.messagebox.showinfo('粘贴失败', '请连接设备后再复制粘贴吧！！！')
+            else:
+                devices_SN = s.more_devices_value.get()
+                quickly.current_copy_SN(devices_SN)
             s.copy_SN_button_disable.place_forget()
 
         t_copy_SN = threading.Thread(target=t_copy_SN)

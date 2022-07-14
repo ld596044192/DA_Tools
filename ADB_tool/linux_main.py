@@ -5,6 +5,7 @@ import public,pywinauto_adb
 import tkinter,tkinter.ttk,tkinter.messagebox,tkinter.filedialog
 import threading,ctypes
 from PIL import Image
+from pynput.keyboard import Key, Controller
 
 # 初始化文件路径
 init_path = public.resource_path(os.path.join('resources','adb_init.ini'))
@@ -57,6 +58,8 @@ get_log_page = make_dir + 'get_log_state.txt'
 write_SN_log = make_dir + 'write_SN_log.log'
 # SN号记录标记
 SN_path = make_dir + 'SN.txt'
+# 实时保存设备序列号
+devices_log = make_dir + 'devices.log'
 # Entry输入框焦点标记（用于右键菜单粘贴逻辑使用）
 install_library_entry_focus_flag = False
 install_software_entry_focus_flag = False
@@ -64,6 +67,8 @@ install_software_entry_focus_flag = False
 screen_click_flag = False
 # 限制截图重置提示弹框标记
 screen_reset_flag = False
+# 实例化键盘对象
+keyboard = Controller()
 # 初始化写号工具记录log
 if not os.path.exists(write_SN_log):
     with open(write_SN_log,'w') as fp:
@@ -329,61 +334,66 @@ class Linux_Screen(object):
                 if only_read == ' No such file or directory':
                     self.screen_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
                 else:
-                    check_gsnap_cmd = public.execute_cmd('adb -s ' + device + ' shell gsnap')
-                    check_gsnap_cmd_finally = ' '.join(check_gsnap_cmd.split()).split(':')[-1]
-                    if check_gsnap_cmd_finally == ' not found':
-                        self.check_gsnap(device)
+                    devices = open(devices_log, 'r').read()
+                    device_type = public.device_type_android(devices)
+                    if device_type.strip() == 'Android':
+                        self.screen_str.set('您所连接的设备为Android\n无法使用截图功能')
                     else:
-                        if not os.path.exists(linux_save_path):
-                            os.makedirs(linux_save_path)
-                        if not os.path.exists(linux_screen_count):
-                            with open(linux_screen_count, 'w') as fp:
-                                fp.write('0')
-                        # 记录旋转角度默认值
-                        self.rotate_get = self.image_rotate_value.get()
-                        with open(Image_rotate_path, 'w') as fp:
-                            fp.write(self.rotate_get)
-
-                        # 截图
-                        f = int(open(linux_screen_count, 'r').read())
-                        f += 1
-                        public.execute_cmd('adb -s ' + device + ' shell gsnap /data/1.png /dev/fb0')
-                        time.sleep(1)
-                        pull_output = public.execute_cmd('adb -s ' + device + ' pull /data/1.png ' + linux_save_path + str(f) + '.png')
-                        # 打印下载信息
-                        print(pull_output)
-
-                        # 旋转截图文件
-                        self.screen_str.set('正在旋转截图文件并保存...')
-                        if self.rotate_get != '0':
-                            self.rotate_get = re.findall('(.*?)度',self.rotate_get)[0]
+                        check_gsnap_cmd = public.execute_cmd('adb -s ' + device + ' shell gsnap')
+                        check_gsnap_cmd_finally = ' '.join(check_gsnap_cmd.split()).split(':')[-1]
+                        if check_gsnap_cmd_finally == ' not found':
+                            self.check_gsnap(device)
                         else:
-                            pass
-                        img_path = linux_save_path + str(f) + '.png'
-                        img_open = Image.open(img_path)
-                        # expand=1 表示的是原图旋转，如果没有此参数，则内容直接旋转
-                        img_rotate = img_open.rotate(int(self.rotate_get), expand=1)
-                        # 保存旋转后的图片
-                        img_rotate.save(img_path)
+                            if not os.path.exists(linux_save_path):
+                                os.makedirs(linux_save_path)
+                            if not os.path.exists(linux_screen_count):
+                                with open(linux_screen_count, 'w') as fp:
+                                    fp.write('0')
+                            # 记录旋转角度默认值
+                            self.rotate_get = self.image_rotate_value.get()
+                            with open(Image_rotate_path, 'w') as fp:
+                                fp.write(self.rotate_get)
 
-                        self.screen_str.set('截图成功！文件保存在:\n 桌面\\' + linux_dirname + '\\' + str(f) + '.png')
-                        with open(linux_screen_count,'w') as fp:
-                            fp.write(str(f))
+                            # 截图
+                            f = int(open(linux_screen_count, 'r').read())
+                            f += 1
+                            public.execute_cmd('adb -s ' + device + ' shell gsnap /data/1.png /dev/fb0')
+                            time.sleep(1)
+                            pull_output = public.execute_cmd('adb -s ' + device + ' pull /data/1.png ' + linux_save_path + str(f) + '.png')
+                            # 打印下载信息
+                            print(pull_output)
 
-                        # 截图保存后自动打开判断
-                        if self.auto_show_on.get() == 1:
-                            self.screen_str.set('自动显示截图模式已打开\n可以进行编辑、添加文字提示')
-                            # 开启窗口置顶
-                            self.screen_root.wm_attributes('-topmost', 1)
-                            img_rotate.show()
-                            # 关闭窗口置顶
-                            self.screen_root.wm_attributes('-topmost', 0)
-                            self.screen_str.set('截图已关闭\n自动显示截图说明：方便编辑图片、添加文字')
-                        else:
-                            pass
+                            # 旋转截图文件
+                            self.screen_str.set('正在旋转截图文件并保存...')
+                            if self.rotate_get != '0':
+                                self.rotate_get = re.findall('(.*?)度',self.rotate_get)[0]
+                            else:
+                                pass
+                            img_path = linux_save_path + str(f) + '.png'
+                            img_open = Image.open(img_path)
+                            # expand=1 表示的是原图旋转，如果没有此参数，则内容直接旋转
+                            img_rotate = img_open.rotate(int(self.rotate_get), expand=1)
+                            # 保存旋转后的图片
+                            img_rotate.save(img_path)
 
-            # 删除截图缓存
-            public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/1.png')
+                            self.screen_str.set('截图成功！文件保存在:\n 桌面\\' + linux_dirname + '\\' + str(f) + '.png')
+                            with open(linux_screen_count,'w') as fp:
+                                fp.write(str(f))
+
+                            # 截图保存后自动打开判断
+                            if self.auto_show_on.get() == 1:
+                                self.screen_str.set('自动显示截图模式已打开\n可以进行编辑、添加文字提示')
+                                # 开启窗口置顶
+                                self.screen_root.wm_attributes('-topmost', 1)
+                                img_rotate.show()
+                                # 关闭窗口置顶
+                                self.screen_root.wm_attributes('-topmost', 0)
+                                self.screen_str.set('截图已关闭\n自动显示截图说明：方便编辑图片、添加文字')
+                            else:
+                                pass
+
+                            # 删除截图缓存
+                            public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/1.png')
             self.linux_screen_button_disable.place_forget()
             self.linux_screen_button.place(x=20, y=60)
             self.linux_reset_button_disable.place_forget()
@@ -704,70 +714,75 @@ class Linux_Install(object):
                 if only_read == ' No such file or directory':
                     self.install_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
                 else:
-                    self.install_str.set('正在开始安装应用...')
-
-                    if self.install_library_str.get() == 0 and self.install_software_str.get() == 0:
-                        # 两个复选框都没选
-                        self.install_str.set('安装库和应用包请任意勾选其中一项\n两者选项至少勾选一项')
-                        tkinter.messagebox.showwarning(title='安装错误',message='请勾选安装库和应用包其中一项，两者至少勾选一项')
+                    devices = open(devices_log, 'r').read()
+                    device_type = public.device_type_android(devices)
+                    if device_type.strip() == 'Android':
+                        self.install_str.set('您所连接的设备为Android\n无法使用安装应用功能')
                     else:
-                        # 各项异常处理
-                        if self.install_library_entry_str.get() == '' and self.install_software_entry_str.get() == '':
-                            self.install_str.set('安装库文件或应用包为空\n无法成功安装应用')
-                            tkinter.messagebox.showwarning(title='安装错误', message='请选择正确的库文件或应用包后再重新安装！')
-                        elif self.install_library_entry_str.get() == '' and self.install_library_str.get() == 1:
-                            self.install_str.set('安装库文件失败\n请选择库文件后再重新安装！')
-                            tkinter.messagebox.showwarning(title='安装错误', message='请选择库文件后再重新安装！')
-                        elif self.install_software_entry_str.get() == '' and self.install_software_str.get() == 1:
-                            self.install_str.set('安装应用包文件失败\n请选择应用包文件后再重新安装！')
-                            tkinter.messagebox.showwarning(title='安装错误', message='请选择应用包文件后再重新安装！')
+                        self.install_str.set('正在开始安装应用...')
+
+                        if self.install_library_str.get() == 0 and self.install_software_str.get() == 0:
+                            # 两个复选框都没选
+                            self.install_str.set('安装库和应用包请任意勾选其中一项\n两者选项至少勾选一项')
+                            tkinter.messagebox.showwarning(title='安装错误',message='请勾选安装库和应用包其中一项，两者至少勾选一项')
                         else:
-                            # 安装库
-                            if self.install_library_str.get() == 1:
-                                self.install_str.set('正在导入库...')
-                                library_files_path = self.install_library_entry_str.get()
-                                if self.install_library_value.get().strip() == 'Liunx库默认位置':
-                                    main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + library_files_path + '"' + ' /usr/lib')
-                                    print(main_result)
-                                    print(library_files_path + ' 已上传')
-                                elif self.install_library_value.get().strip() == 'dosmono指定位置 /etc/miniapp/jsapis/' or \
-                                    self.install_library_value.get().strip() == '牛津词典指定位置 /etc/miniapp/jsapis/':
-                                    main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + library_files_path + '"' + ' /etc/miniapp/jsapis/')
-                                    print(main_result)
-                                    print(library_files_path + ' 已上传')
+                            # 各项异常处理
+                            if self.install_library_entry_str.get() == '' and self.install_software_entry_str.get() == '':
+                                self.install_str.set('安装库文件或应用包为空\n无法成功安装应用')
+                                tkinter.messagebox.showwarning(title='安装错误', message='请选择正确的库文件或应用包后再重新安装！')
+                            elif self.install_library_entry_str.get() == '' and self.install_library_str.get() == 1:
+                                self.install_str.set('安装库文件失败\n请选择库文件后再重新安装！')
+                                tkinter.messagebox.showwarning(title='安装错误', message='请选择库文件后再重新安装！')
+                            elif self.install_software_entry_str.get() == '' and self.install_software_str.get() == 1:
+                                self.install_str.set('安装应用包文件失败\n请选择应用包文件后再重新安装！')
+                                tkinter.messagebox.showwarning(title='安装错误', message='请选择应用包文件后再重新安装！')
+                            else:
+                                # 安装库
+                                if self.install_library_str.get() == 1:
+                                    self.install_str.set('正在导入库...')
+                                    library_files_path = self.install_library_entry_str.get()
+                                    if self.install_library_value.get().strip() == 'Liunx库默认位置':
+                                        main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + library_files_path + '"' + ' /usr/lib')
+                                        print(main_result)
+                                        print(library_files_path + ' 已上传')
+                                    elif self.install_library_value.get().strip() == 'dosmono指定位置 /etc/miniapp/jsapis/' or \
+                                        self.install_library_value.get().strip() == '牛津词典指定位置 /etc/miniapp/jsapis/':
+                                        main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + library_files_path + '"' + ' /etc/miniapp/jsapis/')
+                                        print(main_result)
+                                        print(library_files_path + ' 已上传')
 
-                            # 安装应用包
-                            if self.install_software_str.get() == 1:
-                                self.install_str.set('正在导入应用包..')
-                                software_files_path = self.install_software_entry_str.get()
-                                if self.install_software_value.get().strip() == '主程序默认安装位置':
-                                    main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + software_files_path + '"' +
-                                                                               ' /etc/miniapp/resources/presetpkgs/8180000000000020.amr')
-                                    print(main_result)
-                                    print(software_files_path + ' 已上传')
-                                elif self.install_software_value.get().strip() == '引导页默认安装位置':
-                                    main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + software_files_path + '"' +
-                                                                               ' /etc/miniapp/resources/presetpkgs/8180000000000026.amr')
-                                    print(main_result)
-                                    print(software_files_path + ' 已上传')
-                                elif self.install_software_value.get().strip() == '喜马拉雅默认安装位置':
-                                    main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + software_files_path + '"' +
-                                                       ' /etc/miniapp/resources/presetpkgs/8080231999314849.amr')
-                                    print(main_result)
-                                    print(software_files_path + ' 已上传')
-                                elif self.install_software_value.get().strip() == '牛津词典默认安装位置':
-                                    main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + software_files_path + '"' +
-                                                       ' /etc/miniapp/resources/presetpkgs/8080251822789980.amr')
-                                    print(main_result)
-                                    print(software_files_path + ' 已上传')
+                                # 安装应用包
+                                if self.install_software_str.get() == 1:
+                                    self.install_str.set('正在导入应用包..')
+                                    software_files_path = self.install_software_entry_str.get()
+                                    if self.install_software_value.get().strip() == '主程序默认安装位置':
+                                        main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + software_files_path + '"' +
+                                                                                   ' /etc/miniapp/resources/presetpkgs/8180000000000020.amr')
+                                        print(main_result)
+                                        print(software_files_path + ' 已上传')
+                                    elif self.install_software_value.get().strip() == '引导页默认安装位置':
+                                        main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + software_files_path + '"' +
+                                                                                   ' /etc/miniapp/resources/presetpkgs/8180000000000026.amr')
+                                        print(main_result)
+                                        print(software_files_path + ' 已上传')
+                                    elif self.install_software_value.get().strip() == '喜马拉雅默认安装位置':
+                                        main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + software_files_path + '"' +
+                                                           ' /etc/miniapp/resources/presetpkgs/8080231999314849.amr')
+                                        print(main_result)
+                                        print(software_files_path + ' 已上传')
+                                    elif self.install_software_value.get().strip() == '牛津词典默认安装位置':
+                                        main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + software_files_path + '"' +
+                                                           ' /etc/miniapp/resources/presetpkgs/8080251822789980.amr')
+                                        print(main_result)
+                                        print(software_files_path + ' 已上传')
 
-                            # 安装后需要清理缓存
-                            self.install_str.set('正在清理缓存并重启设备..')
-                            public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/miniapp/data')
+                                # 安装后需要清理缓存
+                                self.install_str.set('正在清理缓存并重启设备..')
+                                public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/miniapp/data')
 
-                            # 重启
-                            public.execute_cmd('adb -s ' + device + ' shell reboot')
-                            self.install_str.set('安装应用完成\n等待设备重启后使用即可')
+                                # 重启
+                                public.execute_cmd('adb -s ' + device + ' shell reboot')
+                                self.install_str.set('安装应用完成\n等待设备重启后使用即可')
 
             self.linux_install_button_disable.place_forget()
 
@@ -791,10 +806,10 @@ class Linux_Camera(object):
         self.camera_root.geometry('%dx%d' % (w, h))
         self.camera_root.iconbitmap(LOGO_path)
         self.camera_root.resizable(0, 0)
-        # self.install_root.wm_attributes('-topmost', 1)
+        # self.camera_root.wm_attributes('-topmost', 1)
 
         self.camera_startup(linux_camera,linux_camera_disable)
-        #
+
         self.camera_root.protocol('WM_DELETE_WINDOW',self.close_handle)
         self.main_frame(linux_camera_disable,device)
 
@@ -813,6 +828,9 @@ class Linux_Camera(object):
         with open(camera_page,'w') as fp:
             fp.write('0')
         self.camera_root.destroy()
+        # 模拟键盘回车输入以便自动取消消息框
+        # keyboard.press('enter')
+        keyboard.press(Key.enter)
 
     def main_frame(self,linux_camera_disable,device):
         # 获取图片状态栏
@@ -882,23 +900,28 @@ class Linux_Camera(object):
             print(check_system_cmd_finally)
             if check_system_cmd_finally.strip() == 'No such file or directory':
                 message = '配置取图功能需要重启多次，是否继续？\n点击“取消”则会关闭此页面！'
-                if tkinter.messagebox.askokcancel(title='温馨提示', message=message):
-                    self.camera_str.set('检测没有配置过system，正在初始化...')
-                    # 内置取图配置文件到设备中
-                    public.execute_cmd('adb -s ' + device + ' push ' + system_path + ' /etc/config/uci/system')
-                    public.execute_cmd('adb -s ' + device + ' push ' + camera_system_path + ' /data/')
-                    # 需要重启生效
-                    public.execute_cmd('adb -s ' + device + ' shell reboot')
-                    time.sleep(18)
-                    self.camera_str.set('取图工具初始化成功\n请点击“开启取图模式”按钮开启')
+                if tkinter.messagebox.askokcancel(title='温馨提示', message=message,default='cancel'):
+                    camera_exists = self.camera_root.winfo_exists()
+                    if camera_exists == 0:
+                        print('取图模块窗口已关闭，点击无影响！')
+                    else:
+                        self.camera_str.set('检测没有配置过system，正在初始化...')
+                        # 内置取图配置文件到设备中
+                        public.execute_cmd('adb -s ' + device + ' push ' + system_path + ' /etc/config/uci/system')
+                        public.execute_cmd('adb -s ' + device + ' push ' + camera_system_path + ' /data/')
+                        # 需要重启生效
+                        public.execute_cmd('adb -s ' + device + ' shell reboot')
+                        time.sleep(18)
+                        self.camera_str.set('取图工具初始化成功\n请点击“开启取图模式”按钮开启')
 
-                    # 开放按钮
-                    self.linux_camera_button_disable.place_forget()
-                    self.linux_camera_button_disable_final.place_forget()
-                    self.linux_camera_button.place(x=30, y=60)
+                        # 开放按钮
+                        self.linux_camera_button_disable.place_forget()
+                        self.linux_camera_button_disable_final.place_forget()
+                        self.linux_camera_button.place(x=30, y=60)
                 else:
-                    self.camera_root.destroy()
-                    linux_camera_disable.place_forget()
+                    with open(camera_page, 'w') as fp:
+                        fp.write('0')
+                    self.close_handle()
             else:
                 self.camera_str.set('已内置system配置文件\n可以开始使用取图功能')
                 take_image_mode_info = public.execute_cmd('adb -s ' + device + ' shell cat /data/camera_system.ini')
@@ -933,21 +956,26 @@ class Linux_Camera(object):
                     public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/camera_system.ini')
                     self.camera_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
                 else:
-                    check_system_cmd = public.execute_cmd('adb -s ' + device + ' shell ls -lh /data/camera_system.ini')
-                    check_system_cmd_finally = ' '.join(check_system_cmd.split()).split(':')[-1]
-                    print(check_system_cmd_finally)
-                    if check_system_cmd_finally.strip() == 'No such file or directory':
-                        # 先禁用按钮
-                        self.linux_camera_button_disable.place(x=30, y=60)
-                        self.linux_camera_button_close_disable.place(x=200, y=60)
-                        self.linux_get_camera_button_disable.place(x=30, y=100)
-                        self.check_system(linux_camera_disable,device)
+                    devices = open(devices_log, 'r').read()
+                    device_type = public.device_type_android(devices)
+                    if device_type.strip() == 'Android':
+                        self.camera_str.set('您所连接的设备为Android\n无法使用取图功能')
                     else:
-                        # 开启取图模式
-                        self.take_image_mode_close = False
-                        # 设置 打开取图模式后的标志
-                        public.execute_cmd('adb -s ' + device + ' push ' + camera_open_path + ' /data/')
-                        self.main_camera_bind(self.take_image_mode_close,device)
+                        check_system_cmd = public.execute_cmd('adb -s ' + device + ' shell ls -lh /data/camera_system.ini')
+                        check_system_cmd_finally = ' '.join(check_system_cmd.split()).split(':')[-1]
+                        print(check_system_cmd_finally)
+                        if check_system_cmd_finally.strip() == 'No such file or directory':
+                            # 先禁用按钮
+                            self.linux_camera_button_disable.place(x=30, y=60)
+                            self.linux_camera_button_close_disable.place(x=200, y=60)
+                            self.linux_get_camera_button_disable.place(x=30, y=100)
+                            self.check_system(linux_camera_disable,device)
+                        else:
+                            # 开启取图模式
+                            self.take_image_mode_close = False
+                            # 设置 打开取图模式后的标志
+                            public.execute_cmd('adb -s ' + device + ' push ' + camera_open_path + ' /data/')
+                            self.main_camera_bind(self.take_image_mode_close,device)
 
         t_open_camera = threading.Thread(target=t_open_camera)
         t_open_camera.setDaemon(True)
@@ -1387,51 +1415,56 @@ class Linux_WriteNumber(object):
                 if only_read == ' No such file or directory':
                     self.write_number_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
                 else:
-                    SN = self.write_SN_entry_str.get().strip()
-                    print(SN)
-                    print('当前输入的SN位数为 ' + str(len(SN)))
-                    devices_state = public.device_connect()
-                    if not devices_state:
-                        self.write_number_str.set('请重新连接设备后再写号')
+                    devices = open(devices_log, 'r').read()
+                    device_type = public.device_type_android(devices)
+                    if device_type.strip() == 'Android':
+                        self.write_number_str.set('您所连接的设备为Android\n无法使用写号功能')
                     else:
-                        # 已写入SN号无法再次写号
-                        SN_list = []
-                        write_SN_read = open(write_SN_log, 'r').readlines()
-                        # print(write_SN_read)
-                        for sn in write_SN_read:
-                            sn_finally = re.findall('SN号：(.*?)\n', sn)
-                            if sn_finally == []:
-                                pass
-                            else:
-                                SN_finally = ''.join(sn_finally)
-                                SN_list.append(SN_finally)
-                        sn_read = public.execute_cmd('adb -s ' + device + ' shell cat /data/SN.txt')
-                        if SN in SN_list and SN == sn_read:
-                            self.write_number_str.set(SN + '已被当前设备写入\n请看右侧列表查看对应设备MAC')
+                        SN = self.write_SN_entry_str.get().strip()
+                        print(SN)
+                        print('当前输入的SN位数为 ' + str(len(SN)))
+                        devices_state = public.device_connect()
+                        if not devices_state:
+                            self.write_number_str.set('请重新连接设备后再写号')
                         else:
-                            if self.write_15_str.get() == 0:
-                                # 15位数
-                                print('监听 15位数 选项')
-                                if len(SN) == 15:
-                                    self.write_number_str.set('正在为设备写入\n' + SN)
-                                    SN_result = public.execute_cmd('adb -s ' + device + ' shell factory ATE_SET_SN ' + SN)
-                                    print(SN_result)
-                                    with open(SN_result_path,'w') as fp:
-                                        fp.write(SN_result)
-                                    public.execute_cmd('adb -s ' + device + ' push ' + SN_result_path + ' /data')
-                                    success = public.execute_cmd('adb -s ' + device + ' shell grep "SUCCESS" /data/SN_result.log')
-                                    print(success)
-                                    if success.strip() == 'SUCCESS':
-                                        write_SN_save(SN)
-                                        self.write_number_str.set('正在清理数据缓存并重启...')
-                                        # SN号写入后需要重新激活才会有效，否则无法绑定设备
-                                        public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/miniapp/data')
-                                        public.execute_cmd('adb -s ' + device + ' shell reboot')
-                                        self.write_number_str.set(SN + '\n已被成功写入！！！')
-                                    else:
-                                        self.write_number_str.set('写号失败！！！\n请重新输入再试试')
+                            # 已写入SN号无法再次写号
+                            SN_list = []
+                            write_SN_read = open(write_SN_log, 'r').readlines()
+                            # print(write_SN_read)
+                            for sn in write_SN_read:
+                                sn_finally = re.findall('SN号：(.*?)\n', sn)
+                                if sn_finally == []:
+                                    pass
                                 else:
-                                    self.write_number_str.set('你输入的SN号不合法！！！')
+                                    SN_finally = ''.join(sn_finally)
+                                    SN_list.append(SN_finally)
+                            sn_read = public.execute_cmd('adb -s ' + device + ' shell cat /data/SN.txt')
+                            if SN in SN_list and SN == sn_read:
+                                self.write_number_str.set(SN + '已被当前设备写入\n请看右侧列表查看对应设备MAC')
+                            else:
+                                if self.write_15_str.get() == 0:
+                                    # 15位数
+                                    print('监听 15位数 选项')
+                                    if len(SN) == 15:
+                                        self.write_number_str.set('正在为设备写入\n' + SN)
+                                        SN_result = public.execute_cmd('adb -s ' + device + ' shell factory ATE_SET_SN ' + SN)
+                                        print(SN_result)
+                                        with open(SN_result_path,'w') as fp:
+                                            fp.write(SN_result)
+                                        public.execute_cmd('adb -s ' + device + ' push ' + SN_result_path + ' /data')
+                                        success = public.execute_cmd('adb -s ' + device + ' shell grep "SUCCESS" /data/SN_result.log')
+                                        print(success)
+                                        if success.strip() == 'SUCCESS':
+                                            write_SN_save(SN)
+                                            self.write_number_str.set('正在清理数据缓存并重启...')
+                                            # SN号写入后需要重新激活才会有效，否则无法绑定设备
+                                            public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/miniapp/data')
+                                            public.execute_cmd('adb -s ' + device + ' shell reboot')
+                                            self.write_number_str.set(SN + '\n已被成功写入！！！')
+                                        else:
+                                            self.write_number_str.set('写号失败！！！\n请重新输入再试试')
+                                    else:
+                                        self.write_number_str.set('你输入的SN号不合法！！！')
             self.write_SN_button_disable.place_forget()
 
         t_write_SN = threading.Thread(target=t_write_SN)
@@ -1464,7 +1497,7 @@ class Linux_Log(object):
         return self.log_root
 
     def log_startup(self,linux_log_Button,linux_log_Button_disable):
-        # 监听截图页面的打开状态
+        # 监听一键获取日志页面的打开状态
         log_exists = self.log_root.winfo_exists()
         print(log_exists)
         if log_exists == 1:
@@ -1534,19 +1567,24 @@ class Linux_Log(object):
                 if only_read == ' No such file or directory':
                     self.get_log_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
                 else:
-                    crash_reports_dir = linux_log_path + 'crash_reports'
-                    if not os.path.exists(crash_reports_dir):
-                        os.makedirs(crash_reports_dir)
-                    now = time.localtime()
-                    now_time = time.strftime("%Y-%m-%d_%H%M%S", now)
-                    print('获取crash_reports时的当前时间：' + str(now_time))
-                    crash_reports_result = public.execute_cmd('adb -s ' + device + ' pull /data/crash_reports ' + crash_reports_dir + '\\crash_reports-' + now_time)
-                    print('crash_reports获取结果：' + crash_reports_result)
-                    crash_reports_result_str = crash_reports_result.split(':')[-1].strip()
-                    if crash_reports_result_str == "remote object '/data/crash_reports' does not exist":
-                        self.get_log_str.set('没有找到崩溃日志crash_reports\n无需保存文件！')
+                    devices = open(devices_log, 'r').read()
+                    device_type = public.device_type_android(devices)
+                    if device_type.strip() == 'Android':
+                        self.get_log_str.set('您所连接的设备为Android\n无法使用一键获取日志功能')
                     else:
-                        self.get_log_str.set('崩溃日志crash_reports已保存！文件保存在:\n 桌面\\' + linux_dirname_log + '\\crash_reports')
+                        crash_reports_dir = linux_log_path + 'crash_reports'
+                        if not os.path.exists(crash_reports_dir):
+                            os.makedirs(crash_reports_dir)
+                        now = time.localtime()
+                        now_time = time.strftime("%Y-%m-%d_%H%M%S", now)
+                        print('获取crash_reports时的当前时间：' + str(now_time))
+                        crash_reports_result = public.execute_cmd('adb -s ' + device + ' pull /data/crash_reports ' + crash_reports_dir + '\\crash_reports-' + now_time)
+                        print('crash_reports获取结果：' + crash_reports_result)
+                        crash_reports_result_str = crash_reports_result.split(':')[-1].strip()
+                        if crash_reports_result_str == "remote object '/data/crash_reports' does not exist":
+                            self.get_log_str.set('没有找到崩溃日志crash_reports\n无需保存文件！')
+                        else:
+                            self.get_log_str.set('崩溃日志crash_reports已保存！文件保存在:\n 桌面\\' + linux_dirname_log + '\\crash_reports')
             self.get_crash_reports_button_disable.place_forget()
 
         t_get_crash_reports = threading.Thread(target=t_get_crash_reports)
@@ -1566,34 +1604,39 @@ class Linux_Log(object):
                 if only_read == ' No such file or directory':
                     self.get_log_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
                 else:
-                    syslog_dir = linux_log_path + 'syslog.log'
-                    if not os.path.exists(syslog_dir):
-                        os.makedirs(syslog_dir)
-                    now = time.localtime()
-                    now_time = time.strftime("%Y-%m-%d_%H%M%S", now)
-                    print('获取syslog.log时的当前时间：' + str(now_time))
-                    # 新建带日期存放日志的文件夹
-                    syslog_dir_all = syslog_dir + '\\syslog.log-' + now_time
-                    os.makedirs(syslog_dir_all)
-                    # 获取syslog文件夹
-                    self.get_log_str.set('正在pull 更早时间的syslog文件夹...')
-                    syslog_result = public.execute_cmd('adb -s ' + device + ' pull /data/syslog ' + syslog_dir_all)
-                    print('syslog文件夹获取结果：' + syslog_result)
-                    # 获取syslog.log文件
-                    self.get_log_str.set('正在pull syslog.log文件...')
-                    syslog_log_result = public.execute_cmd('adb -s ' + device + ' pull /data/syslog.log ' + syslog_dir_all)
-                    print('syslog.log获取结果：' + syslog_log_result)
-                    # 获取syslog.log.*文件（*代表数字0~8）
-                    for f in range(0,9):
-                        self.get_log_str.set('正在pull syslog.log.'+ str(f) +'文件...')
-                        syslog_log_result = public.execute_cmd('adb -s ' + device + ' pull /data/syslog.log.' + str(f) +
-                                             ' ' + syslog_dir_all)
-                        syslog_log_result_str = syslog_log_result.split(':')[-1].strip()
-                        if syslog_log_result_str == "remote object '/data/syslog.log.%s' does not exist" % str(f):
-                            # 搜索到没有的文件就停止pull
-                            break
-                        print('syslog.log.' + str(f) + '获取结果：' + syslog_log_result)
-                    self.get_log_str.set('系统日志syslog.log已保存！文件保存在:\n 桌面\\' + linux_dirname_log + '\\syslog.log')
+                    devices = open(devices_log, 'r').read()
+                    device_type = public.device_type_android(devices)
+                    if device_type.strip() == 'Android':
+                        self.get_log_str.set('您所连接的设备为Android\n无法使用一键获取日志功能')
+                    else:
+                        syslog_dir = linux_log_path + 'syslog.log'
+                        if not os.path.exists(syslog_dir):
+                            os.makedirs(syslog_dir)
+                        now = time.localtime()
+                        now_time = time.strftime("%Y-%m-%d_%H%M%S", now)
+                        print('获取syslog.log时的当前时间：' + str(now_time))
+                        # 新建带日期存放日志的文件夹
+                        syslog_dir_all = syslog_dir + '\\syslog.log-' + now_time
+                        os.makedirs(syslog_dir_all)
+                        # 获取syslog文件夹
+                        self.get_log_str.set('正在pull 更早时间的syslog文件夹...')
+                        syslog_result = public.execute_cmd('adb -s ' + device + ' pull /data/syslog ' + syslog_dir_all)
+                        print('syslog文件夹获取结果：' + syslog_result)
+                        # 获取syslog.log文件
+                        self.get_log_str.set('正在pull syslog.log文件...')
+                        syslog_log_result = public.execute_cmd('adb -s ' + device + ' pull /data/syslog.log ' + syslog_dir_all)
+                        print('syslog.log获取结果：' + syslog_log_result)
+                        # 获取syslog.log.*文件（*代表数字0~8）
+                        for f in range(0,9):
+                            self.get_log_str.set('正在pull syslog.log.'+ str(f) +'文件...')
+                            syslog_log_result = public.execute_cmd('adb -s ' + device + ' pull /data/syslog.log.' + str(f) +
+                                                 ' ' + syslog_dir_all)
+                            syslog_log_result_str = syslog_log_result.split(':')[-1].strip()
+                            if syslog_log_result_str == "remote object '/data/syslog.log.%s' does not exist" % str(f):
+                                # 搜索到没有的文件就停止pull
+                                break
+                            print('syslog.log.' + str(f) + '获取结果：' + syslog_log_result)
+                        self.get_log_str.set('系统日志syslog.log已保存！文件保存在:\n 桌面\\' + linux_dirname_log + '\\syslog.log')
             self.get_syslog_button_disable.place_forget()
 
         t_get_syslog = threading.Thread(target=t_get_syslog)
@@ -1620,16 +1663,21 @@ class Linux_Log(object):
                 if only_read == ' No such file or directory':
                     self.get_log_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
                 else:
-                    clean_log_content = '确定要一键清空设备中的所有日志吗？\n' \
-                                        '（1）清空设备中的所有崩溃日志crash_reports\n' \
-                                        '（2）清空设备中的所有系统日志syslog\n' \
-                                        '点击“确定”立刻清空设备中的所有日志，点击“取消”关闭'
-                    if tkinter.messagebox.askyesno('清空确认',clean_log_content):
-                        self.get_log_str.set('正在清空设备中的所有日志中...')
-                        public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/crash_reports')
-                        public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/syslog')
-                        public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/syslog.*')
-                        self.get_log_str.set('已清空设备中的所有日志！')
+                    devices = open(devices_log, 'r').read()
+                    device_type = public.device_type_android(devices)
+                    if device_type.strip() == 'Android':
+                        self.get_log_str.set('您所连接的设备为Android\n无法使用一键获取日志功能')
+                    else:
+                        clean_log_content = '确定要一键清空设备中的所有日志吗？\n' \
+                                            '（1）清空设备中的所有崩溃日志crash_reports\n' \
+                                            '（2）清空设备中的所有系统日志syslog\n' \
+                                            '点击“确定”立刻清空设备中的所有日志，点击“取消”关闭'
+                        if tkinter.messagebox.askyesno('清空确认',clean_log_content):
+                            self.get_log_str.set('正在清空设备中的所有日志中...')
+                            public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/crash_reports')
+                            public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/syslog')
+                            public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/syslog.*')
+                            self.get_log_str.set('已清空设备中的所有日志！')
             self.clean_syslog_button_disable.place_forget()
 
         t_clean_syslog = threading.Thread(target=t_clean_syslog)
