@@ -1,7 +1,9 @@
-import os
+import os,public
 import re,public,json,subprocess
+import time
 
-a = "adb: error: remote object '/data/crash_reports' does not exist"
+while True:
+    result = os.popen('adb shell /data/miniapp_cli memoryUsage','r').read()
+    print(result)
+    time.sleep(2)
 
-d = a.split(':')[-1].strip()
-print(d)

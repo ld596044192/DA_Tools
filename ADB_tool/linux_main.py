@@ -358,7 +358,7 @@ class Linux_Screen(object):
                             f = int(open(linux_screen_count, 'r').read())
                             f += 1
                             public.execute_cmd('adb -s ' + device + ' shell gsnap /data/1.png /dev/fb0')
-                            time.sleep(1)
+                            time.sleep(2)
                             pull_output = public.execute_cmd('adb -s ' + device + ' pull /data/1.png ' + linux_save_path + str(f) + '.png')
                             # 打印下载信息
                             print(pull_output)
@@ -689,7 +689,7 @@ class Linux_Install(object):
                 self.install_str.set('没有成功选择应用包文件\n请重新选择应用包文件')
             else:
                 try:
-                    software_file_finally = eval(software_file_string.split()[1].split('=')[1])
+                    software_file_finally = eval(software_file_string.split()[1].split('=')[1]).replace('/','\\')
                 except SyntaxError:
                     software_file_finally = software_file_string.split("'")[1]
                 self.install_software_entry_str.set(software_file_finally)

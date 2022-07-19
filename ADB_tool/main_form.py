@@ -141,11 +141,12 @@ class MainForm(object):
         # 每次启动本软件都需要进行初始化
 
         # 初始化Linux模式下的特定按钮状态
-        os.remove(screen_page)
-        os.remove(install_page)
-        os.remove(camera_page)
-        os.remove(write_number_page)
-        os.remove(get_log_page)
+        init_button_files = [screen_page,install_page,camera_page,write_number_page,get_log_page]
+        for init_button_file in init_button_files:
+            try:
+                os.remove(init_button_file)
+            except FileNotFoundError:
+                pass
 
     def main_menu_bar(s):
         # 切换窗口（选择模式）
