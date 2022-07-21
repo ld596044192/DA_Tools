@@ -2,9 +2,8 @@ import re
 import shutil
 import signal
 import sys
-from pathlib import Path
 import time
-import tkinter,tkinter.ttk,tkinter.messagebox
+import tkinter,tkinter.ttk,tkinter.messagebox,tkinter.filedialog
 import threading
 import os
 import public,getpass,pyperclip
@@ -81,14 +80,18 @@ environ_log = make_dir + 'environ_log.log'
 syslog_log = make_dir + 'uuid.log'
 # 实时保存设备序列号
 devices_log = make_dir + 'devices.log'
+# 记录apk包路径（检测包名）
+apk_path_package_log = make_dir + 'apk_path_package.log'
+# 存储aapt分析apk包信息
+apk_aapt_log = make_dir + 'apk_aapt_log.log'
 # 启动前初始化
 with open(adb_upgrade_flag,'w') as fp:
     fp.write('ADB is the latest version')
 with open(conflict_software_path,'w') as fp:
     fp.write('')
 # 统一修改版本号
-version = 'V1.0.0.20'
-version_code = 1002.0
+version = 'V1.0.1.0'
+version_code = 1010.0
 # 统一修改frame的宽高
 width = 367
 height = 405
@@ -147,6 +150,11 @@ class MainForm(object):
                 os.remove(init_button_file)
             except FileNotFoundError:
                 pass
+
+        # 创建特定必须的文件
+        if not os.path.exists(apk_aapt_log):
+            with open(apk_aapt_log,'w') as fp:
+                fp.write('')
 
     def main_menu_bar(s):
         # 切换窗口（选择模式）
@@ -583,12 +591,54 @@ class MainForm(object):
         s.check_package_name_button_disable.config(state='disable')
         s.check_package_name_button.place(x=20, y=80)
 
-        # 检测包名按钮
+        # 卸载APk按钮
         s.uninstall_button = tkinter.Button(s.install_frame1, text='一键卸载APK', width=width_button)
         s.uninstall_button.bind('<Button-1>', lambda x: s.uninstall_bind())
         s.uninstall_button_disable = tkinter.Button(s.install_frame1, text='正在卸载中...', width=width_button)
         s.uninstall_button_disable.config(state='disable')
         s.uninstall_button.place(x=200, y=80)
+
+        # 检测包名说明
+        check_package_content = '请把apk包拖拽到下方框后，点击“获取apk包名”可获得Apk包名\n' \
+                                '若拖放功能不可用，也可以点击“浏览”选择apk包哦~'
+        s.check_package_label = tkinter.Label(s.install_frame1,fg='red',text=check_package_content)
+        s.check_package_label.place(x=20,y=120)
+
+        # apk包文件路径单行文本框
+        s.apk_path_package_str = tkinter.StringVar()
+        s.apk_path_package_entry = tkinter.Entry(s.install_frame1,textvariable=(s.apk_path_package_str),
+                                                    width=40, highlightcolor='yellow', validate="focusin"
+                                                    , highlightthickness=5)
+        s.apk_path_package_entry.place(x=20,y=160)
+
+        # apk文件获取路径拖拽功能（windnd）
+        public.windnd_hook_files(s.apk_path_package_entry,s.apk_path_package_str)
+        if not os.path.exists(apk_path_package_log):
+            with open(apk_path_package_log, 'w') as fp:
+                fp.write('')
+        path_msg = open(apk_path_package_log,'r',encoding='utf-8').read()
+        s.apk_path_package_entry.insert(tkinter.END,path_msg)
+
+        # 浏览apk文件按钮
+        s.apk_path_package_button = tkinter.Button(s.install_frame1,text='浏览')
+        s.apk_path_package_button_disable = tkinter.Button(s.install_frame1,text='浏览')
+        s.apk_path_package_button.bind('<Button-1>',lambda x:s.open_apk_path_files())
+        s.apk_path_package_button_disable.config(state='disable')
+        s.apk_path_package_button.place(x=320,y=160)
+
+        # 检测apk文件包名按钮
+        s.apk_package_button = tkinter.Button(s.install_frame1,text='获取apk文件包名',width=width_button)
+        s.apk_package_button_disable = tkinter.Button(s.install_frame1,text='获取apk文件包名',width=width_button)
+        s.apk_package_button_disable.config(state='disable')
+        s.apk_package_button.bind('<Button-1>',lambda x:s.apk_package_bind())
+        s.apk_package_button.place(x=20,y=200)
+
+        # 一键复制粘贴apk包名按钮
+        s.apk_package_copy_button = tkinter.Button(s.install_frame1, text='一键复制包名', width=width_button)
+        s.apk_package_copy_button_disable = tkinter.Button(s.install_frame1, text='正在复制中...', width=width_button)
+        s.apk_package_copy_button_disable.config(state='disable')
+        s.apk_package_copy_button.bind('<Button-1>', lambda x: s.apk_package_copy_bind())
+        s.apk_package_copy_button.place(x=200, y=200)
 
         s.install_frame1.place(y=20)
 
@@ -1629,11 +1679,9 @@ class MainForm(object):
                 devices_finally = public.device_connect()
                 s.init_text = s.init_str.get()
                 only_read = check_only_read()
-                if s.init_text == '该设备没有初始化\n请点击下方按钮进行设备初始化' or s.init_text == '此处显示初始化状态'\
-                        or not devices_linux_flag or not devices_finally or only_read.strip() == 'No such file or directory':
+                if not devices_linux_flag or not devices_finally or only_read.strip() == 'No such file or directory':
                     s.linux_all_button_close()
-                elif s.init_text == '该设备已初始化\n无需初始化，可正常使用下方功能' and devices_linux_flag and devices_finally\
-                          and only_read.strip() != 'No such file or directory':
+                elif devices_linux_flag and devices_finally and only_read.strip() != 'No such file or directory':
                     s.linux_all_button_open()
                 elif only_read.strip() == 'ls requires an argument':
                     error_content = '检测初始化只读权限异常错误，解决方案如下：' \
@@ -1795,6 +1843,9 @@ class MainForm(object):
                     package_name = public.found_packages(device_SN)
                     print(package_name)
                     s.uninstall_str.set('已检测到当前包名\n' + package_name)
+                    # 增加此项可提供包名的复制粘贴
+                    with open(apk_aapt_log,'w') as fp:
+                        fp.write(package_name)
 
                     if not uninstall_flag:
                         s.uninstall_str.set('检测到' + package_name + '\n正在卸载中...')
@@ -2057,3 +2108,77 @@ class MainForm(object):
         t_get_log_close = threading.Thread(target=t_get_log_close)
         t_get_log_close.setDaemon(True)
         t_get_log_close.start()
+
+    def open_apk_path_files(s):
+        def t_open_apk_path():
+            # 打开库文件代码
+            s.apk_path_package_button_disable.place(x=320,y=160)
+            s.apk_path_package_entry.config(state='disable')
+            apk_path_file = tkinter.filedialog.askopenfile(mode='r', filetypes=[('Apk Files', '*.apk')], title='选择apk安装文件')
+            apk_path_file_string = str(apk_path_file)
+            if not apk_path_file:
+                s.uninstall_str.set('没有成功选择apk文件\n请重新选择apk文件')
+            else:
+                # replace('/','\\')替换路径符号，提高最准确无误的文件绝对路径
+                apk_path_file_finally = eval(apk_path_file_string.split()[1].split('=')[1]).replace('/','\\')
+                s.apk_path_package_str.set(apk_path_file_finally)
+                print('获取地址：' + str(apk_path_file_finally))
+                with open(apk_path_package_log,'w') as fp:
+                    fp.write(apk_path_file_finally)
+            s.apk_path_package_entry.config(state='normal')
+            s.apk_path_package_button_disable.place_forget()
+
+        t_open_apk_path = threading.Thread(target=t_open_apk_path)
+        t_open_apk_path.setDaemon(True)
+        t_open_apk_path.start()
+
+    def apk_package_bind(s):
+        def t_apk_package():
+            # 根据apk文件获取包名
+            s.apk_package_button_disable.place(x=20,y=200)
+            s.uninstall_str.set('正在获取apk文件包名中...')
+            s.apk_path_package_get = s.apk_path_package_str.get()
+            print(s.apk_path_package_get)
+            apk_package_cmd = 'aapt dump badging ' + s.apk_path_package_get + ' > ' + apk_aapt_log
+            apk_package_result = public.execute_cmd(apk_package_cmd)
+            try:
+                apk_package_result_error = apk_package_result.split(' ')[1].split('\n')[0].strip()
+                if apk_package_result_error == '不是内部或外部命令，也不是可运行的程序':
+                    s.uninstall_str.set('检测到ADB包中缺少aapt\n正在更新ADB本地包...')
+                    s.adb_str.set('正在更新ADB...')
+                    with open(adb_upgrade_flag,'w') as fp:
+                        fp.write('ADB upgrade')
+                    public.upgrade_adb()
+                    with open(adb_upgrade_flag,'w') as fp:
+                        fp.write('')
+                    s.uninstall_str.set('ADB本地包更新成功！')
+                    s.adb_str.set('本地ADB已开启！')
+            except IndexError:
+                pass
+            apk_package_result_log = open(apk_aapt_log,'r',encoding='utf-8').read()
+            apk_package_result_re = re.findall('package: name=\'(.*?)\'\s', apk_package_result_log)
+            apk_package_result_finally = ''.join(apk_package_result_re)
+            with open(apk_aapt_log,'w') as fp:
+                fp.write(apk_package_result_finally)
+            print('获取的包名为：' + apk_package_result_finally)
+            s.uninstall_str.set('已获取到包名为：\n' + apk_package_result_finally)
+            s.apk_package_button_disable.place_forget()
+
+        t_apk_package = threading.Thread(target=t_apk_package)
+        t_apk_package.setDaemon(True)
+        t_apk_package.start()
+
+    def apk_package_copy_bind(s):
+        def t_apk_package_copy():
+            s.apk_package_copy_button_disable.place(x=200,y=200)
+            apk_package_name = open(apk_aapt_log,'r').read()
+            if apk_package_name == '':
+                tkinter.messagebox.showinfo('空包名','你还没有获取任何包名哦~\n现在暂时无法复制粘贴！')
+            else:
+                public.pyperclip_copy_paste(apk_package_name)
+            s.apk_package_copy_button_disable.place_forget()
+
+        t_apk_package_copy = threading.Thread(target=t_apk_package_copy)
+        t_apk_package_copy.setDaemon(True)
+        t_apk_package_copy.start()
+

@@ -1,9 +1,9 @@
-import os,public
-import re,public,json,subprocess
-import time
+import public,re
 
-while True:
-    result = os.popen('adb shell /data/miniapp_cli memoryUsage','r').read()
-    print(result)
-    time.sleep(2)
+
+path  = r'C:\Users\lida\Desktop\123.txt'
+a = open(path,'r',encoding='utf-8').read()
+print(a)
+re1 = re.findall('package: name=\'(.*?)\'\s',a)
+print(''.join(re1))
 

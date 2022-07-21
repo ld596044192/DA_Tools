@@ -60,3 +60,4 @@ def current_copy_SN(device):
     # 从剪贴板那粘贴
     pyperclip.paste()
     tkinter.messagebox.showinfo('粘贴提醒','已复制粘贴 ' + device + ' 到剪贴板\n可以Ctrl+V粘贴到任意地方啦~')
+

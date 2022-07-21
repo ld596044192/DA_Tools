@@ -1,10 +1,9 @@
 import ctypes,inspect
 import sys,os
-import subprocess
-import time
-
-import psutil,shutil,getpass
-import re
+import subprocess,windnd
+import tkinter,tkinter.messagebox
+import psutil,shutil,getpass,pyperclip
+import re,time
 from tkinter import *
 import zipfile
 
@@ -14,6 +13,10 @@ make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
 conflict_software_path = make_dir + 'conflict_software.txt'
 # 记录设置环境变量日志
 environ_log = make_dir + 'environ_log.log'
+# 记录apk包路径（检测包名）
+apk_path_package_log = make_dir + 'apk_path_package.log'
+# 简易ADB - adb-tools检测标志
+adb_tools_flag = make_dir + 'adb-tools'
 
 
 def resource_path(relative_path):
@@ -350,3 +353,45 @@ def find_pid_name(software_name_list):
             software_name_flag = False
     return software_name_flag
 
+
+def windnd_hook_files(widget,widget_str):
+    # 拖拽文件到entry文本框获取文件路径功能（windnd） widget是控件 widget_str是显示文件路径
+    def dragged_files(files):
+        # 获取文件路径
+        widget_str.set('')
+        path_msg = '\n'.join((item.decode('gbk') for item in files))
+        print('获取的文件路径：' + path_msg)
+        with open(apk_path_package_log,'w') as fp:
+            fp.write(path_msg)
+        widget.insert(tkinter.END,path_msg)
+
+    # 使用windnd方法
+    windnd.hook_dropfiles(widget,func=dragged_files)
+
+
+def upgrade_adb():
+    # 直接更换本工具最新的adb
+    # 需要时间停掉所有ADB的行为
+    time.sleep(5)
+    execute_cmd('adb kill-server')  # 关闭ADB服务
+    try:
+        shutil.rmtree(adb_tools_flag)  # 删除旧版本ADB文件
+    except FileNotFoundError:
+        print('没有该文件无需删除！！！')
+    adb_path = resource_path(os.path.join('resources', 'adb-tools.zip'))
+    shutil.copy(adb_path, make_dir)
+    # 解压
+    zip_path = make_dir + 'adb-tools.zip'
+    zip_extract(zip_path, make_dir)
+    # 清理压缩包
+    os.remove(zip_path)
+    # 打印测试
+    print('更新完成！！！')
+
+
+def pyperclip_copy_paste(content):
+    # 通用复制粘贴
+    pyperclip.copy(content)
+    # 从剪贴板那粘贴
+    pyperclip.paste()
+    tkinter.messagebox.showinfo('粘贴提醒','已复制粘贴 ' + content + ' 到剪贴板\n可以Ctrl+V粘贴到任意地方啦~')

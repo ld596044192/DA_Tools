@@ -1151,7 +1151,7 @@ class Linux_Camera(object):
 class Linux_WriteNumber(object):
     def write_number_form(self,init_str,write_number_Button,write_number_Button_disable,device):
         self.write_number_root = tkinter.Toplevel()
-        self.write_number_root.title('写号/工厂写码工具 - Linux')
+        self.write_number_root.title('写号/写码工具 - Linux')
         screenWidth = self.write_number_root.winfo_screenwidth()
         screenHeight = self.write_number_root.winfo_screenheight()
         w = 560
@@ -1192,7 +1192,7 @@ class Linux_WriteNumber(object):
                                           width=40, height=2)
         self.write_number_label.place(x=60, y=10)
         # self.write_number_label.config(command=self.check_system(linux_camera_disable, device))
-        self.write_number_str.set('此处显示写号/工厂写码工具状态')
+        self.write_number_str.set('此处显示写号/写码工具状态')
 
         self.write_code_label_factory = tkinter.Label(self.write_number_root,text='写码/三元组',fg='red',width=40,font=('华文行楷',15))
         self.write_code_label_factory.place(x=20,y=60)
@@ -1232,7 +1232,9 @@ class Linux_WriteNumber(object):
 
         # 写码按钮
         self.write_code_button = tkinter.Button(self.write_number_root,text='开始写码')
-        self.write_code_button.config(state='disable')
+        self.write_code_button_disable = tkinter.Button(self.write_number_root,text='开始写码')
+        self.write_code_button.bind('<Button-1>',lambda x:self.write_code_bind(device))
+        self.write_code_button_disable.config(state='disable')
         self.write_code_button.place(x=200,y=190)
 
         self.write_number_label_factory = tkinter.Label(self.write_number_root, text='写号', fg='red', width=40,
@@ -1383,6 +1385,47 @@ class Linux_WriteNumber(object):
         t_write_SN_entry = threading.Thread(target=t_write_SN_entry)
         t_write_SN_entry.setDaemon(True)
         t_write_SN_entry.start()
+
+    def write_code_bind(self,device):
+        def t_write_code():
+            # 写码逻辑
+            self.write_code_button_disable.place(x=200,y=190)
+            devices_state = public.device_connect()
+            if not devices_state:
+                self.write_number_str.set('检测到没有连接到设备\n请连接设备后再使用本功能')
+            else:
+                only_read = public.linux_only_read(device)
+                if only_read == ' No such file or directory':
+                    self.write_number_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
+                else:
+                    if self.write_code_str.get() == 1:
+                        if self.write_mac_entry_str.get() == '' or self.write_md5_entry_str.get() == '' or \
+                           self.write_secretkey_entry_str.get() == '' or self.write_mac_entry_str.get() == '请输入<wifi mac地址>' or \
+                           self.write_md5_entry_str.get() == '请输入<md5>' or self.write_secretkey_entry_str.get() == '请输入<三元组>':
+                           self.write_number_str.set('输入框不能为空！！！')
+                        else:
+                            # 写入MAC地址
+                            self.write_number_str.set('正在写入WMAC...')
+                            WMAC = self.write_mac_entry_str.get().strip()
+                            mac_result = public.execute_cmd('adb -s ' + device + ' shell factory ATE_SET_WMAC ' + WMAC)
+                            print('adb shell factory ATE_SET_WMAC结果：\n' + mac_result)
+                            # 写入三元组和MD5
+                            self.write_number_str.set('正在写入三元组和MD5...')
+                            SECRETKEY = self.write_secretkey_entry_str.get().strip()
+                            MD5 = self.write_md5_entry_str.get().strip()
+                            secretkey_md5_result = public.execute_cmd('adb -s ' + device + ' shell factory ATE_SET_SECRETKEY_MD5 '
+                                                                      + SECRETKEY + ' ' + MD5)
+                            print('adb shell factory ATE_SET_SECRETKEY_MD5结果：\n' + secretkey_md5_result)
+                            # 重启生效
+                            public.execute_cmd('adb -s ' + device + ' shell reboot')
+                            self.write_number_str.set('写码完成！！！\n等待设备重启后即可激活')
+                    else:
+                        self.write_number_str.set('请勾选开启写码框才能写码！！！')
+            self.write_code_button_disable.place_forget()
+
+        t_write_code = threading.Thread(target=t_write_code)
+        t_write_code.setDaemon(True)
+        t_write_code.start()
 
     def write_SN_bind(self,device):
         def write_SN_save(SN):
