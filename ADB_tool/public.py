@@ -333,8 +333,37 @@ def wifi_mac_result(device):
     # 获取WIFI MAC地址
     wifi_mac_result = os.popen('adb -s ' + device + ' shell ip addr show wlan0', 'r').read().replace('\n\n', '\n')
     wifi_mac = ''.join(re.findall('link/ether(.*?)brd', wifi_mac_result)).strip()
-    print(wifi_mac)
+    # print(wifi_mac)
     return wifi_mac
+
+
+def devices_ip_result(device):
+    # 获取设备ip地址
+    devices_ip_result = os.popen('adb -s ' + device + ' shell ifconfig wlan0', 'r').read().replace('\n\n', '\n')
+    devices_ip = ''.join(re.findall('inet addr:(.*?)Bcast', devices_ip_result)).strip()
+    return devices_ip
+
+
+def android_software_version_result(device):
+    # 获取设备应用版本
+    try:
+        package_name = found_packages(device)
+        software_version_result = subprocess.Popen(('adb -s ' + device + ' shell dumpsys package ' + package_name),stdout=subprocess.PIPE)
+        output = subprocess.check_output(('findstr version'),stdin=software_version_result.stdout).decode('utf-8')
+        software_version_result.wait()
+        # print(output)
+        software_version = re.findall('versionName=(.*?)\s',output)[0]
+        software_version_result.stdout.close()
+        # print(devices_version)
+        return software_version
+    except subprocess.CalledProcessError:
+        pass
+
+
+def android_firmware_version_result(device):
+    # 获取设备固件版本
+    firmware_version = execute_cmd('adb -s ' + device + ' shell getprop ro.build.display.id').strip()
+    return firmware_version
 
 
 def find_pid_name(software_name_list):

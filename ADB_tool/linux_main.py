@@ -1197,23 +1197,23 @@ class Linux_WriteNumber(object):
         self.write_code_label_factory = tkinter.Label(self.write_number_root,text='写码/三元组',fg='red',width=40,font=('华文行楷',15))
         self.write_code_label_factory.place(x=20,y=60)
 
+        # 三元组输入框
+        self.write_secretkey_entry_str = tkinter.StringVar()
+        self.write_secretkey_entry = tkinter.Entry(self.write_number_root, textvariable=self.write_secretkey_entry_str,
+                                                   width=40, highlightcolor='blue', validate="focusin"
+                                                   , highlightthickness=5)
+        self.write_secretkey_entry.place(x=55, y=90)
+        self.write_secretkey_entry.insert(0, '请输入<三元组>')
+        self.write_secretkey_entry.config(command=self.write_secretkey_entry_bind())
+
         # MAC地址输入框
         self.write_mac_entry_str = tkinter.StringVar()
         self.write_mac_entry = tkinter.Entry(self.write_number_root, textvariable=self.write_mac_entry_str,
                                                     width=40, highlightcolor='orange', validate="focusin"
                                                     , highlightthickness=5)
-        self.write_mac_entry.place(x=55, y=90)
+        self.write_mac_entry.place(x=55, y=120)
         self.write_mac_entry.insert(0,'请输入<wifi mac地址>')
         self.write_mac_entry.config(command=self.write_mac_entry_bind())
-
-        # 三元组输入框
-        self.write_secretkey_entry_str = tkinter.StringVar()
-        self.write_secretkey_entry = tkinter.Entry(self.write_number_root, textvariable=self.write_secretkey_entry_str,
-                                             width=40, highlightcolor='blue', validate="focusin"
-                                             , highlightthickness=5)
-        self.write_secretkey_entry.place(x=55, y=120)
-        self.write_secretkey_entry.insert(0, '请输入<三元组>')
-        self.write_secretkey_entry.config(command=self.write_secretkey_entry_bind())
 
         # MD5值输入框
         self.write_md5_entry_str = tkinter.StringVar()
@@ -1394,33 +1394,37 @@ class Linux_WriteNumber(object):
             if not devices_state:
                 self.write_number_str.set('检测到没有连接到设备\n请连接设备后再使用本功能')
             else:
-                only_read = public.linux_only_read(device)
-                if only_read == ' No such file or directory':
-                    self.write_number_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
-                else:
-                    if self.write_code_str.get() == 1:
-                        if self.write_mac_entry_str.get() == '' or self.write_md5_entry_str.get() == '' or \
-                           self.write_secretkey_entry_str.get() == '' or self.write_mac_entry_str.get() == '请输入<wifi mac地址>' or \
-                           self.write_md5_entry_str.get() == '请输入<md5>' or self.write_secretkey_entry_str.get() == '请输入<三元组>':
-                           self.write_number_str.set('输入框不能为空！！！')
-                        else:
-                            # 写入MAC地址
-                            self.write_number_str.set('正在写入WMAC...')
-                            WMAC = self.write_mac_entry_str.get().strip()
-                            mac_result = public.execute_cmd('adb -s ' + device + ' shell factory ATE_SET_WMAC ' + WMAC)
-                            print('adb shell factory ATE_SET_WMAC结果：\n' + mac_result)
-                            # 写入三元组和MD5
-                            self.write_number_str.set('正在写入三元组和MD5...')
-                            SECRETKEY = self.write_secretkey_entry_str.get().strip()
-                            MD5 = self.write_md5_entry_str.get().strip()
-                            secretkey_md5_result = public.execute_cmd('adb -s ' + device + ' shell factory ATE_SET_SECRETKEY_MD5 '
-                                                                      + SECRETKEY + ' ' + MD5)
-                            print('adb shell factory ATE_SET_SECRETKEY_MD5结果：\n' + secretkey_md5_result)
-                            # 重启生效
-                            public.execute_cmd('adb -s ' + device + ' shell reboot')
-                            self.write_number_str.set('写码完成！！！\n等待设备重启后即可激活')
+                if self.write_code_str.get() == 1:
+                    if self.write_mac_entry_str.get() == '' or self.write_md5_entry_str.get() == '' or \
+                       self.write_secretkey_entry_str.get() == '' or self.write_mac_entry_str.get() == '请输入<wifi mac地址>' or \
+                       self.write_md5_entry_str.get() == '请输入<md5>' or self.write_secretkey_entry_str.get() == '请输入<三元组>':
+                       self.write_number_str.set('输入框不能为空！！！')
                     else:
-                        self.write_number_str.set('请勾选开启写码框才能写码！！！')
+                        # 写入MAC地址
+                        self.write_number_str.set('正在写入WMAC...')
+                        WMAC = self.write_mac_entry_str.get().strip()
+                        mac_result = public.execute_cmd('adb -s ' + device + ' shell factory ATE_SET_WMAC ' + WMAC)
+                        print('adb shell factory ATE_SET_WMAC结果：\n' + mac_result)
+                        # 写入三元组和MD5
+                        self.write_number_str.set('正在写入三元组和MD5...')
+                        SECRETKEY = self.write_secretkey_entry_str.get().strip()
+                        MD5 = self.write_md5_entry_str.get().strip()
+                        # secretkey_md5_result = public.execute_cmd('adb -s ' + device + ' shell factory ATE_SET_SECRETKEY_MD5 '
+                        #                                           + SECRETKEY + ' ' + MD5)
+                        cmd = 'adb -s ' + device + ' shell factory ATE_SET_SECRETKEY_MD5 ' + SECRETKEY + ' ' + MD5
+                        p = subprocess.Popen(cmd, shell=False, stdout=(subprocess.PIPE),
+                                             stderr=(subprocess.STDOUT))
+                        secretkey_md5_result = p.stdout.readlines()
+                        print('adb shell factory ATE_SET_SECRETKEY_MD5结果：\n' + str(secretkey_md5_result))
+                        # 重启生效
+                        public.execute_cmd('adb -s ' + device + ' shell reboot')
+                        self.write_number_str.set('写码完成！！！\n等待设备重启后即可激活')
+                        # 写码成功后就清空，方便写下一个码
+                        self.write_mac_entry_str.set('请输入<wifi mac地址>')
+                        self.write_md5_entry_str.set('请输入<md5>')
+                        self.write_secretkey_entry_str.set('请输入<三元组>')
+                else:
+                    self.write_number_str.set('请勾选此处开始写码才能写码！！！')
             self.write_code_button_disable.place_forget()
 
         t_write_code = threading.Thread(target=t_write_code)
@@ -1454,60 +1458,56 @@ class Linux_WriteNumber(object):
             if not devices_state:
                 self.write_number_str.set('检测到没有连接到设备\n请连接设备后再使用本功能')
             else:
-                only_read = public.linux_only_read(device)
-                if only_read == ' No such file or directory':
-                    self.write_number_str.set('检测该设备没有初始化\n请重新初始化后才能使用本功能')
+                devices = open(devices_log, 'r').read()
+                device_type = public.device_type_android(devices)
+                if device_type.strip() == 'Android':
+                    self.write_number_str.set('您所连接的设备为Android\n无法使用写号功能')
                 else:
-                    devices = open(devices_log, 'r').read()
-                    device_type = public.device_type_android(devices)
-                    if device_type.strip() == 'Android':
-                        self.write_number_str.set('您所连接的设备为Android\n无法使用写号功能')
+                    SN = self.write_SN_entry_str.get().strip()
+                    print(SN)
+                    print('当前输入的SN位数为 ' + str(len(SN)))
+                    devices_state = public.device_connect()
+                    if not devices_state:
+                        self.write_number_str.set('请重新连接设备后再写号')
                     else:
-                        SN = self.write_SN_entry_str.get().strip()
-                        print(SN)
-                        print('当前输入的SN位数为 ' + str(len(SN)))
-                        devices_state = public.device_connect()
-                        if not devices_state:
-                            self.write_number_str.set('请重新连接设备后再写号')
-                        else:
-                            # 已写入SN号无法再次写号
-                            SN_list = []
-                            write_SN_read = open(write_SN_log, 'r').readlines()
-                            # print(write_SN_read)
-                            for sn in write_SN_read:
-                                sn_finally = re.findall('SN号：(.*?)\n', sn)
-                                if sn_finally == []:
-                                    pass
-                                else:
-                                    SN_finally = ''.join(sn_finally)
-                                    SN_list.append(SN_finally)
-                            sn_read = public.execute_cmd('adb -s ' + device + ' shell cat /data/SN.txt')
-                            if SN in SN_list and SN == sn_read:
-                                self.write_number_str.set(SN + '已被当前设备写入\n请看右侧列表查看对应设备MAC')
+                        # 已写入SN号无法再次写号
+                        SN_list = []
+                        write_SN_read = open(write_SN_log, 'r').readlines()
+                        # print(write_SN_read)
+                        for sn in write_SN_read:
+                            sn_finally = re.findall('SN号：(.*?)\n', sn)
+                            if sn_finally == []:
+                                pass
                             else:
-                                if self.write_15_str.get() == 0:
-                                    # 15位数
-                                    print('监听 15位数 选项')
-                                    if len(SN) == 15:
-                                        self.write_number_str.set('正在为设备写入\n' + SN)
-                                        SN_result = public.execute_cmd('adb -s ' + device + ' shell factory ATE_SET_SN ' + SN)
-                                        print(SN_result)
-                                        with open(SN_result_path,'w') as fp:
-                                            fp.write(SN_result)
-                                        public.execute_cmd('adb -s ' + device + ' push ' + SN_result_path + ' /data')
-                                        success = public.execute_cmd('adb -s ' + device + ' shell grep "SUCCESS" /data/SN_result.log')
-                                        print(success)
-                                        if success.strip() == 'SUCCESS':
-                                            write_SN_save(SN)
-                                            self.write_number_str.set('正在清理数据缓存并重启...')
-                                            # SN号写入后需要重新激活才会有效，否则无法绑定设备
-                                            public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/miniapp/data')
-                                            public.execute_cmd('adb -s ' + device + ' shell reboot')
-                                            self.write_number_str.set(SN + '\n已被成功写入！！！')
-                                        else:
-                                            self.write_number_str.set('写号失败！！！\n请重新输入再试试')
+                                SN_finally = ''.join(sn_finally)
+                                SN_list.append(SN_finally)
+                        sn_read = public.execute_cmd('adb -s ' + device + ' shell cat /data/SN.txt')
+                        if SN in SN_list and SN == sn_read:
+                            self.write_number_str.set(SN + '已被当前设备写入\n请看右侧列表查看对应设备MAC')
+                        else:
+                            if self.write_15_str.get() == 0:
+                                # 15位数
+                                print('监听 15位数 选项')
+                                if len(SN) == 15:
+                                    self.write_number_str.set('正在为设备写入\n' + SN)
+                                    SN_result = public.execute_cmd('adb -s ' + device + ' shell factory ATE_SET_SN ' + SN)
+                                    print(SN_result)
+                                    with open(SN_result_path,'w') as fp:
+                                        fp.write(SN_result)
+                                    public.execute_cmd('adb -s ' + device + ' push ' + SN_result_path + ' /data')
+                                    success = public.execute_cmd('adb -s ' + device + ' shell grep "SUCCESS" /data/SN_result.log')
+                                    print(success)
+                                    if success.strip() == 'SUCCESS':
+                                        write_SN_save(SN)
+                                        self.write_number_str.set('正在清理数据缓存并重启...')
+                                        # SN号写入后需要重新激活才会有效，否则无法绑定设备
+                                        public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/miniapp/data')
+                                        public.execute_cmd('adb -s ' + device + ' shell reboot')
+                                        self.write_number_str.set(SN + '\n已被成功写入！！！')
                                     else:
-                                        self.write_number_str.set('你输入的SN号不合法！！！')
+                                        self.write_number_str.set('写号失败！！！\n请重新输入再试试')
+                                else:
+                                    self.write_number_str.set('你输入的SN号不合法！！！')
             self.write_SN_button_disable.place_forget()
 
         t_write_SN = threading.Thread(target=t_write_SN)
