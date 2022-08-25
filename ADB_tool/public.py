@@ -28,6 +28,10 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
+# 获取包名所有信息
+package_log_path = resource_path(os.path.join('temp','package_log.txt'))
+
+
 def _async_raise(tid, exctype):
     """Raises an exception in the threads with id tid"""
     if not inspect.isclass(exctype):
@@ -346,18 +350,24 @@ def devices_ip_result(device):
 
 def android_software_version_result(device):
     # 获取设备应用版本
-    try:
-        package_name = found_packages(device)
-        software_version_result = subprocess.Popen(('adb -s ' + device + ' shell dumpsys package ' + package_name),stdout=subprocess.PIPE)
-        output = subprocess.check_output(('findstr version'),stdin=software_version_result.stdout).decode('utf-8')
-        software_version_result.wait()
-        # print(output)
-        software_version = re.findall('versionName=(.*?)\s',output)[0]
-        software_version_result.stdout.close()
-        # print(devices_version)
-        return software_version
-    except subprocess.CalledProcessError:
-        pass
+    # 管道符命令获取方式（虽一步到位，但会弹出命令行窗口）
+    # package_name = found_packages(device)
+    # software_version_result = subprocess.Popen(('adb -s ' + device + ' shell dumpsys package ' + package_name),stdout=subprocess.PIPE)
+    # output = subprocess.check_output(('findstr version'),stdin=software_version_result.stdout).decode('utf-8')
+    # software_version_result.wait()
+    # # print(output)
+    # software_version = re.findall('versionName=(.*?)\s',output)[0]
+    # software_version_result.stdout.close()
+    # # print(devices_version)
+    # 正则表达式获取（不会弹出命令行窗口）
+    package_name = found_packages(device)
+    # print(package_name)
+    execute_cmd('adb -s ' + device + ' shell dumpsys package ' + package_name + '> ' + package_log_path)
+    package_result_content = open(package_log_path,'r').read()
+    software_version_re = re.findall('Packages.*?versionName=(.*?)\n',package_result_content, re.S)
+    software_version = ''.join(software_version_re)
+    # print(software_version)
+    return software_version
 
 
 def android_firmware_version_result(device):
