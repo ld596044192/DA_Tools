@@ -17,7 +17,10 @@ environ_log = make_dir + 'environ_log.log'
 apk_path_package_log = make_dir + 'apk_path_package.log'
 # 简易ADB - adb-tools检测标志
 adb_tools_flag = make_dir + 'adb-tools'
-
+# 创建页面文件，记录文件状态
+make_dir_s = make_dir + 'make_dir\\'
+if not os.path.exists(make_dir_s):
+    os.makedirs(make_dir_s)
 
 def resource_path(relative_path):
     """生成资源文件目录访问路径"""
@@ -137,7 +140,7 @@ def get_pid_name():
 
 def device_type_android(device):
     # 检测安卓方法
-    device_type = execute_cmd('adb -s ' + device + ' shell getprop net.bt.name')
+    device_type = execute_cmd('adb -s ' + device + ' shell getprop net.bt.name').strip()
     # print(device_type)  # 调试
     return device_type
 
@@ -434,3 +437,12 @@ def pyperclip_copy_paste(content):
     # 从剪贴板那粘贴
     pyperclip.paste()
     tkinter.messagebox.showinfo('粘贴提醒','已复制粘贴 ' + content + ' 到剪贴板\n可以Ctrl+V粘贴到任意地方啦~')
+
+
+def flow_page():
+    # 创建查询应用流量值页面
+    flow_page = make_dir_s + 'flow_page.txt'
+    return flow_page
+
+
+

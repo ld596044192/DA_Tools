@@ -5,8 +5,8 @@ public.execute_cmd('adb shell ps > C:\\Users\\lida\\Desktop\\1.txt')
 
 pid_all_result = open('C:\\Users\\lida\\Desktop\\1.txt','r').read()
 # print(pid_all_result)
-pid_result_re = re.findall('\nsystem.*?(\d+).*?com.dosmono.scanningpen\n',pid_all_result)
-# print(pid_result_re)
+pid_result_re = re.findall('\n\w+.*?(\d+).*?com.dosmono.scanningpen\n',pid_all_result)
+print('测试中：' + str(pid_result_re))
 pid_result = ''.join(pid_result_re)
 print('com.dosmono.scanningpen pid：' + pid_result)
 
