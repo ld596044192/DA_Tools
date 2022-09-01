@@ -22,6 +22,7 @@ make_dir_s = make_dir + 'make_dir\\'
 if not os.path.exists(make_dir_s):
     os.makedirs(make_dir_s)
 
+
 def resource_path(relative_path):
     """生成资源文件目录访问路径"""
     if getattr(sys, 'frozen', False):
@@ -33,6 +34,7 @@ def resource_path(relative_path):
 
 # 获取包名所有信息
 package_log_path = resource_path(os.path.join('temp','package_log.txt'))
+packages_name = resource_path(os.path.join('temp','packages_name.log'))
 
 
 def _async_raise(tid, exctype):
@@ -109,8 +111,14 @@ def adb_version():
 def found_packages(device):
     # 查找当前包名
     try:
-        package_cmd = execute_cmd('adb -s ' + device + ' shell dumpsys window | findstr mCurrentFocus')
-        package_name = package_cmd.split()[(-1)].split('/')[0]
+        # 旧方法
+        # package_cmd = execute_cmd('adb -s ' + device + ' shell dumpsys window | findstr mCurrentFocus')
+        # package_name = package_cmd.split()[(-1)].split('/')[0]
+        # 新方法，使用正则匹配更精确
+        execute_cmd('adb -s ' + device + ' shell dumpsys window > ' + packages_name)
+        package_log = open(packages_name,'r').read()
+        package_name = ''.join(re.findall('mCurrentFocus.*?(com.*?)/.*?}', package_log, re.S))
+        # print(package_name)
         return package_name
     except IndexError:
         print('未连接设备，请连接设备后再尝试！！！')
@@ -443,6 +451,4 @@ def flow_page():
     # 创建查询应用流量值页面
     flow_page = make_dir_s + 'flow_page.txt'
     return flow_page
-
-
 

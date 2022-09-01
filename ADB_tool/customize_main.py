@@ -71,6 +71,27 @@ class Flow_Screen(object):
         self.down_flow.place(x=250, y=50)
         self.down_flow_str.set('0')
 
+        # 上行总流量与下行总流量label
+        self.up_flow_total_label = tkinter.Label(self.flow_root, text='上行已使用总流量')
+        self.up_flow_total_label.place(x=130, y=0)
+
+        self.down_flow_total_label = tkinter.Label(self.flow_root, text='下行已使用总流量')
+        self.down_flow_total_label.place(x=130, y=50)
+
+        # 上行总流量与下行总流量显示框
+        self.up_flow_total_str = tkinter.StringVar()
+        self.up_flow_total = tkinter.Label(self.flow_root, textvariable=self.up_flow_total_str, bg='#FFFFFF', height=2, width=15,
+                                     font=('宋体', 10))
+        self.up_flow_total.place(x=130, y=20)
+        self.up_flow_total_str.set('0')
+
+        self.down_flow_total_str = tkinter.StringVar()
+        self.down_flow_total = tkinter.Label(self.flow_root, textvariable=self.down_flow_total_str, bg='#FFFFFF', height=2,
+                                       width=15,
+                                       font=('宋体', 10))
+        self.down_flow_total.place(x=130, y=70)
+        self.down_flow_total_str.set('0')
+
         # 启动流量检测按钮
         self.start_button = tkinter.Button(self.flow_root,width=15,text='开始检测流量')
         self.start_button_disbale = tkinter.Button(self.flow_root,width=15,text='正在检测中...')
@@ -100,8 +121,10 @@ class Flow_Screen(object):
             global package_flag
             # 获取包名及Uid
             # 获取当前应用的包名
+            time.sleep(1)
             flow_text_normal()
             package_name = public.found_packages(device)
+            # print(package_name)
             if not package_name:
                 self.flow_text.insert(tkinter.END, '包名获取失败，正在重新获取...\n')
                 self.flow_text.see(tkinter.END)
@@ -118,21 +141,28 @@ class Flow_Screen(object):
                 ps_result_finally = open(flow_package_log, 'r').read()
                 pid_result_re = re.findall('\n\w+.*?(\d+).*?' + package_name + '\n', ps_result_finally)
                 pid_result = ''.join(pid_result_re)
-                flow_text_normal()
-                self.flow_text.insert(tkinter.END, package_name + '获取的pid：' + pid_result + '\n')
-                self.flow_text.see(tkinter.END)
-                flow_text_disable()
-                # 获取包名的uid
-                uid_result_status = public.execute_cmd('adb shell cat /proc/' + pid_result + '/status')
-                uid_result_re = re.findall('Uid.*?(\d+).*?', uid_result_status)
-                uid_result = ''.join(uid_result_re)
-                flow_text_normal()
-                self.flow_text.insert(tkinter.END, package_name + '获取的Uid：' + uid_result + '\n')
-                self.flow_text.see(tkinter.END)
-                self.flow_text.insert(tkinter.END, '正在计算当前应用流量值中...\n')
-                self.flow_text.see(tkinter.END)
-                flow_text_disable()
-                return uid_result
+                if pid_result == '':
+                    flow_text_normal()
+                    self.flow_text.insert(tkinter.END, '获取当前应用pid失败，正在重新获取当前包名...\n')
+                    self.flow_text.see(tkinter.END)
+                    flow_text_disable()
+                    package_flag = False
+                else:
+                    flow_text_normal()
+                    self.flow_text.insert(tkinter.END, package_name + '获取的pid：' + pid_result + '\n')
+                    self.flow_text.see(tkinter.END)
+                    flow_text_disable()
+                    # 获取包名的uid
+                    uid_result_status = public.execute_cmd('adb shell cat /proc/' + pid_result + '/status')
+                    uid_result_re = re.findall('Uid.*?(\d+).*?', uid_result_status)
+                    uid_result = ''.join(uid_result_re)
+                    flow_text_normal()
+                    self.flow_text.insert(tkinter.END, package_name + '获取的Uid：' + uid_result + '\n')
+                    self.flow_text.see(tkinter.END)
+                    self.flow_text.insert(tkinter.END, '正在计算当前应用流量值中...\n')
+                    self.flow_text.see(tkinter.END)
+                    flow_text_disable()
+                    return uid_result
 
         def t_flow_main():
             global package_flag
@@ -164,6 +194,9 @@ class Flow_Screen(object):
                     self.flow_text.insert(tkinter.END, '开始获取当前的应用包名...\n')
                     self.flow_text.see(tkinter.END)
                     flow_text_disable()
+                    # 初始化计算总和的变量
+                    rcv_total = 0
+                    snd_total = 0
                     try:
                         while True:
                             device_state = public.device_connect()
@@ -177,6 +210,8 @@ class Flow_Screen(object):
                                 try:
                                     # 默认第一次必须执行
                                     uid_result = get_pid_uid()
+                                    if not uid_result:
+                                        continue
                                     package_flag = True
                                 except AttributeError:
                                     continue
@@ -207,6 +242,32 @@ class Flow_Screen(object):
                                     self.down_flow_str.set(str(rcv_finally_update_mb) + 'MB/s')
                                 else:
                                     self.down_flow_str.set(str(rcv_finally_update) + 'KB/s')
+                                # 计算上行行流量值总和
+                                snd_total += snd_finally_update
+                                # print('上行流量总和：' + str(snd_total))
+                                if 1024 <= snd_total < 1048576:  # 该表达式同等 snd_total >= 1024 and snd_total < 1048576
+                                    snd_total_mb = snd_total / 1024
+                                    snd_finally_update_mb = round(snd_total_mb, 2)
+                                    self.up_flow_total_str.set(str(round(snd_finally_update_mb, 2)) + 'MB')
+                                elif rcv_total > 1048576:
+                                    snd_total_gb = snd_total / 1024 / 1024
+                                    snd_finally_update_gb = round(snd_total_gb, 2)
+                                    self.up_flow_total_str.set(str(round(snd_finally_update_gb, 2)) + 'GB')
+                                else:
+                                    self.up_flow_total_str.set(str(round(snd_total, 2)) + 'KB')
+                                # 计算下行行流量值总和
+                                rcv_total += rcv_finally_update
+                                # print('下行流量总和：' + str(rcv_total))
+                                if 1024 <= rcv_total < 1048576:  # 该表达式同等 rcv_total >= 1024 and rcv_total < 1048576
+                                    rcv_total_mb = rcv_total / 1024
+                                    rcv_finally_update_mb = round(rcv_total_mb, 2)
+                                    self.down_flow_total_str.set(str(round(rcv_finally_update_mb,2)) + 'MB')
+                                elif rcv_total > 1048576:
+                                    rcv_total_gb = rcv_total / 1024 / 1024
+                                    rcv_finally_update_gb = round(rcv_total_gb, 2)
+                                    self.down_flow_total_str.set(str(round(rcv_finally_update_gb,2)) + 'GB')
+                                else:
+                                    self.down_flow_total_str.set(str(round(rcv_total,2)) + 'KB')
                                 if flow_exists == 0:
                                     package_flag = False
                                     print('flow_up_down检测线程已结束！')
@@ -236,7 +297,9 @@ class Flow_Screen(object):
                     package_name = public.found_packages(device)
                     package_name_orgin = open(flow_package,'r').read()
                     flow_exists = self.flow_root.winfo_exists()
-                    if package_name != package_name_orgin and package_flag and package_name_orgin != '':
+                    if package_name != package_name_orgin and package_flag and package_name_orgin != '' and package_name != ''\
+                            and package_name:
+                        # 多判断防止不断重新获取包名和Uid
                         flow_text_normal()
                         self.flow_text.insert(tkinter.END, '检测到当前包名已发生变化，正在重新获取Uid...\n')
                         self.flow_text.see(tkinter.END)
@@ -249,6 +312,8 @@ class Flow_Screen(object):
                             public.stop_thread(t_flow_main)
                         except ValueError:
                             pass
+                        self.up_flow_str.set('0')
+                        self.down_flow_str.set('0')
                         break
                     time.sleep(2)
             except tkinter.TclError:

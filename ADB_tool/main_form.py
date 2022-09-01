@@ -46,6 +46,10 @@ linux_sn_path = public.resource_path(os.path.join('resources','linux_sn.ini'))
 make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
 if not os.path.exists(make_dir):
     os.makedirs(make_dir)
+# 创建页面文件，记录文件状态
+make_dir_s = make_dir + 'make_dir\\'
+if not os.path.exists(make_dir_s):
+    os.makedirs(make_dir_s)
 count_path = make_dir + 'screenshots_count.txt'
 # 主程序启动标志
 root_state = make_dir + 'root_state.txt'
@@ -104,8 +108,8 @@ with open(adb_upgrade_flag,'w') as fp:
 with open(conflict_software_path,'w') as fp:
     fp.write('')
 # 统一修改版本号
-version = 'V1.0.1.5'
-version_code = 1015.0
+version = 'V1.0.1.7'
+version_code = 1017.0
 # 统一修改frame的宽高
 width = 367
 height = 405
@@ -406,6 +410,23 @@ class MainForm(object):
         t_more_devices.setDaemon(True)
         t_more_devices.start()
 
+    def customize_button_disable(s):
+        # 切换模块时先加载disable，以免误触
+        global first_button_flag
+        # 获取页面code
+        try:
+            if not os.path.exists(public.flow_page()):
+                with open(public.flow_page()) as fp:
+                    fp.write('')
+            flow_page = open(public.flow_page(), 'r').read()
+            try:
+                if first_button_flag and flow_page != '0':
+                    s.flow_button_disable.place(x=20, y=20)
+            except AttributeError:
+                pass
+        except FileNotFoundError:
+            pass
+
     def display_main_frame(s):
         # 显示快捷模式主窗口
         s.quickly_frame()
@@ -491,6 +512,7 @@ class MainForm(object):
         # 显示自定义模式窗口
         s.customize_menu1.place(x=240, y=0)
         s.customize_frame()
+        s.customize_button_disable()  # 防误触
         s.main_menu1.place_forget()
         s.screen_menu1.place_forget()
         s.linux_menu1.place_forget()
@@ -1033,6 +1055,20 @@ class MainForm(object):
             linux_all_button_place_forget()
         else:
             linux_all_button_place_forget()
+
+    def android_all_button_open(s):
+        # 先初始化按钮状态
+        if not os.path.exists(public.flow_page()):
+            with open(public.flow_page(), 'w') as fp:
+                fp.write('0')
+
+        # 读取一次自定义模块所有页面状态
+        flow_log_page_state = open(public.flow_page(), 'r').read()
+        if flow_log_page_state == '':
+            s.flow_button_disable.place(x=20, y=20)
+        else:
+            s.flow_button_disable.place_forget()
+            s.flow_button.place(x=20, y=20)
 
     def linux_all_button_open(s):
         global uuid_server_flag
@@ -1811,6 +1847,10 @@ class MainForm(object):
                 s.init_text = s.init_str.get()
                 only_read = check_only_read()
                 if not devices_linux_flag or not devices_finally or only_read.strip() == 'No such file or directory':
+                    try:
+                        s.android_all_button_open()
+                    except AttributeError:
+                        pass
                     s.linux_all_button_close()
                 elif devices_linux_flag and devices_finally and only_read.strip() != 'No such file or directory':
                     s.linux_all_button_open()
@@ -2057,18 +2097,17 @@ class MainForm(object):
                 uuid_get_result = public.execute_cmd('adb -s ' + devices_sn + ' shell ls -lh /data/UUID.ini')
                 uuid_get_result_finally = ' '.join(uuid_get_result.split()).split(':')[-1]
                 if uuid_get_result_finally.strip() == 'No such file or directory':
-                    uuid_result = public.execute_cmd('adb -s ' + devices_sn + ' shell cat /data/UUID.ini').strip()
-                    s.uuid_str.set('已获取到该设备的UUID为\n' + uuid_result)
-                else:
                     uuid = public.execute_cmd('adb -s ' + devices_sn + ' shell ag_os')
-                    uuid_re = re.findall('uuid:(.*?)\\n',uuid)
+                    uuid_re = re.findall('uuid:(.*?)\\n', uuid)
                     uuid_result = ''.join(uuid_re).strip()
                     # 写入UUID后上传到设备中进行读取
-                    with open(uuid_path,'w') as fp:
+                    with open(uuid_path, 'w') as fp:
                         fp.write(uuid_result)
-                    public.execute_cmd('adb -s ' + devices_sn+ ' push ' + uuid_path + ' /data/UUID.ini')
+                    public.execute_cmd('adb -s ' + devices_sn + ' push ' + uuid_path + ' /data/UUID.ini')
                     s.uuid_str.set('已获取到该设备的UUID为\n' + uuid_result)
-
+                else:
+                    uuid_result = public.execute_cmd('adb -s ' + devices_sn + ' shell cat /data/UUID.ini').strip()
+                    s.uuid_str.set('已获取到该设备的UUID为\n' + uuid_result)
             s.uuid_get_disable.place_forget()
             s.uuid_paste_disable.place_forget()
 
@@ -2447,41 +2486,51 @@ class MainForm(object):
 
     def flow_bind(s):
         def t_flow():
-            global first_button_flag,tkinter_messagebox_flag
             # 初始化查询应用流量值页面的状态
             with open(public.flow_page(), 'w') as fp:
-                fp.write('')
+                fp.write('0')
             devices_state = public.device_connect()
             if not devices_state:
                 pass
             else:
                 flow = customize_main.Flow_Screen()
                 device_SN = s.more_devices_value.get()
-                tkinter_messagebox_flag = False
                 flow.flow_form(s.flow_button, s.flow_button_disable, device_SN,devices_type_log)
 
         def t_flow_close():
             global first_button_flag,tkinter_messagebox_flag
             # 监听查询应用流量值页面的关闭状态
+            first_button_flag = False
+            tkinter_messagebox_flag = False
             with open(public.flow_page(), 'w') as fp:
-                fp.write('')
+                fp.write('0')
             while True:
                 flow_page_state = open(public.flow_page(), 'r').read()
                 devices_state = public.device_connect()
-                if not devices_state:
+                if not devices_state and flow_page_state == '0':
+                    flow_page_state = open(public.flow_page(), 'r').read()
+                    s.flow_button.place_forget()
                     s.flow_button_disable.place(x=20, y=20)
-                    if not tkinter_messagebox_flag:
+                    if not tkinter_messagebox_flag and flow_page_state == '0':
                         content = '''
+                        功能模块：查询应用流量值
                         检测到使用本功能时没有连接设备
                         请连接设备后再使用本功能
                         '''
                         tkinter.messagebox.showerror(title='没有连接设备，启动功能失败',message=content)
                         tkinter_messagebox_flag = True
+                    s.flow_button_disable.place_forget()
+                    s.flow_button.place(x=20, y=20)
+                    if flow_page_state == '0':
+                        break
                 else:
                     if not first_button_flag:
-                        s.flow_button_disable.place_forget()
+                        with open(public.flow_page(), 'w') as fp:
+                            fp.write('')
                         first_button_flag = True
+                    flow_page_state = open(public.flow_page(), 'r').read()
                     if flow_page_state == '0':
+                        print('查询应用流量值页面已关闭！')
                         s.flow_button_disable.place_forget()
                         s.flow_button.place(x=20, y=20)
                         break
