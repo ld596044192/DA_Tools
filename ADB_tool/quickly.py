@@ -1,3 +1,5 @@
+import time
+
 import public,pyperclip,tkinter.messagebox
 
 
@@ -26,6 +28,11 @@ def clear_cache(device):
     try:
         package_name = public.found_packages(device)
         public.execute_cmd('adb -s ' + device + ' shell pm clear ' + package_name)
+        # 息屏
+        public.execute_cmd('adb -s ' + device + ' shell input keyevent 26')
+        time.sleep(1)
+        # 亮屏（不管息屏亮屏都点亮）
+        public.execute_cmd('adb -s ' + device + ' shell input keyevent 224')
     except TypeError:
         print('未连接设备，请连接设备后再尝试！！！')
 

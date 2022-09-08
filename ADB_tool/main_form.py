@@ -107,9 +107,11 @@ with open(adb_upgrade_flag,'w') as fp:
     fp.write('ADB is the latest version')
 with open(conflict_software_path,'w') as fp:
     fp.write('')
+# 调用ADB服务开关
+adb_server_all_flag = True  # 默认True打开
 # 统一修改版本号
-version = 'V1.0.1.7'
-version_code = 1017.0
+version = 'V1.0.1.8'
+version_code = 1018.0
 # 统一修改frame的宽高
 width = 367
 height = 405
@@ -356,54 +358,65 @@ class MainForm(object):
 
     def more_devices_bind(s):
         def t_more_devices():
+            global adb_server_all_flag
             devices_current_flag = False
             # 多设备连接匹配
             while True:
-                adb_install_state = open(adb_upgrade_flag, 'r').read()
-                # conflict_software_flag = public.find_pid_name(conflict_software_list)
-                if adb_install_state == 'ADB upgrade':
-                    s.more_devices_list = ['ADB升级中不可用']
-                    s.more_devices_combobox['value'] = s.more_devices_list
-                    s.more_devices_combobox.current(0)
-                    print('ADB升级中3...')
+                if not adb_server_all_flag:
+                    pass
                 else:
-                    # if conflict_software_flag:
-                    #     # print('测试是否已屏蔽 - 多设备检测')
-                    #     pass
-                    # else:
-                    devices_list = public.device_connect()
-                    # print(devices_list)
-                    if not devices_list:
-                        s.more_devices_list = ['没有连接任何设备']
+                    adb_install_state = open(adb_upgrade_flag, 'r').read()
+                    # conflict_software_flag = public.find_pid_name(conflict_software_list)
+                    if adb_install_state == 'ADB upgrade':
+                        s.more_devices_list = ['ADB升级中不可用']
                         s.more_devices_combobox['value'] = s.more_devices_list
                         s.more_devices_combobox.current(0)
-                        devices_current_flag = False
-                        continue
-                    elif s.more_devices_value.get().strip() == 'List of':
-                        print(s.more_devices_list)
-                        print('删除异常List of...')
-                        index = s.more_devices_list.index('List of')
-                        print('异常数据索引 ：' + str(index))
-                        s.more_devices_list.pop(index)  # 删除“List of”异常元素
-                        s.more_devices_combobox['value'] = s.more_devices_list
-                        try:
-                            s.more_devices_combobox.current(0)
-                        except tkinter.TclError:
-                            print('出现TclError，忽略即可！！！')
-                        continue
+                        print('ADB升级中3...')
+
                     else:
-                        s.more_devices_list = devices_list
-                        s.more_devices_combobox['value'] = s.more_devices_list
-                        # 保存设备序列号以便后面功能使用，实时同步
-                        with open(devices_log, 'w') as fp:
-                            fp.write(s.more_devices_value.get())
-                        if not devices_current_flag:
-                            # 首次连接设备后只匹配首个序列号一次
+                        # if conflict_software_flag:
+                        #     # print('测试是否已屏蔽 - 多设备检测')
+                        #     pass
+                        # else:
+                        devices_list = public.device_connect()
+                        # print(devices_list)
+                        if not devices_list:
+                            s.more_devices_list = ['没有连接任何设备']
+                            s.more_devices_combobox['value'] = s.more_devices_list
                             s.more_devices_combobox.current(0)
-                            devices_current_flag = True
+                            devices_current_flag = False
                             continue
+                        elif s.more_devices_value.get().strip() == 'List of':
+                            print(s.more_devices_list)
+                            print('删除异常List of...')
+                            index = s.more_devices_list.index('List of')
+                            print('异常数据索引 ：' + str(index))
+                            s.more_devices_list.pop(index)  # 删除“List of”异常元素
+                            s.more_devices_combobox['value'] = s.more_devices_list
+                            try:
+                                s.more_devices_combobox.current(0)
+                            except tkinter.TclError:
+                                print('出现TclError，忽略即可！！！')
+                            continue
+                        elif s.more_devices_value.get().strip() not in devices_list and \
+                                s.more_devices_value.get().strip() != '没有连接任何设备'\
+                                and s.more_devices_value.get().strip() != '':
+                            s.more_devices_list = devices_list
+                            s.more_devices_combobox['value'] = s.more_devices_list
+                            s.more_devices_combobox.current(0)
                         else:
-                            pass
+                            s.more_devices_list = devices_list
+                            s.more_devices_combobox['value'] = s.more_devices_list
+                            # 保存设备序列号以便后面功能使用，实时同步
+                            with open(devices_log, 'w') as fp:
+                                fp.write(s.more_devices_value.get())
+                            if not devices_current_flag:
+                                # 首次连接设备后只匹配首个序列号一次
+                                s.more_devices_combobox.current(0)
+                                devices_current_flag = True
+                                continue
+                            else:
+                                pass
                 time.sleep(1)
 
         t_more_devices = threading.Thread(target=t_more_devices)
@@ -1317,74 +1330,77 @@ class MainForm(object):
             s.firmware_version_str.set('此处显示安卓固件版本号')
 
         def t_devices():
-            global adb_server_flag,conflict_model_flag
+            global adb_server_flag,conflict_model_flag,adb_server_all_flag
             s.devices_str.set('正在检测设备连接状态...')
             while True:
-                # 显示动态单选frame
-                moving_radio_set()
-                adb_install_state = open(adb_upgrade_flag, 'r').read()
-                conflict_software_flag = public.find_pid_name(conflict_software_list)
-                conflict_software_name = open(conflict_software_path,'r').read()
-                # print('冲突软件标志：' + str(conflict_software_flag))
-                # print(conflict_software_name)
-                if conflict_software_flag:
-                    # 强制关闭冲突软件
-                    public.execute_cmd('taskkill /F /IM %s ' % conflict_software_name + ' /T')
-                    # 重要提示需要置顶
-                    s.root.wm_attributes('-topmost', 1)
-                    if tkinter.messagebox.askokcancel('防冲突警告', '已检测到冲突软件 ' + conflict_software_name + ' 正在运行\n'
-                                                   '已自动强制关闭冲突软件！！！\n'
-                                                   '如果你坚持使用冲突软件，则需要点击“确定”关闭本软件，否则点击“取消”不关闭本软件'):
-                                                    # 取消置顶
-                                                    s.root.wm_attributes('-topmost', 0)
-                                                    my_pid = os.getpid()
-                                                    os.kill(my_pid,signal.SIGINT)
-                    # 取消置顶
-                    s.root.wm_attributes('-topmost', 0)
+                if not adb_server_all_flag:
+                    pass
                 else:
-                    # if adb_server_flag:
-                    #     adb_server_flag = False
-                    if adb_install_state == 'ADB upgrade':
-                        print('ADB正在升级1....')
-                        s.devices_fail.place_forget()
-                        s.devices_type_fail.place_forget()
-                        s.devices_type_success.place(x=325, y=425)
-                        s.devices_success.place(x=450, y=0)
-                        s.devices_str.set('ADB正在升级中...')
-                        s.devices_type_str.set('ADB正在升级中...')
+                    # 显示动态单选frame
+                    moving_radio_set()
+                    adb_install_state = open(adb_upgrade_flag, 'r').read()
+                    conflict_software_flag = public.find_pid_name(conflict_software_list)
+                    conflict_software_name = open(conflict_software_path,'r').read()
+                    # print('冲突软件标志：' + str(conflict_software_flag))
+                    # print(conflict_software_name)
+                    if conflict_software_flag:
+                        # 强制关闭冲突软件
+                        public.execute_cmd('taskkill /F /IM %s ' % conflict_software_name + ' /T')
+                        # 重要提示需要置顶
+                        s.root.wm_attributes('-topmost', 1)
+                        if tkinter.messagebox.askokcancel('防冲突警告', '已检测到冲突软件 ' + conflict_software_name + ' 正在运行\n'
+                                                       '已自动强制关闭冲突软件！！！\n'
+                                                       '如果你坚持使用冲突软件，则需要点击“确定”关闭本软件，否则点击“取消”不关闭本软件'):
+                                                        # 取消置顶
+                                                        s.root.wm_attributes('-topmost', 0)
+                                                        my_pid = os.getpid()
+                                                        os.kill(my_pid,signal.SIGINT)
+                        # 取消置顶
+                        s.root.wm_attributes('-topmost', 0)
                     else:
-                        devices_finally = public.device_connect()
-                        # print('检测设备连接状态 === ' + str(devices_finally))
-                        if not devices_finally:
-                            s.devices_fail.place(x=470, y=0)
-                            s.devices_type_fail.place(x=325,y=425)
-                            s.devices_success.place_forget()
-                            s.devices_type_success.place_forget()
-                            # 动态设备参数调整
-                            moving_devices()
-                            # 确保切换设备类型时Linux相关功能按钮不会主动显示出来
-                            try:
-                                s.linux_all_button_close()
-                            except AttributeError:
-                                pass
-                        else:
-                            # print('成功检测设备 ++++++ ')
+                        # if adb_server_flag:
+                        #     adb_server_flag = False
+                        if adb_install_state == 'ADB upgrade':
+                            print('ADB正在升级1....')
                             s.devices_fail.place_forget()
                             s.devices_type_fail.place_forget()
-                            s.devices_success.place(x=450,y=0)
-                            s.devices_type_success.place(x=325,y=425)
-                            for devices in devices_finally:
-                                if len(devices_finally) == 1:
-                                    if len(devices) > 15:
-                                        # 超过长度限制用...表示
-                                        s.devices_str.set(devices[:13] + '... 已连接')
-                                    else:
-                                        s.devices_str.set(devices + ' 已连接')
-                                    continue
-                                elif len(devices_finally) > 1:
-                                    s.devices_str.set('多部设备已连接')
-                                    continue
-                            s.update_status()
+                            s.devices_type_success.place(x=325, y=425)
+                            s.devices_success.place(x=450, y=0)
+                            s.devices_str.set('ADB正在升级中...')
+                            s.devices_type_str.set('ADB正在升级中...')
+                        else:
+                            devices_finally = public.device_connect()
+                            # print('检测设备连接状态 === ' + str(devices_finally))
+                            if not devices_finally:
+                                s.devices_fail.place(x=470, y=0)
+                                s.devices_type_fail.place(x=325,y=425)
+                                s.devices_success.place_forget()
+                                s.devices_type_success.place_forget()
+                                # 动态设备参数调整
+                                moving_devices()
+                                # 确保切换设备类型时Linux相关功能按钮不会主动显示出来
+                                try:
+                                    s.linux_all_button_close()
+                                except AttributeError:
+                                    pass
+                            else:
+                                # print('成功检测设备 ++++++ ')
+                                s.devices_fail.place_forget()
+                                s.devices_type_fail.place_forget()
+                                s.devices_success.place(x=450,y=0)
+                                s.devices_type_success.place(x=325,y=425)
+                                for devices in devices_finally:
+                                    if len(devices_finally) == 1:
+                                        if len(devices) > 15:
+                                            # 超过长度限制用...表示
+                                            s.devices_str.set(devices[:13] + '... 已连接')
+                                        else:
+                                            s.devices_str.set(devices + ' 已连接')
+                                        continue
+                                    elif len(devices_finally) > 1:
+                                        s.devices_str.set('多部设备已连接')
+                                        continue
+                                s.update_status()
                 time.sleep(1)
 
         def devices_type():
@@ -1392,52 +1408,55 @@ class MainForm(object):
                 s.devices_type_str.set('正在检测设备类型...')
             except AttributeError:
                 pass
-            # 设置停顿时间放置线程阻塞
+            # 设置停顿时间防止线程阻塞
             time.sleep(2)
             while True:
                 # 检测设备类型
-                global devices_linux_flag
-                adb_install_state = open(adb_upgrade_flag,'r').read()
-                # conflict_software_flag = public.find_pid_name(conflict_software_list)
-                if adb_install_state == 'ADB upgrade':
-                    print('ADB正在升级2....')
+                global devices_linux_flag,adb_server_all_flag
+                if not adb_server_all_flag:
+                    pass
                 else:
-                    # if conflict_software_flag:
-                    #     # print('测试是否屏蔽 - 检测设备类型')
-                    #     pass
-                    # else:
-                    # print('正在检测设备类型 -----------')
-                    try:
-                        device_SN = s.more_devices_value.get()
-                        device_type = public.device_type_android(device_SN)
-                        # print(device_type.strip())  # 调试Logs
-                        # 增加strip方法，去掉结果的两边空格以便进行识别
-                        if device_type.strip() == 'Android':
-                            s.devices_type_str.set('Android（安卓）')
-                            devices_linux_flag = False
-                            with open(devices_type_log,'w') as fp:
-                                fp.write(device_type.strip())
-                            # print('安卓')
-                            continue
-                        elif device_type.strip() == '/bin/sh: getprop: not found':
-                            # Linux无法使用adb shell getprop命令
-                            device_type_linux = public.execute_cmd('adb -s ' + device_SN + ' shell cat /proc/version')
-                            device_type_linux_finally = device_type_linux.split(' ')[0]
-                            # print(device_type_linux_finally)  # 调试Logs
-                            if device_type_linux_finally == 'Linux':
-                                s.devices_type_str.set('Linux')
-                                devices_linux_flag = True
-                                with open(devices_type_log, 'w') as fp:
+                    adb_install_state = open(adb_upgrade_flag,'r').read()
+                    # conflict_software_flag = public.find_pid_name(conflict_software_list)
+                    if adb_install_state == 'ADB upgrade':
+                        print('ADB正在升级2....')
+                    else:
+                        # if conflict_software_flag:
+                        #     # print('测试是否屏蔽 - 检测设备类型')
+                        #     pass
+                        # else:
+                        # print('正在检测设备类型 -----------')
+                        try:
+                            device_SN = s.more_devices_value.get()
+                            device_type = public.device_type_android(device_SN)
+                            # print(device_type.strip())  # 调试Logs
+                            # 增加strip方法，去掉结果的两边空格以便进行识别
+                            if device_type.strip() == 'Android':
+                                s.devices_type_str.set('Android（安卓）')
+                                devices_linux_flag = False
+                                with open(devices_type_log,'w') as fp:
                                     fp.write(device_type.strip())
-                                # print('Linux')
+                                # print('安卓')
                                 continue
-                            else:
-                                s.devices_type_str.set('未知设备')
-                                # print('未知设备')
-                                continue
-                    except AttributeError:
-                        print('出现AttributeError无影响，请忽略')
-                        pass
+                            elif device_type.strip() == '/bin/sh: getprop: not found':
+                                # Linux无法使用adb shell getprop命令
+                                device_type_linux = public.execute_cmd('adb -s ' + device_SN + ' shell cat /proc/version')
+                                device_type_linux_finally = device_type_linux.split(' ')[0]
+                                # print(device_type_linux_finally)  # 调试Logs
+                                if device_type_linux_finally == 'Linux':
+                                    s.devices_type_str.set('Linux')
+                                    devices_linux_flag = True
+                                    with open(devices_type_log, 'w') as fp:
+                                        fp.write(device_type.strip())
+                                    # print('Linux')
+                                    continue
+                                else:
+                                    s.devices_type_str.set('未知设备')
+                                    # print('未知设备')
+                                    continue
+                        except AttributeError:
+                            print('出现AttributeError无影响，请忽略')
+                            pass
                 time.sleep(1)
 
         t_devices = threading.Thread(target=t_devices)
@@ -2379,14 +2398,17 @@ class MainForm(object):
                     s.devices_sn_str.set('首次查询需要进入“设置-关于”')
                     s.devices_sn.unbind('<Button-1>')
                 else:
-                    sn_re = re.findall('"sn":(.*?)}', sn)
-                    sn_result = eval(sn_re[0])
-                    with open(linux_sn_path,'w') as fp:
-                        fp.write(sn_result)
-                    # 上传到设备里面方便保存读取
-                    public.execute_cmd('adb -s ' + devices + ' push ' + linux_sn_path + ' /data/linux_sn.ini')
-                    s.devices_sn_str.set('设备序列号：' + sn_result.strip())
-                    s.devices_sn.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(sn_result))
+                    try:
+                        sn_re = re.findall('"sn":(.*?)}', sn)
+                        sn_result = eval(sn_re[0])
+                        with open(linux_sn_path,'w') as fp:
+                            fp.write(sn_result)
+                        # 上传到设备里面方便保存读取
+                        public.execute_cmd('adb -s ' + devices + ' push ' + linux_sn_path + ' /data/linux_sn.ini')
+                        s.devices_sn_str.set('设备序列号：' + sn_result.strip())
+                        s.devices_sn.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(sn_result))
+                    except IndexError:
+                        pass
             else:
                 sn_result = public.execute_cmd('adb -s ' + devices + ' shell cat /data/linux_sn.ini')
                 s.devices_sn_str.set('设备序列号：' + sn_result.strip())
@@ -2420,6 +2442,8 @@ class MainForm(object):
                         s.android_version_str.set('安卓版本号：Android ' + android_version.strip())
                     except TypeError:
                         pass
+                    # 显示安卓的应用版本号label
+                    s.software_version.place(x=0, y=150)
                     # 获取安卓的应用版本号和固件版本号
                     try:
                         software_version = public.android_software_version_result(devices)
@@ -2443,8 +2467,12 @@ class MainForm(object):
                     # uuid_get_result_finally = ' '.join(uuid_get_result.split()).split(':')[-1]
                     # agOsUUID_result = public.execute_cmd('adb -s ' + device_SN + ' shell ls -lh /data/agOsUUID.txt')
                     # agOsUUID_result_finally = ' '.join(agOsUUID_result.split()).split(':')[-1]
-                    # 隐藏安卓的应用版本号label
-                    s.software_version.place_forget()
+                    if s.devices_type_str.get() == 'Linux':
+                        # 隐藏安卓的应用版本号label
+                        s.software_version.place_forget()
+                    else:
+                        # 显示安卓的应用版本号label
+                        s.software_version.place(x=0,y=150)
                     # if uuid_get_result_finally.strip() == 'No such file or directory' and \
                     #         agOsUUID_result_finally.strip() == 'No such file or directory':
                     #     s.android_version_str.set('该设备需要重新获取UUID')
@@ -2494,8 +2522,7 @@ class MainForm(object):
                 pass
             else:
                 flow = customize_main.Flow_Screen()
-                device_SN = s.more_devices_value.get()
-                flow.flow_form(s.flow_button, s.flow_button_disable, device_SN,devices_type_log)
+                flow.flow_form(s.flow_button, s.flow_button_disable)
 
         def t_flow_close():
             global first_button_flag,tkinter_messagebox_flag

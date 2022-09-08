@@ -8,13 +8,20 @@ import threading,ctypes
 LOGO_path = public.resource_path(os.path.join('icon', 'android.ico'))
 flow_package = public.resource_path(os.path.join('temp','flow_package.txt'))
 flow_package_log = public.resource_path(os.path.join('temp','flow_package_log.txt'))
+devices_type_log = public.resource_path(os.path.join('temp','devices_type_log.txt'))  # 记录设备类型
+username = getpass.getuser()
+make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
+# 实时保存设备序列号
+devices_log = make_dir + 'devices.log'
 # 判断当前包名是否一致标记
 package_flag = False
+# 判断当前设备类型是否更换标记
+devices_type_flag = False
 
 
-# 截图工具界面
+# 查询应用流量值工具界面
 class Flow_Screen(object):
-    def flow_form(self,flow_Button,flow_Button_disable,device,devices_type_log):
+    def flow_form(self,flow_Button,flow_Button_disable):
         self.flow_root = tkinter.Toplevel()
         self.flow_root.title('查询应用流量值工具')
         # screenWidth = self.screen_root.winfo_screenwidth()
@@ -31,7 +38,7 @@ class Flow_Screen(object):
         self.flow_startup(flow_Button,flow_Button_disable)
 
         self.flow_root.protocol('WM_DELETE_WINDOW',self.close_handle)
-        self.main_frame(device,devices_type_log)
+        self.main_frame()
         # self.device_monitor(init_str)
 
         return self.flow_root
@@ -50,7 +57,7 @@ class Flow_Screen(object):
             fp.write('0')
         self.flow_root.destroy()
 
-    def main_frame(self,device,devices_type_log):
+    def main_frame(self):
         # 上行流量与下行流量Label
         self.up_flow_label = tkinter.Label(self.flow_root,text='上行（上传）流量')
         self.up_flow_label.place(x=20,y=20)
@@ -96,7 +103,7 @@ class Flow_Screen(object):
         self.start_button = tkinter.Button(self.flow_root,width=15,text='开始检测流量')
         self.start_button_disbale = tkinter.Button(self.flow_root,width=15,text='正在检测中...')
         self.start_button_disbale.config(state='disable')
-        self.start_button.bind('<Button-1>',lambda x:self.flow_main(device,devices_type_log))
+        self.start_button.bind('<Button-1>',lambda x:self.flow_main())
         self.start_button.place(x=130,y=100)
 
         # 日志记录显示
@@ -110,7 +117,7 @@ class Flow_Screen(object):
         self.flow_text.pack()
         self.flow_frame.place(x=20,y=135)
 
-    def flow_main(self,device,devices_type_log):
+    def flow_main(self):
         def flow_text_normal():
             self.flow_text.config(state='normal')
 
@@ -123,6 +130,7 @@ class Flow_Screen(object):
             # 获取当前应用的包名
             time.sleep(1)
             flow_text_normal()
+            device = open(devices_log,'r').read()
             package_name = public.found_packages(device)
             # print(package_name)
             if not package_name:
@@ -137,7 +145,7 @@ class Flow_Screen(object):
                 self.flow_text.see(tkinter.END)
                 flow_text_disable()
                 # 获取对应的包名的pid
-                public.execute_cmd('adb shell ps > ' + flow_package_log)
+                public.execute_cmd('adb -s ' + device + ' shell ps > ' + flow_package_log)
                 ps_result_finally = open(flow_package_log, 'r').read()
                 pid_result_re = re.findall('\n\w+.*?(\d+).*?' + package_name + '\n', ps_result_finally)
                 pid_result = ''.join(pid_result_re)
@@ -153,7 +161,7 @@ class Flow_Screen(object):
                     self.flow_text.see(tkinter.END)
                     flow_text_disable()
                     # 获取包名的uid
-                    uid_result_status = public.execute_cmd('adb shell cat /proc/' + pid_result + '/status')
+                    uid_result_status = public.execute_cmd('adb -s ' + device + ' shell cat /proc/' + pid_result + '/status')
                     uid_result_re = re.findall('Uid.*?(\d+).*?', uid_result_status)
                     uid_result = ''.join(uid_result_re)
                     flow_text_normal()
@@ -165,7 +173,7 @@ class Flow_Screen(object):
                     return uid_result
 
         def t_flow_main():
-            global package_flag
+            global package_flag,devices_type_flag
             # 查询流量主要逻辑
             self.start_button_disbale.place(x=130,y=100)
             with open(flow_package,'w') as fp:
@@ -176,7 +184,6 @@ class Flow_Screen(object):
             self.flow_text.see(tkinter.END)
             flow_text_disable()
             device_state = public.device_connect()
-            devices_type = open(devices_type_log,'r').read()
             if not device_state:
                 flow_text_normal()
                 self.flow_text.insert(tkinter.END,'设备没有连接，无法获取应用使用流量情况！\n')
@@ -184,118 +191,227 @@ class Flow_Screen(object):
                 # 显示内容后立即禁用
                 flow_text_disable()
             else:
-                if devices_type != 'Android':
-                    flow_text_normal()
-                    self.flow_text.insert(tkinter.END, '检测到非安卓设备，请使用安卓设备进行操作！\n')
-                    self.flow_text.see(tkinter.END)
-                    flow_text_disable()
-                else:
-                    flow_text_normal()
-                    self.flow_text.insert(tkinter.END, '开始获取当前的应用包名...\n')
-                    self.flow_text.see(tkinter.END)
-                    flow_text_disable()
-                    # 初始化计算总和的变量
-                    rcv_total = 0
-                    snd_total = 0
-                    try:
-                        while True:
-                            device_state = public.device_connect()
-                            if not device_state:
-                                flow_text_normal()
-                                self.flow_text.insert(tkinter.END, '设备突然断开连接，线程终止！\n')
-                                self.flow_text.see(tkinter.END)
-                                flow_text_disable()
-                                break
-                            if not package_flag:
-                                try:
-                                    # 默认第一次必须执行
-                                    uid_result = get_pid_uid()
-                                    if not uid_result:
-                                        continue
-                                    package_flag = True
-                                except AttributeError:
-                                    continue
-                            flow_exists = self.flow_root.winfo_exists()
-                            try:
-                                # 获取第一次的上行速度
-                                snd1 = public.execute_cmd('adb shell cat /proc/uid_stat/' + uid_result + '/tcp_snd')
-                                # 获取第一次的下行速度
-                                rcv1 = public.execute_cmd('adb shell cat /proc/uid_stat/' + uid_result + '/tcp_rcv')
-                                time.sleep(1)
-                                # 获取第二次的上行速度
-                                snd2 = public.execute_cmd('adb shell cat /proc/uid_stat/' + uid_result + '/tcp_snd')
-                                # 获取第二次的下行速度
-                                rcv2 = public.execute_cmd('adb shell cat /proc/uid_stat/' + uid_result + '/tcp_rcv')
-                                snd_finally = (int(snd2) - int(snd1)) / 1024
-                                snd_finally_update = round(snd_finally, 2)
-                                rcv_finally = (int(rcv2) - int(rcv1)) / 1024
-                                rcv_finally_update = round(rcv_finally, 2)
-                                if snd_finally_update >= 1024:
-                                    snd_finally_mb = snd_finally / 1024
-                                    snd_finally_update_mb = round(snd_finally_mb,2)
-                                    self.up_flow_str.set(str(snd_finally_update_mb) + 'MB/s')
-                                else:
-                                    self.up_flow_str.set(str(snd_finally_update) + 'KB/s')
-                                if rcv_finally_update >= 1024:
-                                    rcv_finally_mb = rcv_finally / 1024
-                                    rcv_finally_update_mb = round(rcv_finally_mb, 2)
-                                    self.down_flow_str.set(str(rcv_finally_update_mb) + 'MB/s')
-                                else:
-                                    self.down_flow_str.set(str(rcv_finally_update) + 'KB/s')
-                                # 计算上行行流量值总和
-                                snd_total += snd_finally_update
-                                # print('上行流量总和：' + str(snd_total))
-                                if 1024 <= snd_total < 1048576:  # 该表达式同等 snd_total >= 1024 and snd_total < 1048576
-                                    snd_total_mb = snd_total / 1024
-                                    snd_finally_update_mb = round(snd_total_mb, 2)
-                                    self.up_flow_total_str.set(str(round(snd_finally_update_mb, 2)) + 'MB')
-                                elif rcv_total > 1048576:
-                                    snd_total_gb = snd_total / 1024 / 1024
-                                    snd_finally_update_gb = round(snd_total_gb, 2)
-                                    self.up_flow_total_str.set(str(round(snd_finally_update_gb, 2)) + 'GB')
-                                else:
-                                    self.up_flow_total_str.set(str(round(snd_total, 2)) + 'KB')
-                                # 计算下行行流量值总和
-                                rcv_total += rcv_finally_update
-                                # print('下行流量总和：' + str(rcv_total))
-                                if 1024 <= rcv_total < 1048576:  # 该表达式同等 rcv_total >= 1024 and rcv_total < 1048576
-                                    rcv_total_mb = rcv_total / 1024
-                                    rcv_finally_update_mb = round(rcv_total_mb, 2)
-                                    self.down_flow_total_str.set(str(round(rcv_finally_update_mb,2)) + 'MB')
-                                elif rcv_total > 1048576:
-                                    rcv_total_gb = rcv_total / 1024 / 1024
-                                    rcv_finally_update_gb = round(rcv_total_gb, 2)
-                                    self.down_flow_total_str.set(str(round(rcv_finally_update_gb,2)) + 'GB')
-                                else:
-                                    self.down_flow_total_str.set(str(round(rcv_total,2)) + 'KB')
-                                if flow_exists == 0:
-                                    package_flag = False
-                                    print('flow_up_down检测线程已结束！')
+                while True:
+                    devices_type = open(devices_type_log, 'r').read()
+                    if devices_type != 'Android':
+                        print('进入Linux模式')
+                        # 初始化计算总和的变量
+                        rcv_total = 0
+                        snd_total = 0
+                        # flow_text_normal()
+                        # self.flow_text.insert(tkinter.END, '检测到非安卓设备，请使用安卓设备进行操作！\n')
+                        # self.flow_text.see(tkinter.END)
+                        # flow_text_disable()
+                        flow_text_normal()
+                        self.flow_text.insert(tkinter.END, '已检测到设备类型为Linux！\n')
+                        self.flow_text.see(tkinter.END)
+                        self.flow_text.insert(tkinter.END, '正在计算当前Linux设备流量值中...\n')
+                        self.flow_text.see(tkinter.END)
+                        flow_text_disable()
+                        try:
+                            while True:
+                                # print('----------------------------')
+                                device_state = public.device_connect()
+                                device = open(devices_log, 'r').read()
+                                if not device_state:
+                                    flow_text_normal()
+                                    self.flow_text.insert(tkinter.END, '设备突然断开连接，线程终止！\n')
+                                    self.flow_text.see(tkinter.END)
+                                    flow_text_disable()
                                     break
-                            except (UnboundLocalError,ValueError,TypeError):
-                                pass
-                    except tkinter.TclError:
-                        pass
+                                if devices_type_flag:
+                                    break
+                                flow_exists = self.flow_root.winfo_exists()
+                                try:
+                                    # 获取Linux设备的上行和下行
+                                    rcv_snd1 = public.execute_cmd('adb -s ' + device + ' shell grep "wlan0" /proc/net/dev')
+                                    rcv_snd_list1 = [i for i in rcv_snd1.strip().split(' ') if i != '']
+                                    # print(rcv_snd_list1) # 调试查看流量值获取结果
+                                    # 获取第一次的上行速度
+                                    snd1 = rcv_snd_list1[9]
+                                    # 获取第一次的下行速度
+                                    rcv1 = rcv_snd_list1[1]
+                                    time.sleep(1)
+                                    rcv_snd2 = public.execute_cmd('adb -s ' + device + ' shell grep "wlan0" /proc/net/dev')
+                                    rcv_snd_list2 = [i for i in rcv_snd2.strip().split(' ') if i != '']
+                                    # 获取第二次的上行速度
+                                    snd2 = rcv_snd_list2[9]
+                                    # 获取第二次的下行速度
+                                    rcv2 = rcv_snd_list2[1]
+                                    snd_finally = (int(snd2) - int(snd1)) / 1024
+                                    snd_finally_update = round(snd_finally, 2)
+                                    rcv_finally = (int(rcv2) - int(rcv1)) / 1024
+                                    rcv_finally_update = round(rcv_finally, 2)
+                                    if snd_finally_update >= 1024:
+                                        snd_finally_mb = snd_finally / 1024
+                                        snd_finally_update_mb = round(snd_finally_mb,2)
+                                        self.up_flow_str.set(str(snd_finally_update_mb) + 'MB/s')
+                                    else:
+                                        self.up_flow_str.set(str(snd_finally_update) + 'KB/s')
+                                    if rcv_finally_update >= 1024:
+                                        rcv_finally_mb = rcv_finally / 1024
+                                        rcv_finally_update_mb = round(rcv_finally_mb, 2)
+                                        self.down_flow_str.set(str(rcv_finally_update_mb) + 'MB/s')
+                                    else:
+                                        self.down_flow_str.set(str(rcv_finally_update) + 'KB/s')
+                                    # 计算上行行流量值总和
+                                    snd_total += snd_finally_update
+                                    # print('上行流量总和：' + str(snd_total))
+                                    if 1024 <= snd_total < 1048576:  # 该表达式同等 snd_total >= 1024 and snd_total < 1048576
+                                        snd_total_mb = snd_total / 1024
+                                        snd_finally_update_mb = round(snd_total_mb, 2)
+                                        self.up_flow_total_str.set(str(round(snd_finally_update_mb, 2)) + 'MB')
+                                    elif rcv_total > 1048576:
+                                        snd_total_gb = snd_total / 1024 / 1024
+                                        snd_finally_update_gb = round(snd_total_gb, 2)
+                                        self.up_flow_total_str.set(str(round(snd_finally_update_gb, 2)) + 'GB')
+                                    else:
+                                        self.up_flow_total_str.set(str(round(snd_total, 2)) + 'KB')
+                                    # 计算下行行流量值总和
+                                    rcv_total += rcv_finally_update
+                                    # print('下行流量总和：' + str(rcv_total))
+                                    if 1024 <= rcv_total < 1048576:  # 该表达式同等 rcv_total >= 1024 and rcv_total < 1048576
+                                        rcv_total_mb = rcv_total / 1024
+                                        rcv_finally_update_mb = round(rcv_total_mb, 2)
+                                        self.down_flow_total_str.set(str(round(rcv_finally_update_mb,2)) + 'MB')
+                                    elif rcv_total > 1048576:
+                                        rcv_total_gb = rcv_total / 1024 / 1024
+                                        rcv_finally_update_gb = round(rcv_total_gb, 2)
+                                        self.down_flow_total_str.set(str(round(rcv_finally_update_gb,2)) + 'GB')
+                                    else:
+                                        self.down_flow_total_str.set(str(round(rcv_total,2)) + 'KB')
+                                    if flow_exists == 0:
+                                        package_flag = False
+                                        print('flow_up_down检测线程已结束！')
+                                        break
+                                except (UnboundLocalError,ValueError,TypeError,IndexError):
+                                    pass
+                        except tkinter.TclError:
+                            pass
+                    else:
+                        print('进入安卓模式')
+                        # 初始化计算总和的变量
+                        rcv_total = 0
+                        snd_total = 0
+                        flow_text_normal()
+                        self.flow_text.insert(tkinter.END, '已检测到设备类型为Android（安卓）！\n')
+                        self.flow_text.see(tkinter.END)
+                        flow_text_disable()
+                        flow_text_normal()
+                        self.flow_text.insert(tkinter.END, '开始获取当前的应用包名...\n')
+                        self.flow_text.see(tkinter.END)
+                        flow_text_disable()
+                        try:
+                            while True:
+                                # print('+++++++++++++++++++++++')
+                                device_state = public.device_connect()
+                                device = open(devices_log, 'r').read()
+                                if not device_state:
+                                    flow_text_normal()
+                                    self.flow_text.insert(tkinter.END, '设备突然断开连接，线程终止！\n')
+                                    self.flow_text.see(tkinter.END)
+                                    flow_text_disable()
+                                    break
+                                if not devices_type_flag:
+                                    break
+                                if not package_flag:
+                                    try:
+                                        # 默认第一次必须执行
+                                        uid_result = get_pid_uid()
+                                        if not uid_result:
+                                            continue
+                                        package_flag = True
+                                    except AttributeError:
+                                        continue
+                                flow_exists = self.flow_root.winfo_exists()
+                                try:
+                                    # 获取第一次的上行速度
+                                    snd1 = public.execute_cmd('adb -s ' + device + ' shell cat /proc/uid_stat/' + uid_result + '/tcp_snd')
+                                    # 获取第一次的下行速度
+                                    rcv1 = public.execute_cmd('adb -s ' + device + ' shell cat /proc/uid_stat/' + uid_result + '/tcp_rcv')
+                                    time.sleep(1)
+                                    # 获取第二次的上行速度
+                                    snd2 = public.execute_cmd('adb -s ' + device + ' shell cat /proc/uid_stat/' + uid_result + '/tcp_snd')
+                                    # 获取第二次的下行速度
+                                    rcv2 = public.execute_cmd('adb -s ' + device + ' shell cat /proc/uid_stat/' + uid_result + '/tcp_rcv')
+                                    snd_finally = (int(snd2) - int(snd1)) / 1024
+                                    snd_finally_update = round(snd_finally, 2)
+                                    rcv_finally = (int(rcv2) - int(rcv1)) / 1024
+                                    rcv_finally_update = round(rcv_finally, 2)
+                                    if snd_finally_update >= 1024:
+                                        snd_finally_mb = snd_finally / 1024
+                                        snd_finally_update_mb = round(snd_finally_mb,2)
+                                        self.up_flow_str.set(str(snd_finally_update_mb) + 'MB/s')
+                                    else:
+                                        self.up_flow_str.set(str(snd_finally_update) + 'KB/s')
+                                    if rcv_finally_update >= 1024:
+                                        rcv_finally_mb = rcv_finally / 1024
+                                        rcv_finally_update_mb = round(rcv_finally_mb, 2)
+                                        self.down_flow_str.set(str(rcv_finally_update_mb) + 'MB/s')
+                                    else:
+                                        self.down_flow_str.set(str(rcv_finally_update) + 'KB/s')
+                                    # 计算上行行流量值总和
+                                    snd_total += snd_finally_update
+                                    # print('上行流量总和：' + str(snd_total))
+                                    if 1024 <= snd_total < 1048576:  # 该表达式同等 snd_total >= 1024 and snd_total < 1048576
+                                        snd_total_mb = snd_total / 1024
+                                        snd_finally_update_mb = round(snd_total_mb, 2)
+                                        self.up_flow_total_str.set(str(round(snd_finally_update_mb, 2)) + 'MB')
+                                    elif rcv_total > 1048576:
+                                        snd_total_gb = snd_total / 1024 / 1024
+                                        snd_finally_update_gb = round(snd_total_gb, 2)
+                                        self.up_flow_total_str.set(str(round(snd_finally_update_gb, 2)) + 'GB')
+                                    else:
+                                        self.up_flow_total_str.set(str(round(snd_total, 2)) + 'KB')
+                                    # 计算下行行流量值总和
+                                    rcv_total += rcv_finally_update
+                                    # print('下行流量总和：' + str(rcv_total))
+                                    if 1024 <= rcv_total < 1048576:  # 该表达式同等 rcv_total >= 1024 and rcv_total < 1048576
+                                        rcv_total_mb = rcv_total / 1024
+                                        rcv_finally_update_mb = round(rcv_total_mb, 2)
+                                        self.down_flow_total_str.set(str(round(rcv_finally_update_mb,2)) + 'MB')
+                                    elif rcv_total > 1048576:
+                                        rcv_total_gb = rcv_total / 1024 / 1024
+                                        rcv_finally_update_gb = round(rcv_total_gb, 2)
+                                        self.down_flow_total_str.set(str(round(rcv_finally_update_gb,2)) + 'GB')
+                                    else:
+                                        self.down_flow_total_str.set(str(round(rcv_total,2)) + 'KB')
+                                    if flow_exists == 0:
+                                        package_flag = False
+                                        print('flow_up_down检测线程已结束！')
+                                        break
+                                except (UnboundLocalError,ValueError,TypeError):
+                                    pass
+                        except tkinter.TclError:
+                            break
+                    if not device_state:
+                        print('主循环结束！')
+                        break
             try:
                 self.start_button_disbale.place_forget()
             except tkinter.TclError:
                 pass
 
         def t_package():
-            global package_flag
+            global package_flag,devices_type_flag
             # 实时检测当前包名
             with open(flow_package,'w') as fp:
                 fp.write('')
-            print('开始实时检测包名......')
             try:
                 while True:
                     device_state = public.device_connect()
                     if not device_state:
                         print('设备突然断开连接，线程终止！')
+                        self.up_flow_str.set('0KB/s')
+                        self.down_flow_str.set('0KB/s')
+                        self.up_flow_total_str.set('0')
+                        self.down_flow_total_str.set('0')
                         package_flag = False
                         break
+                    device = open(devices_log, 'r').read()
                     package_name = public.found_packages(device)
                     package_name_orgin = open(flow_package,'r').read()
+                    device_type = open(devices_type_log,'r').read()
                     flow_exists = self.flow_root.winfo_exists()
                     if package_name != package_name_orgin and package_flag and package_name_orgin != '' and package_name != ''\
                             and package_name:
@@ -312,9 +428,12 @@ class Flow_Screen(object):
                             public.stop_thread(t_flow_main)
                         except ValueError:
                             pass
-                        self.up_flow_str.set('0')
-                        self.down_flow_str.set('0')
                         break
+                    elif device_type != 'Android' and device_type != '' and devices_type_flag:
+                        devices_type_flag = False
+                    elif device_type == 'Android' and device_type != '' and not devices_type_flag:
+                        devices_type_flag = True
+                        package_flag = False
                     time.sleep(2)
             except tkinter.TclError:
                 pass
