@@ -1,6 +1,6 @@
 import os,getpass
 import sys
-import time,re,win32api,shutil,subprocess
+import time,re,win32api,shutil,subprocess,win32ui
 import public,pywinauto_adb
 import tkinter,tkinter.ttk,tkinter.messagebox,tkinter.filedialog
 import threading,ctypes
@@ -27,6 +27,7 @@ system_path = public.resource_path(os.path.join('resources','system'))
 username = getpass.getuser()
 # 创建临时文件夹
 make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
+make_dir_main = make_dir + 'make_dir\\'
 if not os.path.exists(make_dir):
     os.makedirs(make_dir)
 # 截图页面启动标志
@@ -48,6 +49,10 @@ linux_camera_count = make_dir + 'linux_camera_count.txt'
 Image_rotate_path = make_dir + 'linux_screen_rotate.txt'
 # 安装页面启动标志
 install_page = make_dir + 'install_page_state.txt'
+# 保存so库的文件路径
+so_file_path = make_dir_main + 'so_file_path.log'
+# 保存amr安装的文件路径
+amr_file_path = make_dir_main + 'amr_file_path.log'
 # 取图页面启动标志
 camera_page = make_dir + 'camera_page_state.txt'
 # 写号工具页面启动标志
@@ -94,8 +99,11 @@ def main_init(init_str,init_Button,init_Button_disable,device):
         init_Button.place(x=200, y=110)
 
 
-def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux_all_button_close,device):
+def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux_all_button_close,device,init_again_button_disable):
     def t_check_init():
+        init_Button_disable.place_forget()   # 避免创建过多的Button_disable
+        init_again_button_disable.place(x=20,y=110)
+        init_Button_disable.place(x=200, y=110)
         init_str.set('正在检测设备初始化状态...')
         # 打印设备类型判断标记flag
         print('devices_linux_flag = ' + str(devices_linux_flag))
@@ -103,7 +111,6 @@ def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux
         if not devices_state:
             init_str.set('请连接设备后再进行检测')
             init_Button.place_forget()
-            init_Button_disable.place(x=200, y=110)
             linux_all_button_close()
         else:
             # 延时1秒等待flag响应
@@ -112,7 +119,6 @@ def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux
             if not devices_linux_flag and device_type.strip() == 'Android':
                 init_str.set('您所连接的设备为Android\n无法使用Linux模式所有功能')
                 init_Button.place_forget()
-                init_Button_disable.place(x=200, y=110)
             else:
                 try:
                     # 中文状态下
@@ -130,13 +136,14 @@ def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux
                     print('出现IndexError,无需处理该异常，继续检测')
                     main_init(init_str, init_Button, init_Button_disable,device)
                     pass
+        init_again_button_disable.place_forget()
 
     t_check_init = threading.Thread(target=t_check_init)
     t_check_init.setDaemon(True)
     t_check_init.start()
 
 
-def devices_init(init_str,init_Button,init_Button_disable,device):
+def devices_init(init_str,init_Button,init_Button_disable,device,init_again_button_disable):
     def t_init():
         while True:
             devices_state = public.device_connect()
@@ -147,6 +154,7 @@ def devices_init(init_str,init_Button,init_Button_disable,device):
             else:
                 init_Button.place_forget()
                 init_Button_disable.place(x=200, y=110)
+                init_again_button_disable.place(x=20, y=110)
                 # 检测只读系统
                 check_only_read = public.execute_cmd('adb -s ' + device + ' shell ls -lh /data/.overlay')
                 only_read = ' '.join(check_only_read.split()).split(':')[-1]
@@ -160,6 +168,7 @@ def devices_init(init_str,init_Button,init_Button_disable,device):
                     continue
                 else:
                     init_str.set('设备系统已获取权限\n设备初始化完成')
+                    init_again_button_disable.place_forget()
                     break
 
         time.sleep(2)
@@ -515,6 +524,11 @@ class Linux_Install(object):
         self.install_library_entry = tkinter.Entry(self.install_root,textvariable=self.install_library_entry_str,width=40,highlightcolor='red'
                                            ,highlightthickness=5,validate="focusin")
         self.install_library_entry.place(x=60,y=60)
+        if not os.path.exists(so_file_path):
+            with open(so_file_path, 'w') as fp:
+                fp.write('')
+        so_path_str = open(so_file_path,'r').read()
+        self.install_library_entry_str.set(so_path_str)
         # 获取焦点时的标记提醒
         self.install_library_entry.bind("<FocusIn>", lambda x:self.install_library_entry_flag())
 
@@ -528,6 +542,11 @@ class Linux_Install(object):
                                                    width=40, highlightcolor='green',validate="focusin"
                                                    , highlightthickness=5)
         self.install_software_entry.place(x=60, y=90)
+        if not os.path.exists(amr_file_path):
+            with open(amr_file_path, 'w') as fp:
+                fp.write('')
+        amr_path_str = open(amr_file_path,'r').read()
+        self.install_software_entry_str.set(amr_path_str)
         # 获取焦点时的标记提醒
         self.install_software_entry.bind("<FocusIn>", lambda x: self.install_software_entry_flag())
         # 设置默认焦点
@@ -660,16 +679,25 @@ class Linux_Install(object):
             # 打开库文件代码
             self.open_library_button_disable.place(x=358,y=60)
             self.open_software_button_disable.place(x=358, y=90)
-            library_file = tkinter.filedialog.askopenfile(mode='r', filetypes=[('So Files', '*.so')], title='选择库安装文件')
+            # library_file = tkinter.filedialog.askopenfile(mode='r', filetypes=[('So Files', '*.so')], title='选择库安装文件')
             # print('获取地址：' + str(library_file))
-            library_file_string = str(library_file)
-            if not library_file:
+            soFilter = "SO Files (*.so)|*.so|"  # so文件过滤
+            dlg = win32ui.CreateFileDialog(True, "csv", None, 0x04 | 0x02, soFilter)  # True表示打开文件对话框，0或False表示另存为对话框
+            so_path = open(so_file_path,'r').read()
+            so_file = '\\'.join(so_path.split('\\')[:-1])  # 只获取目录地址（不包含具体文件）
+            dlg.SetOFNInitialDir(so_file)  # 设置打开文件对话框中的初始显示目录
+            # library_file_string = str(library_file)
+            dlg.DoModal()  # 显示文件选择框
+            library_file = dlg.GetPathName()  # 获取选择的文件名称
+            if library_file == '':
                 self.install_str.set('没有成功选择库文件\n请重新选择库文件')
             else:
                 # replace('/','\\')替换路径符号，提高最准确无误的文件绝对路径
-                library_file_finally = eval(library_file_string.split()[1].split('=')[1]).replace('/','\\')
-                self.install_library_entry_str.set(library_file_finally)
-                print('获取地址：' + str(library_file_finally))
+                # library_file_finally = eval(library_file_string.split()[1].split('=')[1]).replace('/','\\')
+                self.install_library_entry_str.set(library_file)
+                print('获取地址：' + str(library_file))
+                with open(so_file_path,'w') as fp:
+                    fp.write(library_file)  # 保存路径
             self.open_library_button_disable.place_forget()
             self.open_software_button_disable.place_forget()
 
@@ -682,18 +710,27 @@ class Linux_Install(object):
             # 打开应用包文件代码
             self.open_library_button_disable.place(x=358, y=60)
             self.open_software_button_disable.place(x=358,y=90)
-            software_file = tkinter.filedialog.askopenfile(mode='r', filetypes=[('Amr Files', '*.amr')], title='选择应用包安装文件')
-            software_file_string = str(software_file)
-            print(software_file_string)
-            if not software_file:
+            # software_file = tkinter.filedialog.askopenfile(mode='r', filetypes=[('Amr Files', '*.amr')], title='选择应用包安装文件')
+            # software_file_string = str(software_file)
+            # print(software_file_string)
+            amrFilter = "AMR Files (*.amr)|*.amr|"  # so文件过滤
+            dlg = win32ui.CreateFileDialog(True, "csv", None, 0x04 | 0x02, amrFilter)  # True表示打开文件对话框，0或False表示另存为对话框
+            amr_path = open(amr_file_path, 'r').read()
+            amr_file = '\\'.join(amr_path.split('\\')[:-1])  # 只获取目录地址（不包含具体文件）
+            dlg.SetOFNInitialDir(amr_file)  # 设置打开文件对话框中的初始显示目录
+            dlg.DoModal()  # 显示文件选择框
+            software_file = dlg.GetPathName()  # 获取选择的文件名称
+            if software_file == '':
                 self.install_str.set('没有成功选择应用包文件\n请重新选择应用包文件')
             else:
-                try:
-                    software_file_finally = eval(software_file_string.split()[1].split('=')[1]).replace('/','\\')
-                except SyntaxError:
-                    software_file_finally = software_file_string.split("'")[1]
-                self.install_software_entry_str.set(software_file_finally)
-                print(software_file_finally)
+                # try:
+                #     software_file_finally = eval(software_file_string.split()[1].split('=')[1]).replace('/','\\')
+                # except SyntaxError:
+                #     software_file_finally = software_file_string.split("'")[1]
+                self.install_software_entry_str.set(software_file)
+                with open(amr_file_path,'w') as fp:
+                    fp.write(software_file)  # 保存路径
+                # print(software_file_finally)
             self.open_software_button_disable.place_forget()
             self.open_library_button_disable.place_forget()
 
@@ -1159,7 +1196,7 @@ class Linux_WriteNumber(object):
         x = (screenWidth - w) / 2
         y = (screenHeight - h) / 2
         self.write_number_root.geometry('%dx%d+%d+%d' % (w, h, x, y))
-        self.write_number_root.geometry('%dx%d' % (w, h))
+        # self.write_number_root.geometry('%dx%d' % (w, h))
         self.write_number_root.iconbitmap(LOGO_path)
         self.write_number_root.resizable(0, 0)
         self.write_number_root.wm_attributes('-topmost', 1)
@@ -1250,10 +1287,10 @@ class Linux_WriteNumber(object):
         self.write_SN_entry.insert(0, '请输入<SN号>')
         self.write_SN_entry.config(command=self.write_SN_entry_bind())
 
-        # 写号单选按钮
-        self.write_15_str = tkinter.IntVar()
-        self.write_15_radio_button = tkinter.Radiobutton(self.write_number_root, text='15位数', variable=self.write_15_str, value=0)
-        self.write_15_radio_button.place(x=170, y=293)
+        # # 写号单选按钮
+        # self.write_15_str = tkinter.IntVar()
+        # self.write_15_radio_button = tkinter.Radiobutton(self.write_number_root, text='15位数', variable=self.write_15_str, value=0)
+        # self.write_15_radio_button.place(x=170, y=293)
 
         # 写号按钮
         self.write_SN_button = tkinter.Button(self.write_number_root, text='开始写号',width=20)
@@ -1291,7 +1328,7 @@ class Linux_WriteNumber(object):
                         self.write_mac_entry.bind('<FocusOut>', lambda x: entry_pass())
                     else:
                         self.write_mac_entry.bind('<FocusIn>', lambda x: self.write_mac_entry.delete(0, tkinter.END))
-                        self.write_mac_entry.bind('<FocusOut>', lambda x: self.write_mac_entry.insert(0, '请输入<wifi mac地址>'))
+                        self.write_mac_entry.bind('<FocusOut>', lambda x: self.write_mac_entry_str.set('请输入<wifi mac地址>'))
                     time.sleep(1)
             except tkinter.TclError:
                 print('退出警告，可忽略此消息')
@@ -1317,7 +1354,7 @@ class Linux_WriteNumber(object):
                         self.write_secretkey_entry.bind('<FocusIn>',
                                                         lambda x: self.write_secretkey_entry.delete(0, tkinter.END))
                         self.write_secretkey_entry.bind('<FocusOut>',
-                                                        lambda x: self.write_secretkey_entry.insert(0, '请输入<三元组>'))
+                                                        lambda x: self.write_secretkey_entry_str.set('请输入<三元组>'))
                     time.sleep(1)
             except tkinter.TclError:
                 pass
@@ -1343,7 +1380,7 @@ class Linux_WriteNumber(object):
                         self.write_md5_entry.bind('<FocusIn>',
                                                         lambda x: self.write_md5_entry.delete(0, tkinter.END))
                         self.write_md5_entry.bind('<FocusOut>',
-                                                        lambda x: self.write_md5_entry.insert(0, '请输入<md5>'))
+                                                        lambda x: self.write_md5_entry_str.set('请输入<md5>'))
                     time.sleep(1)
             except tkinter.TclError:
                 pass
@@ -1377,7 +1414,7 @@ class Linux_WriteNumber(object):
                         self.write_SN_entry.bind('<FocusIn>',
                                                         lambda x: self.write_SN_entry.delete(0, tkinter.END))
                         self.write_SN_entry.bind('<FocusOut>',
-                                                        lambda x: self.write_SN_entry.insert(0, '请输入<SN号>'))
+                                                        lambda x: self.write_SN_entry_str.set('请输入<SN号>'))
                     time.sleep(1)
             except tkinter.TclError:
                 pass
@@ -1485,29 +1522,29 @@ class Linux_WriteNumber(object):
                         if SN in SN_list and SN == sn_read:
                             self.write_number_str.set(SN + '已被当前设备写入\n请看右侧列表查看对应设备MAC')
                         else:
-                            if self.write_15_str.get() == 0:
-                                # 15位数
-                                print('监听 15位数 选项')
-                                if len(SN) == 15:
-                                    self.write_number_str.set('正在为设备写入\n' + SN)
-                                    SN_result = public.execute_cmd('adb -s ' + device + ' shell factory ATE_SET_SN ' + SN)
-                                    print(SN_result)
-                                    with open(SN_result_path,'w') as fp:
-                                        fp.write(SN_result)
-                                    public.execute_cmd('adb -s ' + device + ' push ' + SN_result_path + ' /data')
-                                    success = public.execute_cmd('adb -s ' + device + ' shell grep "SUCCESS" /data/SN_result.log')
-                                    print(success)
-                                    if success.strip() == 'SUCCESS':
-                                        write_SN_save(SN)
-                                        self.write_number_str.set('正在清理数据缓存并重启...')
-                                        # SN号写入后需要重新激活才会有效，否则无法绑定设备
-                                        public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/miniapp/data')
-                                        public.execute_cmd('adb -s ' + device + ' shell reboot')
-                                        self.write_number_str.set(SN + '\n已被成功写入！！！')
-                                    else:
-                                        self.write_number_str.set('写号失败！！！\n请重新输入再试试')
-                                else:
-                                    self.write_number_str.set('你输入的SN号不合法！！！')
+                            # if self.write_15_str.get() == 0:
+                            #     # 15位数
+                            #     print('监听 15位数 选项')
+                            #     if len(SN) == 15:
+                            self.write_number_str.set('正在为设备写入\n' + SN)
+                            SN_result = public.execute_cmd('adb -s ' + device + ' shell factory ATE_SET_SN ' + SN)
+                            print(SN_result)
+                            with open(SN_result_path,'w') as fp:
+                                fp.write(SN_result)
+                            public.execute_cmd('adb -s ' + device + ' push ' + SN_result_path + ' /data')
+                            success = public.execute_cmd('adb -s ' + device + ' shell grep "SUCCESS" /data/SN_result.log')
+                            print(success)
+                            if success.strip() == 'SUCCESS':
+                                write_SN_save(SN)
+                                self.write_number_str.set('正在清理数据缓存并重启...')
+                                # SN号写入后需要重新激活才会有效，否则无法绑定设备
+                                public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/miniapp/data')
+                                public.execute_cmd('adb -s ' + device + ' shell reboot')
+                                self.write_number_str.set(SN + '\n已被成功写入！！！')
+                            else:
+                                self.write_number_str.set('写号失败！！！\n请重新输入再试试')
+                                # else:
+                                #     self.write_number_str.set('你输入的SN号不合法！！！')
             self.write_SN_button_disable.place_forget()
 
         t_write_SN = threading.Thread(target=t_write_SN)
@@ -1523,7 +1560,7 @@ class Linux_Log(object):
         # screenWidth = self.log_root.winfo_screenwidth()
         # screenHeight = self.log_root.winfo_screenheight()
         w = 310
-        h = 250
+        h = 300
         # x = (screenWidth - w) / 2
         # y = (screenHeight - h) / 2
         # self.log_root.geometry('%dx%d+%d+%d' % (w, h, x, y))
@@ -1596,6 +1633,13 @@ class Linux_Log(object):
         self.reset_syslog_button_disable = tkinter.Button(self.log_root, text='正在重置日志文件夹...', width=30)
         self.reset_syslog_button_disable.config(state='disable')
         self.reset_syslog_button.place(x=50, y=200)
+
+        # 一键获取yuv_data（OCR图片）按钮
+        self.yuv_data_button = tkinter.Button(self.log_root, text='一键获取yuv_data', width=30)
+        self.yuv_data_button.bind('<Button-1>', lambda x: self.yuv_data_bind(device))
+        self.yuv_data_button_disable = tkinter.Button(self.log_root, text='正在获取yuv_data...', width=30)
+        self.yuv_data_button_disable.config(state='disable')
+        self.yuv_data_button.place(x=50, y=235)
 
     def get_crash_reports_bind(self,device):
         def t_get_crash_reports():
@@ -1750,4 +1794,33 @@ class Linux_Log(object):
         t_reset_syslog = threading.Thread(target=t_reset_syslog)
         t_reset_syslog.setDaemon(True)
         t_reset_syslog.start()
+
+    def yuv_data_bind(self,device):
+        def t_yuv_data():
+            # 一键重置日志文件夹
+            self.yuv_data_button_disable.place(x=50, y=235)
+            devices_state = public.device_connect()
+            self.get_log_str.set('正在获取yuv_data中...')
+            if not devices_state:
+                self.get_log_str.set('检测到没有连接到设备\n请连接设备后再使用本功能')
+            else:
+                yuv_data_dir = linux_log_path + 'yuv_data'
+                if not os.path.exists(yuv_data_dir):
+                    os.makedirs(yuv_data_dir)
+                now = time.localtime()
+                now_time = time.strftime("%Y-%m-%d_%H%M%S", now)
+                yuv_data_result = public.execute_cmd(
+                    'adb -s ' + device + ' pull /tmp/yuv_data ' + yuv_data_dir + '\\yuv_data-' + now_time)
+                print('yuv_data获取结果：' + yuv_data_result)
+                crash_reports_result_str = yuv_data_result.split(':')[-1].strip()
+                if crash_reports_result_str == "remote object '/tmp/yuv_data' does not exist":
+                    self.get_log_str.set('没有找到yuv_data\n无需保存文件！')
+                else:
+                    self.get_log_str.set('OCR图片yuv_data已保存！文件保存在:\n 桌面\\' + linux_dirname_log + '\\yuv_data')
+            self.yuv_data_button_disable.place_forget()
+
+        t_yuv_data = threading.Thread(target=t_yuv_data)
+        t_yuv_data.setDaemon(True)
+        t_yuv_data.start()
+
 

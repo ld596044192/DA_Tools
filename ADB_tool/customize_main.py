@@ -1,7 +1,7 @@
 import os,getpass
 import sys
-import time,re,win32api,shutil,subprocess
-import public,pywinauto_adb
+import time,re,win32api,shutil,subprocess,win32ui
+import public,windnd
 import tkinter,tkinter.ttk,tkinter.messagebox,tkinter.filedialog
 import threading,ctypes
 
@@ -11,12 +11,17 @@ flow_package_log = public.resource_path(os.path.join('temp','flow_package_log.tx
 devices_type_log = public.resource_path(os.path.join('temp','devices_type_log.txt'))  # 记录设备类型
 username = getpass.getuser()
 make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
+path_page = make_dir + 'path_page\\'
 # 实时保存设备序列号
 devices_log = make_dir + 'devices.log'
+# md5和大小路径保存
+md5_size_path = path_page + 'md5_size_path.log'
 # 判断当前包名是否一致标记
 package_flag = False
 # 判断当前设备类型是否更换标记
 devices_type_flag = False
+if not os.path.exists(path_page):
+    os.makedirs(path_page)
 
 
 # 查询应用流量值工具界面
@@ -100,11 +105,20 @@ class Flow_Screen(object):
         self.down_flow_total_str.set('0')
 
         # 启动流量检测按钮
-        self.start_button = tkinter.Button(self.flow_root,width=15,text='开始检测流量')
-        self.start_button_disbale = tkinter.Button(self.flow_root,width=15,text='正在检测中...')
+        self.start_button = tkinter.Button(self.flow_root,width=12,text='开始检测流量')
+        self.start_button_disbale = tkinter.Button(self.flow_root,width=12,text='正在检测中...')
         self.start_button_disbale.config(state='disable')
         self.start_button.bind('<Button-1>',lambda x:self.flow_main())
-        self.start_button.place(x=130,y=100)
+        self.start_button.place(x=30,y=102)
+
+        # 暂停流量检测按钮
+        self.stop_button = tkinter.Button(self.flow_root, width=12, text='停止检测')
+        self.stop_button_disbale = tkinter.Button(self.flow_root, width=12, text='停止检测')
+        self.stopping_button_disbale = tkinter.Button(self.flow_root, width=12, text='正在停止...')
+        self.stop_button_disbale.config(state='disable')
+        self.stopping_button_disbale.config(state='disable')
+        self.stop_button.bind('<Button-1>', lambda x: self.flow_stop_bind())
+        self.stop_button_disbale.place(x=240, y=102)
 
         # 日志记录显示
         self.flow_frame = tkinter.Frame(self.flow_root,width=400,height=150)
@@ -117,6 +131,27 @@ class Flow_Screen(object):
         self.flow_text.pack()
         self.flow_frame.place(x=20,y=135)
 
+    def flow_stop_bind(self):
+        def t_flow_stop():
+            # 停止检测流量
+            global flow_stop_flag
+            self.stopping_button_disbale.place(x=240,y=102)
+            self.flow_text.config(state='normal')
+            self.flow_text.insert(tkinter.END, '已手动中断线程，结束检测流量！\n')
+            self.flow_text.see(tkinter.END)
+            self.flow_text.config(state='disable')
+            flow_stop_flag = True
+            time.sleep(2)  # 延时设置避免未重置数值
+            self.up_flow_str.set('0KB/s')
+            self.down_flow_str.set('0KB/s')
+            self.up_flow_total_str.set('0')
+            self.down_flow_total_str.set('0')
+            return flow_stop_flag
+
+        t_flow_stop = threading.Thread(target=t_flow_stop)
+        t_flow_stop.setDaemon = True
+        t_flow_stop.start()
+
     def flow_main(self):
         def flow_text_normal():
             self.flow_text.config(state='normal')
@@ -124,7 +159,7 @@ class Flow_Screen(object):
         def flow_text_disable():
             self.flow_text.config(state='disable')
 
-        def get_pid_uid():
+        def get_pid():
             global package_flag
             # 获取包名及Uid
             # 获取当前应用的包名
@@ -159,23 +194,26 @@ class Flow_Screen(object):
                     flow_text_normal()
                     self.flow_text.insert(tkinter.END, package_name + '获取的pid：' + pid_result + '\n')
                     self.flow_text.see(tkinter.END)
-                    flow_text_disable()
-                    # 获取包名的uid
-                    uid_result_status = public.execute_cmd('adb -s ' + device + ' shell cat /proc/' + pid_result + '/status')
-                    uid_result_re = re.findall('Uid.*?(\d+).*?', uid_result_status)
-                    uid_result = ''.join(uid_result_re)
-                    flow_text_normal()
-                    self.flow_text.insert(tkinter.END, package_name + '获取的Uid：' + uid_result + '\n')
-                    self.flow_text.see(tkinter.END)
+                    # flow_text_disable()
+                    # # 获取包名的uid
+                    # uid_result_status = public.execute_cmd('adb -s ' + device + ' shell cat /proc/' + pid_result + '/status')
+                    # uid_result_re = re.findall('Uid.*?(\d+).*?', uid_result_status)
+                    # uid_result = ''.join(uid_result_re)
+                    # flow_text_normal()
+                    # self.flow_text.insert(tkinter.END, package_name + '获取的Uid：' + uid_result + '\n')
+                    # self.flow_text.see(tkinter.END)
                     self.flow_text.insert(tkinter.END, '正在计算当前应用流量值中...\n')
                     self.flow_text.see(tkinter.END)
                     flow_text_disable()
-                    return uid_result
+                    return pid_result
 
         def t_flow_main():
-            global package_flag,devices_type_flag
+            global package_flag,devices_type_flag,flow_stop_flag
+            flow_stop_flag = False  # 暂停标识
             # 查询流量主要逻辑
-            self.start_button_disbale.place(x=130,y=100)
+            self.start_button_disbale.place(x=30,y=102)
+            self.stop_button_disbale.place_forget()
+            self.stop_button.place(x=240,y=102)
             with open(flow_package,'w') as fp:
                 fp.write('')
             # 开始输入内容前需要编辑
@@ -219,7 +257,7 @@ class Flow_Screen(object):
                                     self.flow_text.see(tkinter.END)
                                     flow_text_disable()
                                     break
-                                if devices_type_flag:
+                                if devices_type_flag or flow_stop_flag:
                                     break
                                 flow_exists = self.flow_root.winfo_exists()
                                 try:
@@ -312,35 +350,43 @@ class Flow_Screen(object):
                                     self.flow_text.see(tkinter.END)
                                     flow_text_disable()
                                     break
-                                if not devices_type_flag:
+                                if not devices_type_flag or flow_stop_flag:
                                     break
                                 if not package_flag:
                                     try:
                                         # 默认第一次必须执行
-                                        uid_result = get_pid_uid()
-                                        if not uid_result:
+                                        pid_result = get_pid()
+                                        if not pid_result:
                                             continue
                                         package_flag = True
                                     except AttributeError:
                                         continue
                                 flow_exists = self.flow_root.winfo_exists()
                                 try:
+                                    # 获取Linux设备的上行和下行
+                                    rcv_snd1 = public.execute_cmd(
+                                        'adb -s ' + device + ' shell grep "wlan0" /proc/' + pid_result + '/net/dev')
+                                    rcv_snd_list1 = [i for i in rcv_snd1.strip().split(' ') if i != '']
+                                    # print(rcv_snd_list1) # 调试查看流量值获取结果
                                     # 获取第一次的上行速度
-                                    snd1 = public.execute_cmd('adb -s ' + device + ' shell cat /proc/uid_stat/' + uid_result + '/tcp_snd')
+                                    snd1 = rcv_snd_list1[9]
                                     # 获取第一次的下行速度
-                                    rcv1 = public.execute_cmd('adb -s ' + device + ' shell cat /proc/uid_stat/' + uid_result + '/tcp_rcv')
+                                    rcv1 = rcv_snd_list1[1]
                                     time.sleep(1)
+                                    rcv_snd2 = public.execute_cmd(
+                                        'adb -s ' + device + ' shell grep "wlan0" /proc/' + pid_result + '/net/dev')
+                                    rcv_snd_list2 = [i for i in rcv_snd2.strip().split(' ') if i != '']
                                     # 获取第二次的上行速度
-                                    snd2 = public.execute_cmd('adb -s ' + device + ' shell cat /proc/uid_stat/' + uid_result + '/tcp_snd')
+                                    snd2 = rcv_snd_list2[9]
                                     # 获取第二次的下行速度
-                                    rcv2 = public.execute_cmd('adb -s ' + device + ' shell cat /proc/uid_stat/' + uid_result + '/tcp_rcv')
+                                    rcv2 = rcv_snd_list2[1]
                                     snd_finally = (int(snd2) - int(snd1)) / 1024
                                     snd_finally_update = round(snd_finally, 2)
                                     rcv_finally = (int(rcv2) - int(rcv1)) / 1024
                                     rcv_finally_update = round(rcv_finally, 2)
                                     if snd_finally_update >= 1024:
                                         snd_finally_mb = snd_finally / 1024
-                                        snd_finally_update_mb = round(snd_finally_mb,2)
+                                        snd_finally_update_mb = round(snd_finally_mb, 2)
                                         self.up_flow_str.set(str(snd_finally_update_mb) + 'MB/s')
                                     else:
                                         self.up_flow_str.set(str(snd_finally_update) + 'KB/s')
@@ -369,26 +415,29 @@ class Flow_Screen(object):
                                     if 1024 <= rcv_total < 1048576:  # 该表达式同等 rcv_total >= 1024 and rcv_total < 1048576
                                         rcv_total_mb = rcv_total / 1024
                                         rcv_finally_update_mb = round(rcv_total_mb, 2)
-                                        self.down_flow_total_str.set(str(round(rcv_finally_update_mb,2)) + 'MB')
+                                        self.down_flow_total_str.set(str(round(rcv_finally_update_mb, 2)) + 'MB')
                                     elif rcv_total > 1048576:
                                         rcv_total_gb = rcv_total / 1024 / 1024
                                         rcv_finally_update_gb = round(rcv_total_gb, 2)
-                                        self.down_flow_total_str.set(str(round(rcv_finally_update_gb,2)) + 'GB')
+                                        self.down_flow_total_str.set(str(round(rcv_finally_update_gb, 2)) + 'GB')
                                     else:
-                                        self.down_flow_total_str.set(str(round(rcv_total,2)) + 'KB')
+                                        self.down_flow_total_str.set(str(round(rcv_total, 2)) + 'KB')
                                     if flow_exists == 0:
                                         package_flag = False
                                         print('flow_up_down检测线程已结束！')
                                         break
-                                except (UnboundLocalError,ValueError,TypeError):
+                                except (UnboundLocalError, ValueError, TypeError, IndexError):
                                     pass
                         except tkinter.TclError:
                             break
-                    if not device_state:
+                    if not device_state or flow_stop_flag:
                         print('主循环结束！')
                         break
             try:
                 self.start_button_disbale.place_forget()
+                self.stop_button.place_forget()
+                self.stopping_button_disbale.place_forget()
+                self.stop_button_disbale.place(x=240,y=102)
             except tkinter.TclError:
                 pass
 
@@ -445,3 +494,130 @@ class Flow_Screen(object):
         t_package = threading.Thread(target=t_package)
         t_package.setDaemon(True)
         t_package.start()
+
+
+# 获取文件MD5和大小页面
+class MD5_Screen(object):
+    def md5_size_form(self,md5_size_Button,md5_size_Button_disable):
+        self.md5_size_root = tkinter.Toplevel()
+        self.md5_size_root.title('文件MD5大小计算工具')
+        screenWidth = self.md5_size_root.winfo_screenwidth()
+        screenHeight = self.md5_size_root.winfo_screenheight()
+        w = 500
+        h = 400
+        x = (screenWidth - w) / 2
+        y = (screenHeight - h) / 2
+        self.md5_size_root.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        # self.md5_size_root.geometry('%dx%d' % (w, h))
+        self.md5_size_root.iconbitmap(LOGO_path)
+        self.md5_size_root.resizable(0, 0)
+        self.md5_size_root.wm_attributes('-topmost', 1)
+
+        self.md5_size_startup(md5_size_Button,md5_size_Button_disable)
+
+        self.md5_size_root.protocol('WM_DELETE_WINDOW',self.close_handle)
+        self.main_frame()
+        # self.device_monitor(init_str)
+
+        return self.md5_size_root
+
+    def md5_size_startup(self,md5_size_Button,md5_size_Button_disable):
+        # 监听截图页面的打开状态
+        md5_size_exists = self.md5_size_root.winfo_exists()
+        print(md5_size_exists)
+        if md5_size_exists == 1:
+            md5_size_Button.place_forget()
+            md5_size_Button_disable.place(x=200, y=20)
+
+    def close_handle(self):
+        # 监听页面消失
+        with open(public.md5_size_page(),'w') as fp:
+            fp.write('0')
+        self.md5_size_root.destroy()
+
+    def count_md5_size(self):
+        def t_count_md5():
+            # 计算文件MD5和大小
+            self.md5_size_entry.config(state='disable')
+            file_size_result = os.stat(self.md5_size_str.get()).st_size
+            if file_size_result >= 524288000:  # 文件大于500MB的采取大文件md5获取
+                self.md5_size_text.insert(tkinter.END,'\n-----------------------------')
+                self.md5_size_text.insert(tkinter.END,'\n该文件大于500MB，采取分块计算，将会消耗一些时间，请耐心等待...')
+                self.md5_size_text.insert(tkinter.END,'\n（计算MD5值期间不能复制粘贴修改等操作）')
+                self.md5_size_text.insert(tkinter.END,'\n-----------------------------')
+                self.md5_size_text.see(tkinter.END)
+                self.md5_size_text.config(state='disable')
+                file_md5 = public.bigger_file_md5(self.md5_size_str.get())
+                self.md5_size_text.see(tkinter.END)
+                self.md5_size_text.config(state='normal')
+            else:
+                file_md5 = public.file_md5(self.md5_size_str.get())
+            file_size = round(file_size_result / 1024 / 1024, 2)
+            self.md5_size_text.insert(tkinter.END,'\n' + self.md5_size_str.get() + '\nmd5值：' + file_md5 + '\n文件大小：' +
+                                      str(file_size_result) + ' 字节 (' + str(file_size) + 'MB)')
+            self.md5_size_text.insert(tkinter.END, '\n-----------------------------')
+            self.md5_size_entry.config(state='normal')
+            self.md5_size_text.see(tkinter.END)
+
+        t_count_md5 = threading.Thread(target=t_count_md5)
+        t_count_md5.setDaemon(True)
+        t_count_md5.start()
+
+    def main_frame(self):
+        # 上传文件获取路径
+        self.md5_size_str = tkinter.StringVar()
+        self.md5_size_entry = tkinter.Entry(self.md5_size_root,width=50, highlightcolor='#87CEFA',
+                                            textvariable=self.md5_size_str, highlightthickness=5)
+        self.md5_size_entry.place(x=20,y=20)
+        if not os.path.exists(md5_size_path):
+            with open(md5_size_path, 'w') as fp:
+                fp.write('')
+        path_msg = open(md5_size_path, 'r').read()
+        self.md5_size_str.set(path_msg)
+
+        # 浏览文件
+        self.md5_size_button = tkinter.Button(self.md5_size_root,text='浏览',width=5)
+        self.md5_size_button.bind('<Button-1>',lambda x:self.md5_size_button_bind())
+        self.md5_size_button_disable = tkinter.Button(self.md5_size_root,text='浏览',width=5)
+        self.md5_size_button_disable.config(state='disable')
+        self.md5_size_button.place(x=400,y=20)
+
+        # 文件MD5和大小显示
+        self.md5_size_frame = tkinter.Frame(self.md5_size_root, width=500, height=200)
+        self.md5_size_scrollbar = tkinter.Scrollbar(self.md5_size_frame)
+        self.md5_size_text = tkinter.Text(self.md5_size_frame, yscrollcommand=(self.md5_size_scrollbar.set), width=53, height=15,
+                                      font=('宋体', 13))
+        self.md5_size_scrollbar.config(command=self.md5_size_text.yview)
+        self.md5_size_scrollbar.pack(side=(tkinter.RIGHT), fill=(tkinter.Y))
+        # self.md5_size_text.config(state='disable')  # 设为disable防止Text多行文本框能被点击
+        self.md5_size_text.pack()
+        self.md5_size_text.insert(tkinter.END, '请点击浏览文件，打开后自动计算文件MD5和大小！')
+        self.md5_size_frame.place(y=70)
+
+    def md5_size_button_bind(self):
+        def t_md5_size_button():
+            # 浏览文件（不限类型）
+            self.md5_size_button_disable.place(x=400,y=20)
+            self.md5_size_entry.config(state='disable')
+            path_msg = open(md5_size_path, 'r').read()
+            path_msg_finally = '\\'.join(path_msg.split('\\')[:-1])
+            dlg = win32ui.CreateFileDialog(True, "csv", None, 0x04 | 0x02)
+            dlg.SetOFNInitialDir(path_msg_finally)
+            self.md5_size_root.wm_attributes('-topmost', 0)
+            dlg.DoModal()  # 显示文件选择框
+            file_path_file = dlg.GetPathName()  # 获取选择的文件名称
+            if file_path_file == '':
+                self.md5_size_entry.config(state='normal')
+                self.md5_size_text.config(state='normal')
+                pass
+            else:
+                self.md5_size_str.set(file_path_file)
+                with open(md5_size_path, 'w') as fp:
+                    fp.write(file_path_file)
+                self.count_md5_size()  # 记录文件MD5和大小
+            self.md5_size_root.wm_attributes('-topmost', 1)
+            self.md5_size_button_disable.place_forget()
+
+        t_md5_size_button = threading.Thread(target=t_md5_size_button)
+        t_md5_size_button.setDaemon(True)
+        t_md5_size_button.start()

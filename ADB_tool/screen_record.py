@@ -64,6 +64,8 @@ def main_screenshots(touch_name,device):
     # 截图
     f = int(open(count_path, 'r').read())
     f += 1
+    # 截图前自动亮屏（防止截取的是空白或黑屏图）
+    public.execute_cmd('adb -s ' + device + ' shell input keyevent 224')
     public.execute_cmd('adb -s ' + device + ' shell screencap -p /sdcard/da_screenshots/' + touch_name + '（' + str(f) + '）' + '.png')
     # 默认等待2S，防止截图不完整
     time.sleep(2)
@@ -74,12 +76,18 @@ def main_screenshots(touch_name,device):
         fp.write(str(f))
     fp.close()
     # 删除截图缓存（减少占用空间）
-    public.execute_cmd('adb -s ' + device + ' shell rm -r /sdcard/da_screenshots/*.png')
-    screenshot_success = '截图成功！文件保存在:\n ' + save_path + dirname + '\\' + touch_name + '（' + str(f) + '）' + '.png'
-    # 超出显示范围状态提示处理
-    if len(screenshot_success) > 58:
-        screenshot_success = '截图成功！文件保存在:\n 桌面\\' + dirname + '\\' + touch_name + '（' + str(f) + '）' + '.png'
-    return screenshot_success
+    result = public.execute_cmd('adb -s ' + device + ' shell rm -r /sdcard/da_screenshots/*.png')
+    screenshots_result = result.split(':')[-1].strip()
+    if screenshots_result == "device '" + device + "' not found":
+        f -= 1
+        screenshot_success = '截图失败！文件无法正常保存'
+        return screenshot_success
+    else:
+        screenshot_success = '截图成功！文件保存在:\n ' + save_path + dirname + '\\' + touch_name + '（' + str(f) + '）' + '.png'
+        # 超出显示范围状态提示处理
+        if len(screenshot_success) > 58:
+            screenshot_success = '截图成功！文件保存在:\n 桌面\\' + dirname + '\\' + touch_name + '（' + str(f) + '）' + '.png'
+        return screenshot_success
 
 
 def open_screenshots():

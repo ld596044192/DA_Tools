@@ -2,10 +2,12 @@ import ctypes,inspect
 import sys,os
 import subprocess,windnd
 import tkinter,tkinter.messagebox
-import psutil,shutil,getpass,pyperclip
+import psutil,shutil,getpass,pyperclip,hashlib
 import re,time
 from tkinter import *
 import zipfile
+from PIL import Image, ImageSequence
+import random  # 随机模块
 
 username = getpass.getuser()
 # 创建临时文件夹
@@ -19,8 +21,16 @@ apk_path_package_log = make_dir + 'apk_path_package.log'
 adb_tools_flag = make_dir + 'adb-tools'
 # 创建页面文件，记录文件状态
 make_dir_s = make_dir + 'make_dir\\'
+# 修改gif图片产生的缓存
+make_gif_temp = make_dir + 'gif_temp\\'
 if not os.path.exists(make_dir_s):
     os.makedirs(make_dir_s)
+gif_playerGif_path = make_dir + 'playerGif_temp\\'
+# 首次启动需要删除存在的gif缓存
+try:
+    shutil.rmtree(gif_playerGif_path)
+except (FileNotFoundError,OSError):
+    pass
 
 
 def resource_path(relative_path):
@@ -116,7 +126,7 @@ def found_packages(device):
         # package_name = package_cmd.split()[(-1)].split('/')[0]
         # 新方法，使用正则匹配更精确
         execute_cmd('adb -s ' + device + ' shell dumpsys window > ' + packages_name)
-        package_log = open(packages_name,'r').read()
+        package_log = open(packages_name,'r',errors='ignore').read()
         package_name = ''.join(re.findall('mCurrentFocus.*?(com.*?)/.*?}', package_log, re.S))
         # print(package_name)
         return package_name
@@ -374,7 +384,7 @@ def android_software_version_result(device):
     package_name = found_packages(device)
     # print(package_name)
     execute_cmd('adb -s ' + device + ' shell dumpsys package ' + package_name + '> ' + package_log_path)
-    package_result_content = open(package_log_path,'r').read()
+    package_result_content = open(package_log_path,'r',encoding='utf-8').read()
     software_version_re = re.findall('Packages.*?versionName=(.*?)\n',package_result_content, re.S)
     software_version = ''.join(software_version_re)
     # print(software_version)
@@ -444,7 +454,7 @@ def pyperclip_copy_paste(content):
     pyperclip.copy(content)
     # 从剪贴板那粘贴
     pyperclip.paste()
-    tkinter.messagebox.showinfo('粘贴提醒','已复制粘贴 ' + content + ' 到剪贴板\n可以Ctrl+V粘贴到任意地方啦~')
+    tkinter.messagebox.showinfo('粘贴提醒','已复制粘贴\n' + content + '\n到剪贴板\n温馨提示：可以Ctrl+V粘贴到任意地方啦~')
 
 
 def flow_page():
@@ -452,3 +462,174 @@ def flow_page():
     flow_page = make_dir_s + 'flow_page.txt'
     return flow_page
 
+
+def file_md5(file_path):
+    # 获取文件MD5
+    with open(file_path, 'rb') as fp:
+        data = fp.read()
+    file_md5 = hashlib.md5(data).hexdigest().upper()  # 32位大写
+    print('已获取当前文件md5值：' + file_md5)
+    return file_md5
+
+
+def bigger_file_md5(file_path):
+    # 计算大文件md5，防止整个大文件读入内存导致爆内存
+    # 将文件分成 8192 字节的块（或其他一些 128 字节的倍数）并使用update().
+    # 这利用了 MD5 具有 128 字节摘要块（8192 是 128×64）的事实。由于您没有将整个文件读入内存，因此这不会使用超过 8192 字节的内存。
+    # 如果目录下有文件过大，则会消耗很久时间
+    with open(file_path, "rb") as f:
+        file_hash = hashlib.md5()
+        while chunk := f.read(8192):  # := 为海象运算符，类似于“=”等于，python 3.8+ 才会有，代码缩短运算速度更快
+            file_hash.update(chunk)
+    file_md5 = file_hash.hexdigest().upper()
+    print('已获取当前文件md5值：' + file_md5)
+    return file_md5
+
+
+def gif_size_revise(photo_path,gif_width,gif_height,photo_path_new):
+    # 修改gif图片的尺寸大小
+    oriGif = Image.open(photo_path)
+    lifeTime = oriGif.info['duration']
+    imgList = []
+    imgNew = []
+    if not os.path.exists(make_gif_temp):
+        os.makedirs(make_gif_temp)
+    for i in ImageSequence.Iterator(oriGif):
+        # print(i.copy())
+        imgList.append(i.copy())
+    for index, f in enumerate(imgList):
+        f.save(make_gif_temp + "%d.png" % index)  # 将gif的每一帧取出，保存成一张张图片，这里用png格式(也可以用jpg但是jpg需要转换一次)
+        img = Image.open(make_gif_temp + "%d.png" % index)
+        img.thumbnail((gif_width, gif_height), Image.ANTIALIAS)  # 修改每帧图片的尺寸大小
+        imgNew.append(img)
+    # 将每帧图片修改尺寸后，再次合成gif
+    imgNew[0].save(photo_path_new, 'gif', save_all=True, append_images=imgNew[1:], loop=0,
+                   duration=lifeTime)
+    # 删除缓存文件
+    shutil.rmtree(make_gif_temp)
+
+
+def not_gif_revise(photo_path,gif_width,gif_height,photo_path_new):
+    # 修改非gif图片的尺寸大小
+    '''
+    photo_path: 输入图片
+    photo_path_new: 输出图片
+    gif_width: 输出图片宽度
+    gif_height:输出图片高度
+    type:输出图片类型（png, gif, jpeg...）
+    '''
+
+    def ResizeImage(filein, fileout, width, height, file_type):
+        img = Image.open(filein)
+        out = img.resize((width, height), Image.ANTIALIAS)  # resize image with high-quality
+        out.save(fileout, file_type)
+
+    file_type = 'png'  # 默认输出png图片
+    ResizeImage(photo_path, photo_path_new,gif_width,gif_height, file_type)
+
+
+STR_FRAME_FILENAME = "frame{}.png"  # 每帧图片的文件名格式
+
+
+class playGif():
+    # 实现gif动态图的动态播放
+    def __init__(self, file, temporary=gif_playerGif_path):  # temporary 指临时目录路径，为空时则随机生成
+        self.__strPath = file
+        self.__index = 1  # 当前显示图片的帧数
+
+        if len(temporary) == 0:
+            self.strTemporaryFolder = self.crearteTemporaryFolder()  # 随机得到临时目录
+        else:
+            self.strTemporaryFolder = temporary  # 指定的临时目录
+
+        self.__intCount = 0  # gif 文件的帧数
+
+        try:
+            self.decomposePics()  # 开始分解
+        except (FileNotFoundError,FileExistsError):
+            pass
+
+    def crearteTemporaryFolder(self):  # 生成临时目录名返回
+        # 获取当前调用模块主程序的运行目录
+        strSelfPath = str(os.path.dirname(os.path.realpath(sys.argv[0])))
+        if len(strSelfPath) == 0:
+            strSelfPath = os.path.join(os.getcwd())
+
+        def createRandomFolder(strSelfPath):  # 内嵌方法，生成随机目录用
+            length = random.randint(5, 10)  # 随机长度
+            path = ""
+            for i in range(length):
+                path = path + chr(random.randint(97, 122))  # 随机生成a-z字母
+
+            return os.path.join(strSelfPath, path)
+
+        # 获取当前软件目录
+        folder = createRandomFolder(strSelfPath)
+        while os.path.isdir(folder):  # 已存在
+            folder = createRandomFolder(strSelfPath)
+        return folder
+
+    def decomposePics(self):  # 分解 gif 文件的每一帧到独立的图片文件，存在临时目录中
+        i = 0
+        img = Image.open(self.__strPath)
+        self.__width, self.__height = img.size  # 得到图片的尺寸
+
+        os.mkdir(self.strTemporaryFolder)  # 创建临时目录
+        for frame in ImageSequence.Iterator(img):  # 遍历每帧图片
+            frame.save(os.path.join(self.strTemporaryFolder, STR_FRAME_FILENAME.format(i + 1)))  # 保存独立图片
+            i += 1
+
+        self.__intCount = i  # 得到 gif 的帧数
+
+    def getPicture(self, frame=0):  # 返回第 frame 帧的图片(width=0,height=0)
+        if frame == 0:
+            frame = self.__index
+        elif frame >= self.__intCount:
+            frame = self.__intCount  # 最后一张
+
+        img = tkinter.PhotoImage(file=os.path.join(self.strTemporaryFolder, STR_FRAME_FILENAME.format(frame)))
+        self.__index = self.getNextFrameIndex()
+
+        return img  # 返回图片
+
+    def getNextFrameIndex(self, frame=0):  # 返回下一张的帧数序号
+        if frame == 0:
+            frame = self.__index  # 按当前插入帧数
+
+        if frame == self.__intCount:
+            return 1  # 返回第1张，即从新开始播放
+        else:
+            return frame + 1  # 下一张
+
+    def playGif(self, tk, widget, time=100):  # 开始调用自身实现播放，time 单位为毫秒
+        try:
+            img = self.getPicture()
+            widget.config(image=img)
+            widget.image = img
+            gif_files = len(os.listdir(gif_playerGif_path))  # 获取临时文件数量
+            if gif_files < 100:
+                time = 100
+            else:
+                time = 30
+            tk.after(time, self.playGif, tk, widget, time)  # 在 time 时间后调用自身
+        except tkinter.TclError:
+            self.close()
+            pass
+
+    def close(self):  # 关闭动画文件，删除临时文件及目录
+        try:
+            files = os.listdir(self.strTemporaryFolder)
+            for file in files:
+                os.remove(os.path.join(self.strTemporaryFolder, file))
+            os.rmdir(self.strTemporaryFolder)
+        except FileNotFoundError:
+            pass
+
+    def stop(self,widget):
+        widget.place_forget()
+
+
+def md5_size_page():
+    # 创建获取文件MD5和大小页面
+    md5_size_page = make_dir_s + 'md5_size_page.txt'
+    return md5_size_page

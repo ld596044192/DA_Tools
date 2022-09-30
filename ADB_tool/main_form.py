@@ -6,7 +6,7 @@ import time
 import tkinter,tkinter.ttk,tkinter.messagebox,tkinter.filedialog
 import threading
 import os
-import public,getpass,pyperclip,win32api
+import public,getpass,pyperclip,win32api,win32ui
 import quickly,screen_record,linux_main,customize_main
 import logging
 import traceback
@@ -48,6 +48,16 @@ if not os.path.exists(make_dir):
     os.makedirs(make_dir)
 # 创建页面文件，记录文件状态
 make_dir_s = make_dir + 'make_dir\\'
+# 保存gif或非gif图片转换后的目录（方便工具正常读取）
+gif_new_save = make_dir + 'gif_new_dir\\'
+# 保存个人图片路径（转换前）
+personal_photo_origin = make_dir_s + 'personal_photo_origin.txt'
+# 保存个人图片路径（最后转换的）
+personal_photo_path = make_dir_s + 'personal_photo_path.txt'
+# gif或非gif图片转换后的路径
+gif_new_path = gif_new_save + 'new.gif'
+not_gif_new_path = gif_new_save + 'new.png'
+gif = public.playGif(gif_new_path)  # 实例化gif动态播放对象
 if not os.path.exists(make_dir_s):
     os.makedirs(make_dir_s)
 count_path = make_dir + 'screenshots_count.txt'
@@ -110,8 +120,8 @@ with open(conflict_software_path,'w') as fp:
 # 调用ADB服务开关
 adb_server_all_flag = True  # 默认True打开
 # 统一修改版本号
-version = 'V1.0.1.8'
-version_code = 1018.0
+version = 'V1.0.1.14'
+version_code = 10114
 # 统一修改frame的宽高
 width = 367
 height = 405
@@ -120,14 +130,14 @@ width_button = 20
 # 统一root窗口总宽高
 main_width = 600
 main_height = 450
-# 设置单选按钮跳转时间
-radio_waiting_time = 15
+# 设置单选按钮跳转时间（默认单位是秒）
+radio_waiting_time = 60
 # 引入日志
-logging.basicConfig(filename=make_dir + 'log.txt',
-                    level=logging.DEBUG,
-                    filemode='a+',
-                    format='[%(asctime)s] [%(levelname)s] >>> \n%(message)s',
-                    datefmt='%Y-%m-%d %I:%M:%S')
+# logging.basicConfig(filename=make_dir + 'log.txt',
+#                     level=logging.DEBUG,
+#                     filemode='a+',
+#                     format='[%(asctime)s] [%(levelname)s] >>> \n%(message)s',
+#                     datefmt='%Y-%m-%d %I:%M:%S')
 
 
 class MainForm(object):
@@ -149,6 +159,7 @@ class MainForm(object):
         # 软件始终置顶
         # s.root.wm_attributes('-topmost', 1)
         # s.root.protocol('WM_DELETE_WINDOW', s.exit)  # 点击Tk窗口关闭时直接调用s.exit，不使用默认关闭
+        s.root.protocol('WM_DELETE_WINDOW', s.close)  # 退出程序需要处理或结束任务
         # 主程序启动标志
         with open(root_state,'w') as fp:
             fp.write('1')
@@ -161,6 +172,26 @@ class MainForm(object):
 
         s.root.mainloop()
         return s.root
+
+    def close(s):
+        global adb_server_all_flag
+        if tkinter.messagebox.askyesno(title='关闭提醒',message='确定要关闭本工具？'):
+            # 弹出结束相关任务行为提示
+            s.close_str = tkinter.StringVar()
+            s.close_label = tkinter.Label(s.root,width=50,height=10,bg='yellow',fg='red',textvariable=s.close_str,
+                                          font=('宋体',10))
+            s.close_label.place(x=120,y=100)
+
+            # 退出程序需要结束或处理任务
+            s.close_str.set('正在关闭gif动画和删除gif临时缓存文件...')
+            gif = public.playGif(gif_new_path)  # 实例化gif动态播放对象
+            gif.close()  # 删除动态gif临时文件和图片
+            s.close_str.set('正在停止ADB服务的行为...')
+            adb_server_all_flag = False  # 关闭工具时需要停止所有adb服务的行为
+            s.root.destroy()  # 关闭主窗口
+            pid = os.getpid()  # 获取本工具的pid
+            os.kill(pid,signal.SIGINT)  # 避免残留后台运行强制杀死
+            sys.exit()  # 终止程序
 
     def software_init(s):
         # 每次启动本软件都需要进行初始化
@@ -274,20 +305,20 @@ class MainForm(object):
         s.moving_radio_button1.place(x=375, y=335)
         s.moving_radio_button2 = tkinter.Radiobutton(s.root, variable=s.moving_str, value=1)
         s.moving_radio_button2.place(x=390, y=335)
-        s.moving_radio_button1.config(command=s.moving_radio_bind())
+        # s.moving_radio_button1.config(command=s.moving_radio_bind())
 
-    def moving_radio_bind(s):
-        def t_moving_radio():
-            # 循环跳转单选按钮
-            while True:
-                s.moving_str.set(0)
-                time.sleep(radio_waiting_time)
-                s.moving_str.set(1)
-                time.sleep(radio_waiting_time)
-
-        t_moving_radio = threading.Thread(target=t_moving_radio)
-        t_moving_radio.setDaemon(True)
-        t_moving_radio.start()
+    # def moving_radio_bind(s):
+    #     def t_moving_radio():
+    #         # 循环跳转单选按钮
+    #         while True:
+    #             s.moving_str.set(0)
+    #             time.sleep(radio_waiting_time)
+    #             s.moving_str.set(1)
+    #             time.sleep(radio_waiting_time)
+    #
+    #     t_moving_radio = threading.Thread(target=t_moving_radio)
+    #     t_moving_radio.setDaemon(True)
+    #     t_moving_radio.start()
 
     def moving_device_frame(s):
         # 动态设备信息frame
@@ -297,6 +328,7 @@ class MainForm(object):
         s.devices_mode_str = tkinter.StringVar()
         s.devices_mode = tkinter.Label(s.moving_device_frame1,textvariable=s.devices_mode_str,width=29,bg='black',fg='#FFFFFF')
         s.devices_mode.place(x=0,y=0)
+        s.devices_mode.config(command=s.update_status())
         s.devices_mode_str.set('此处显示设备类型')
 
         # 获取设备序列号（安卓+Linux）
@@ -343,10 +375,48 @@ class MainForm(object):
     def moving_software_info(s):
         s.moving_software_info_frame = tkinter.Frame(s.root,width=210,height=220)
         # 个人常用头像
-        my_log_photo = tkinter.PhotoImage(file=my_logo_path)
-        s.my_logo_label = tkinter.Label(s.moving_software_info_frame,bg='red')
-        s.my_logo_label.config(image=my_log_photo)
-        s.my_logo_label.image = my_log_photo
+        if not os.path.exists(personal_photo_path):
+            with open(personal_photo_path,'w') as fp:
+                fp.write('')
+        if not os.path.exists(personal_photo_origin):
+            with open(personal_photo_origin,'w') as fp:
+                fp.write('')
+        s.my_logo_label = tkinter.Label(s.moving_software_info_frame,cursor='hand2')  # hand2光标放在标签上变为手的样式
+        personal_logo_path = open(personal_photo_path,'r').read()
+
+        s.my_logo_remind_str = tkinter.StringVar()
+        s.my_logo_remind_label = tkinter.Label(s.moving_software_info_frame, fg='red',
+                                               textvariable=s.my_logo_remind_str,
+                                               width=30,wraplength=200)
+        s.my_logo_remind_label.place(x=0, y=125)
+
+        type_file = personal_logo_path.split('\\')[-1].split('.')[-1]
+        if personal_logo_path.strip() == '':
+            my_log_photo = tkinter.PhotoImage(file=my_logo_path)
+            s.my_logo_label.config(image=my_log_photo)
+            s.my_logo_label.image = my_log_photo
+            s.my_logo_remind_str.set('这是ADB工具111X101的默认图片！\n可点击上方选择图片进行替换哦！')
+        else:
+            try:
+                if type_file.strip() == 'gif':
+                    s.init_gif_thread()
+                else:
+                    gif.close()  # 删除gif临时图
+                    my_log_photo = tkinter.PhotoImage(file=personal_logo_path)
+                    s.my_logo_label.config(image=my_log_photo)
+                    s.my_logo_label.image = my_log_photo
+                personal_logo_origin = open(personal_photo_origin,'r').read()
+                if personal_logo_origin.strip() == '':
+                    s.my_logo_remind_str.set('此图为用户手动上传！')
+                else:
+                    photo_name = personal_logo_origin.split('\\')[-1]
+                    s.my_logo_remind_str.set('文件名：' + photo_name)
+            except tkinter.TclError:
+                my_log_photo = tkinter.PhotoImage(file=my_logo_path)
+                s.my_logo_label.config(image=my_log_photo)
+                s.my_logo_label.image = my_log_photo
+                s.my_logo_remind_str.set('这是ADB工具111X101的默认图片！\n可点击上方选择图片进行替换哦！')
+        s.my_logo_label.bind('<Button-1>',lambda x:s.my_logo_select())
         s.my_logo_label.place(x=45,y=10)
 
         # 个人简介信息
@@ -354,7 +424,71 @@ class MainForm(object):
                           '联系方式：596044192@qq.com\n' \
                           '        ld596044192@gmail.com'
         s.my_info_label = tkinter.Label(s.moving_software_info_frame,text=my_info_content,justify=tkinter.LEFT)
-        s.my_info_label.place(x=10,y=150)
+        s.my_info_label.place(x=10,y=165)
+
+    def init_gif_thread(s):
+        # 启动工具时默认把耗时的gif动态加载在线程中，以便快速启动工具，避免卡顿
+        def t_init_gif():
+            gif.playGif(s.moving_software_info_frame, s.my_logo_label)  # gif动态播放
+
+        t_init_gif = threading.Thread(target=t_init_gif)
+        t_init_gif.setDaemon = True
+        t_init_gif.start()
+
+    def my_logo_select(s):
+        def t_my_logo_select():
+            global gif
+            # 选择并打开图像文件
+            photoFilter = "Photo Files (*.jpg,*.jpeg,*.png,*.gif,*.bmp)|*.jpg;*.jpeg;*.png;*.gif;*.bmp|"  # so文件过滤
+            dlg = win32ui.CreateFileDialog(True, "csv", None, 0x04 | 0x02, photoFilter)  # True表示打开文件对话框，0或False表示另存为对话框
+            dlg.SetOFNInitialDir('C:\\Users\\' + getpass.getuser() + '\\Desktop')  # 设置打开文件对话框中的初始显示目录
+            dlg.DoModal()  # 显示文件选择框
+            photo_file = dlg.GetPathName()  # 获取选择的文件名称
+            type_file = photo_file.split('\\')[-1].split('.')[-1]
+            with open(personal_photo_origin,'w') as fp:
+                fp.write(photo_file)
+            # 更新个人图片
+            if photo_file == '':
+                pass
+            else:
+                if not os.path.exists(gif_new_save):
+                    os.makedirs(gif_new_save)
+                if type_file.strip() == 'gif':
+                    gif.close()  # 结束播放并删除临时文件
+
+                    # 修改gif图片大小，默认修改尺寸为111X101
+                    s.my_logo_remind_str.set('正在修改gif图片尺寸大小\n请耐心等待...')
+                    public.gif_size_revise(photo_file,111,101,gif_new_path)
+                    s.my_logo_remind_str.set('gif图片尺寸大小修改完成')
+                    # my_log_photo = tkinter.PhotoImage(file=gif_new_path)
+                    # s.my_logo_label.config(image=my_log_photo)
+                    # s.my_logo_label.image = my_log_photo
+
+                    # 实现gif图片动态播放
+                    gif = public.playGif(gif_new_path)  # 实例化gif动态播放对象
+                    gif.playGif(s.moving_software_info_frame,s.my_logo_label)
+
+                    s.my_logo_remind_str.set('已应用修改后的gif图片！')
+                    with open(personal_photo_path, 'w') as fp:
+                        fp.write(gif_new_path)
+                else:
+                    gif.close()  # 结束播放并删除临时文件
+                    gif.stop(s.my_logo_label)
+                    s.my_logo_label.place(x=45,y=10)
+
+                    s.my_logo_remind_str.set('正在修改非gif图片尺寸大小\n请耐心等待...')
+                    public.not_gif_revise(photo_file,111,101,not_gif_new_path)
+                    s.my_logo_remind_str.set('非gif图片尺寸大小修改完成')
+                    my_log_photo = tkinter.PhotoImage(file=not_gif_new_path)
+                    s.my_logo_label.config(image=my_log_photo)
+                    s.my_logo_label.image = my_log_photo
+                    s.my_logo_remind_str.set('已应用修改后的非gif图片！')
+                    with open(personal_photo_path, 'w') as fp:
+                        fp.write(not_gif_new_path)
+
+        t_my_logo_select = threading.Thread(target=t_my_logo_select)
+        t_my_logo_select.setDaemon = True
+        t_my_logo_select.start()
 
     def more_devices_bind(s):
         def t_more_devices():
@@ -389,9 +523,12 @@ class MainForm(object):
                         elif s.more_devices_value.get().strip() == 'List of':
                             print(s.more_devices_list)
                             print('删除异常List of...')
-                            index = s.more_devices_list.index('List of')
-                            print('异常数据索引 ：' + str(index))
-                            s.more_devices_list.pop(index)  # 删除“List of”异常元素
+                            try:
+                                index = s.more_devices_list.index('List of')
+                                print('异常数据索引 ：' + str(index))
+                                s.more_devices_list.pop(index)  # 删除“List of”异常元素
+                            except ValueError:
+                                pass
                             s.more_devices_combobox['value'] = s.more_devices_list
                             try:
                                 s.more_devices_combobox.current(0)
@@ -825,14 +962,14 @@ class MainForm(object):
         s.apk_path_package_button.place(x=320,y=160)
 
         # 检测apk文件包名按钮
-        s.apk_package_button = tkinter.Button(s.install_frame1,text='获取apk文件包名',width=width_button)
-        s.apk_package_button_disable = tkinter.Button(s.install_frame1,text='获取apk文件包名',width=width_button)
+        s.apk_package_button = tkinter.Button(s.install_frame1,text='获取apk文件信息',width=width_button)
+        s.apk_package_button_disable = tkinter.Button(s.install_frame1,text='正在获取中...',width=width_button)
         s.apk_package_button_disable.config(state='disable')
         s.apk_package_button.bind('<Button-1>',lambda x:s.apk_package_bind())
         s.apk_package_button.place(x=20,y=200)
 
         # 一键复制粘贴apk包名按钮
-        s.apk_package_copy_button = tkinter.Button(s.install_frame1, text='一键复制包名', width=width_button)
+        s.apk_package_copy_button = tkinter.Button(s.install_frame1, text='一键复制apk信息', width=width_button)
         s.apk_package_copy_button_disable = tkinter.Button(s.install_frame1, text='正在复制中...', width=width_button)
         s.apk_package_copy_button_disable.config(state='disable')
         s.apk_package_copy_button.bind('<Button-1>', lambda x: s.apk_package_copy_bind())
@@ -911,21 +1048,24 @@ class MainForm(object):
         s.linux_init_Button_disable = tkinter.Button(s.linux_frame1, text='初始化设备', width=width_button)
         s.linux_init_Button_disable.config(state='disable')
         s.linux_init_Button.bind('<Button-1>', lambda x: linux_main.devices_init(s.init_str,s.linux_init_Button
-                                                    ,s.linux_init_Button_disable,s.more_devices_value.get()))
+                                                    ,s.linux_init_Button_disable,s.more_devices_value.get(),s.init_again_Button_disable))
         s.linux_init_Button_disable.place(x=200, y=110)
 
         # 重新检测按钮
         s.init_again_Button = tkinter.Button(s.linux_frame1, text='点击重新检测', width=width_button)
+        s.init_again_Button_disable = tkinter.Button(s.linux_frame1, text='正在检测中...', width=width_button)
+        s.init_again_Button_disable.config(state='disable')
         s.init_again_Button.bind('<Button-1>',lambda x:linux_main.check_init(s.init_str,s.linux_init_Button
                                     ,s.linux_init_Button_disable,devices_linux_flag,s.linux_all_button_close
-                                    ,s.more_devices_value.get()))
+                                    ,s.more_devices_value.get(),s.init_again_Button_disable))
         s.init_again_Button.place(x=20,y=110)
 
         # 初始化状态栏
         s.init_label = tkinter.Label(s.linux_frame1, textvariable=s.init_str, bg='black', fg='#FFFFFF',
                                        width=46, height=2)
         s.init_label.config(command=linux_main.check_init(s.init_str,s.linux_init_Button,s.linux_init_Button_disable,
-                                devices_linux_flag,s.linux_all_button_close,s.more_devices_value.get()))
+                                devices_linux_flag,s.linux_all_button_close,s.more_devices_value.get(),
+                                s.init_again_Button_disable))
         s.init_label.place(x=20, y=60)
         s.init_str.set('此处显示初始化状态')
 
@@ -1024,6 +1164,13 @@ class MainForm(object):
         s.flow_button_disable.config(state='disable')
         s.flow_button.place(x=20, y=20)
 
+        # 查询文件MD5 和 大小
+        s.md5_size_button = tkinter.Button(s.customize_frame1, text='获取文件MD5和大小', width=width_button)
+        s.md5_size_button.bind('<Button-1>', lambda x: s.md5_size_bind())
+        s.md5_size_button_disable = tkinter.Button(s.customize_frame1, text='获取文件MD5和大小', width=width_button)
+        s.md5_size_button_disable.config(state='disable')
+        s.md5_size_button.place(x=200, y=20)
+
         s.customize_frame1.place(y=20)
 
     def linux_all_button_close(s):
@@ -1074,14 +1221,23 @@ class MainForm(object):
         if not os.path.exists(public.flow_page()):
             with open(public.flow_page(), 'w') as fp:
                 fp.write('0')
+        if not os.path.exists(public.md5_size_page()):
+            with open(public.md5_size_page(), 'w') as fp:
+                fp.write('0')
 
         # 读取一次自定义模块所有页面状态
         flow_log_page_state = open(public.flow_page(), 'r').read()
+        md5_size_page_state = open(public.md5_size_page(), 'r').read()
         if flow_log_page_state == '':
             s.flow_button_disable.place(x=20, y=20)
         else:
             s.flow_button_disable.place_forget()
             s.flow_button.place(x=20, y=20)
+        if md5_size_page_state == '':
+            s.md5_size_button_disable.place(x=200, y=20)
+        else:
+            s.md5_size_button_disable.place_forget()
+            s.md5_size_button.place(x=200, y=20)
 
     def linux_all_button_open(s):
         global uuid_server_flag
@@ -1400,7 +1556,6 @@ class MainForm(object):
                                     elif len(devices_finally) > 1:
                                         s.devices_str.set('多部设备已连接')
                                         continue
-                                s.update_status()
                 time.sleep(1)
 
         def devices_type():
@@ -1529,51 +1684,50 @@ class MainForm(object):
                     pass
 
         def t_adb():
+            global adb_server_all_flag
             # time.sleep(5)  # 等待ADB服务启动完毕
             while True:
                 time.sleep(1)
-                # conflict_software_flag = public.find_pid_name(conflict_software_list)
-                # if conflict_software_flag:
-                #     # print('测试是否屏蔽 - ADB服务启动')
-                #     pass
-                # else:
-                # 中文状态下
-                adb_finally = public.adb_connect()[1]
-                print(adb_finally)
-                try:
-                    # 英文状态下
-                    adb_english = ' '.join(public.adb_connect()).split(',')[1]
-                    print(adb_english)
-                    if adb_finally.strip() == '不是内部或外部命令，也不是可运行的程序' or adb_english.strip() == 'operable program or batch file.':
-                        # os.chdir(adb_path)
-                        # s.adb_str.set('内置ADB已开启！')
-                        s.adb_str.set('正在配置ADB...')
-                        adb_install_upgrade()
-                        s.adb_str.set('ADB已配置成功！')
-                        time.sleep(3)
-                        s.adb_str.set('本地ADB已开启！')
-                        break
-                    else:
-                        adb_install_upgrade()  # 用于ADB升级
-                        s.adb_str.set('本地ADB已开启！')
-                        print(public.execute_cmd('adb version'))
-                        break
-                except (IndexError,ValueError):
-                    print('IndexError异常，无影响！')
-                    if adb_finally == '不是内部或外部命令，也不是可运行的程序':
-                        # os.chdir(adb_path)
-                        # s.adb_str.set('内置ADB已开启！')
-                        s.adb_str.set('正在配置ADB...')
-                        adb_install_upgrade()
-                        s.adb_str.set('ADB已配置成功！')
-                        time.sleep(3)
-                        s.adb_str.set('本地ADB已开启！')
-                        break
-                    else:
-                        adb_install_upgrade()  # 用于ADB升级
-                        s.adb_str.set('本地ADB已开启！')
-                        print(public.execute_cmd('adb version'))
-                        break
+                if not adb_server_all_flag:
+                    pass
+                else:
+                    # 中文状态下
+                    adb_finally = public.adb_connect()[1]
+                    print(adb_finally)
+                    try:
+                        # 英文状态下
+                        adb_english = ' '.join(public.adb_connect()).split(',')[1]
+                        print(adb_english)
+                        if adb_finally.strip() == '不是内部或外部命令，也不是可运行的程序' or adb_english.strip() == 'operable program or batch file.':
+                            # os.chdir(adb_path)
+                            # s.adb_str.set('内置ADB已开启！')
+                            s.adb_str.set('正在配置ADB...')
+                            adb_install_upgrade()
+                            s.adb_str.set('ADB已配置成功！')
+                            time.sleep(3)
+                            s.adb_str.set('本地ADB已开启！')
+                            break
+                        else:
+                            adb_install_upgrade()  # 用于ADB升级
+                            s.adb_str.set('本地ADB已开启！')
+                            print(public.execute_cmd('adb version'))
+                            break
+                    except (IndexError,ValueError):
+                        print('IndexError异常，无影响！')
+                        if adb_finally == '不是内部或外部命令，也不是可运行的程序':
+                            # os.chdir(adb_path)
+                            # s.adb_str.set('内置ADB已开启！')
+                            s.adb_str.set('正在配置ADB...')
+                            adb_install_upgrade()
+                            s.adb_str.set('ADB已配置成功！')
+                            time.sleep(3)
+                            s.adb_str.set('本地ADB已开启！')
+                            break
+                        else:
+                            adb_install_upgrade()  # 用于ADB升级
+                            s.adb_str.set('本地ADB已开启！')
+                            print(public.execute_cmd('adb version'))
+                            break
 
         t_adb = threading.Thread(target=t_adb)
         t_adb.setDaemon(True)
@@ -1854,6 +2008,7 @@ class MainForm(object):
 
     def linux_button_bind(s):
         def t_linux_button():
+            global adb_server_all_flag
             def check_only_read():
                 devices_SN = s.more_devices_value.get()
                 check_only_read = public.execute_cmd('adb -s ' + devices_SN + ' shell ls -lh /data/.overlay')
@@ -1861,25 +2016,27 @@ class MainForm(object):
                 return only_read
 
             while True:
-                # linux_frame_exists = s.linux_frame1.winfo_exists()
-                devices_finally = public.device_connect()
-                s.init_text = s.init_str.get()
-                only_read = check_only_read()
-                if not devices_linux_flag or not devices_finally or only_read.strip() == 'No such file or directory':
-                    try:
-                        s.android_all_button_open()
-                    except AttributeError:
-                        pass
-                    s.linux_all_button_close()
-                elif devices_linux_flag and devices_finally and only_read.strip() != 'No such file or directory':
-                    s.linux_all_button_open()
-                elif only_read.strip() == 'ls requires an argument':
-                    error_content = '检测初始化只读权限异常错误，解决方案如下：' \
-                                    '1.重新拔插设备后点击重新检测' \
-                                    '2.重启软件后再重新检测初始化' \
-                                    'PS：建议按照以上方案进行操作，以免功能无法正常使用！'
-                    tkinter.messagebox.showerror(title='初始化错误',message=error_content)
-                    break
+                if not adb_server_all_flag:
+                    pass
+                else:
+                    devices_finally = public.device_connect()
+                    s.init_text = s.init_str.get()
+                    only_read = check_only_read()
+                    if not devices_linux_flag or not devices_finally or only_read.strip() == 'No such file or directory':
+                        try:
+                            s.android_all_button_open()
+                        except AttributeError:
+                            pass
+                        s.linux_all_button_close()
+                    elif devices_linux_flag and devices_finally and only_read.strip() != 'No such file or directory':
+                        s.linux_all_button_open()
+                    elif only_read.strip() == 'ls requires an argument':
+                        error_content = '检测初始化只读权限异常错误，解决方案如下：' \
+                                        '1.重新拔插设备后点击重新检测' \
+                                        '2.重启软件后再重新检测初始化' \
+                                        'PS：建议按照以上方案进行操作，以免功能无法正常使用！'
+                        tkinter.messagebox.showerror(title='初始化错误',message=error_content)
+                        break
                 time.sleep(1)
 
         t_linux_button = threading.Thread(target=t_linux_button)
@@ -1910,6 +2067,7 @@ class MainForm(object):
                         s.linux_screen_Button_disable.place_forget()
                         s.linux_screen_Button.place(x=20, y=190)
                         break
+                time.sleep(3)
 
         t_screen = threading.Thread(target=t_screen)
         t_screen.setDaemon(True)
@@ -1962,6 +2120,7 @@ class MainForm(object):
                         s.linux_install_disable.place_forget()
                         s.linux_install.place(x=20, y=230)
                         break
+                time.sleep(3)
 
         t_install = threading.Thread(target=t_install)
         t_install.setDaemon(True)
@@ -1994,6 +2153,7 @@ class MainForm(object):
                         s.linux_camera_disable.place_forget()
                         s.linux_camera.place(x=20, y=270)
                         break
+                time.sleep(3)
 
         t_camera = threading.Thread(target=t_camera)
         t_camera.setDaemon(True)
@@ -2023,31 +2183,38 @@ class MainForm(object):
             global uninstall_flag
             # 检测当前包名
             s.check_package_name_button_disable.place(x=20,y=80)
+            s.uninstall_button_disable.place(x=200,y=80)
             devices_state = public.device_connect()
             if not devices_state:
                 s.uninstall_str.set('请连接设备后再重新检测')
             else:
-                try:
-                    s.uninstall_str.set('正在检测当前包名...')
-                    device_SN = s.more_devices_value.get()
-                    package_name = public.found_packages(device_SN)
-                    print(package_name)
-                    s.uninstall_str.set('已检测到当前包名\n' + package_name)
-                    # 增加此项可提供包名的复制粘贴
-                    with open(apk_aapt_log,'w') as fp:
-                        fp.write(package_name)
+                devices_sn = s.more_devices_value.get()
+                device_type = public.device_type_android(devices_sn)
+                if device_type.strip() == 'Android':
+                    try:
+                        s.uninstall_str.set('正在检测当前包名...')
+                        device_SN = s.more_devices_value.get()
+                        package_name = public.found_packages(device_SN)
+                        print(package_name)
+                        s.uninstall_str.set('已检测到当前包名\n' + package_name)
+                        # 增加此项可提供包名的复制粘贴
+                        with open(apk_aapt_log,'w') as fp:
+                            fp.write(package_name)
 
-                    if not uninstall_flag:
-                        s.uninstall_str.set('检测到' + package_name + '\n正在卸载中...')
-                        public.execute_cmd('adb uninstall ' + package_name)
-                        uninstall_flag = True
-                        s.uninstall_str.set('APK已卸载成功！')
-                    else:
-                        pass
-                except (IndexError,TypeError):
+                        if not uninstall_flag:
+                            s.uninstall_str.set('检测到' + package_name + '\n正在卸载中...')
+                            public.execute_cmd('adb uninstall ' + package_name)
+                            uninstall_flag = True
+                            s.uninstall_str.set('APK已卸载成功！')
+                        else:
+                            pass
+                    except (IndexError,TypeError):
+                        s.uninstall_str.set('检测到非安卓设备\n请使用安卓设备进行操作')
+                else:
                     s.uninstall_str.set('检测到非安卓设备\n请使用安卓设备进行操作')
 
             s.check_package_name_button_disable.place_forget()
+            s.uninstall_button_disable.place_forget()
 
         t_check_package_name = threading.Thread(target=t_check_package_name)
         t_check_package_name.setDaemon(True)
@@ -2076,6 +2243,7 @@ class MainForm(object):
                         s.write_number_disable.place_forget()
                         s.write_number.place(x=200, y=230)
                         break
+                time.sleep(3)
 
         t_write_number = threading.Thread(target=t_write_number)
         t_write_number.setDaemon(True)
@@ -2100,9 +2268,7 @@ class MainForm(object):
 
     def uuid_get_bind(s):
         def t_uuid_get():
-            global uuid_reboot_flag
-            global uuid_run_flag
-
+            global uuid_reboot_flag,uuid_run_flag
             # 重新获取UUID
             s.uuid_get_disable.place(x=20,y=360)
             s.uuid_paste_disable.place(x=200, y=360)
@@ -2123,10 +2289,18 @@ class MainForm(object):
                     with open(uuid_path, 'w') as fp:
                         fp.write(uuid_result)
                     public.execute_cmd('adb -s ' + devices_sn + ' push ' + uuid_path + ' /data/UUID.ini')
-                    s.uuid_str.set('已获取到该设备的UUID为\n' + uuid_result)
+                    if uuid_result == '':
+                        s.uuid_str.set('UUID获取失败！\n请点击下方"重新获取UUID"获取UUID吧！')
+                        public.execute_cmd('adb -s ' + devices_sn + ' shell rm -rf /data/UUID.ini')
+                    else:
+                        s.uuid_str.set('已获取到该设备的UUID为\n' + uuid_result)
                 else:
                     uuid_result = public.execute_cmd('adb -s ' + devices_sn + ' shell cat /data/UUID.ini').strip()
-                    s.uuid_str.set('已获取到该设备的UUID为\n' + uuid_result)
+                    if uuid_result == '':
+                        s.uuid_str.set('UUID获取失败！\n请点击下方"重新获取UUID"获取UUID吧！')
+                        public.execute_cmd('adb -s ' + devices_sn + ' shell rm -rf /data/UUID.ini')
+                    else:
+                        s.uuid_str.set('已获取到该设备的UUID为\n' + uuid_result)
             s.uuid_get_disable.place_forget()
             s.uuid_paste_disable.place_forget()
 
@@ -2145,10 +2319,14 @@ class MainForm(object):
             # agOsUUID_result_finally = ' '.join(agOsUUID_result.split()).split(':')[-1]
             # and agOsUUID_result_finally.strip() == 'No such file or directory':
             if uuid_get_result_finally.strip() == 'No such file or directory':
-                s.uuid_str.set('无法复制粘贴UUID\n请点击下方“重新获取UUID”获取UUID吧！')
+                s.uuid_str.set('无法复制粘贴UUID\n请点击下方"重新获取UUID"获取UUID吧！')
             else:
                 uuid_result = public.execute_cmd('adb -s ' + device_SN + ' shell cat /data/UUID.ini').strip()
-                public.pyperclip_copy_paste(uuid_result)
+                if uuid_result == '':
+                    s.uuid_str.set('无法复制粘贴UUID\n请点击下方"重新获取UUID"获取UUID吧！')
+                    public.execute_cmd('adb -s ' + device_SN + ' shell rm -rf /data/UUID.ini')
+                else:
+                    public.pyperclip_copy_paste(uuid_result)
             #     # 复制UUID到剪贴板
             #     devices_uuid = public.execute_cmd('adb -s ' + device_SN + ' shell cat /data/UUID.ini')
             #     devices_uuid_finally = ' '.join(devices_uuid.strip().split()).split(':')[-1]
@@ -2195,6 +2373,7 @@ class MainForm(object):
                         s.get_log_disable.place_forget()
                         s.get_log.place(x=200, y=270)
                         break
+                time.sleep(3)
 
         t_get_log = threading.Thread(target=t_get_log)
         t_get_log.setDaemon(True)
@@ -2211,30 +2390,42 @@ class MainForm(object):
             s.apk_path_button_disable.place(x=320,y=285)
             s.apk_path_package_entry.config(state='disable')
             s.apk_path_entry.config(state='disable')
-            apk_path_file = tkinter.filedialog.askopenfile(mode='r', filetypes=[('Apk Files', '*.apk')], title='选择apk安装文件')
-            apk_path_file_string = str(apk_path_file)
+            apkFilter = "APK Files (*.apk)|*.apk|"  # apk文件过滤
+            # apk_path_file = tkinter.filedialog.askopenfile(mode='r', filetypes=[('Apk Files', '*.apk')], title='选择apk安装文件')
+            # apk_path_file_string = str(apk_path_file)
+            dlg = win32ui.CreateFileDialog(True, "csv", None, 0x04 | 0x02, apkFilter)  # True表示打开文件对话框，0或False表示另存为对话框
+            path_msg = open(apk_path_package_log, 'r').read()
+            if not apk_path_install_flag:
+                path_msg_finally = '\\'.join(path_msg.split('\\')[:-1])  # 只获取目录地址（不包含具体文件）
+                dlg.SetOFNInitialDir(path_msg_finally)  # 设置打开文件对话框中的初始显示目录
+            else:
+                apk_path = open(apk_path_log,'r').read()
+                apk_path_finally = '\\'.join(apk_path.split('\\')[:-1])
+                dlg.SetOFNInitialDir(apk_path_finally)
+            dlg.DoModal()  # 显示文件选择框
+            apk_path_file = dlg.GetPathName()  # 获取选择的文件名称
             print('apk安装标识：' + str(apk_path_install_flag))
-            if not apk_path_file:
+            if apk_path_file == '':
                 if apk_path_install_flag:
                     s.install_str.set('没有成功选择apk文件\n请重新选择apk文件')
                 else:
                     s.uninstall_str.set('没有成功选择apk文件\n请重新选择apk文件')
             else:
                 # replace('/','\\')替换路径符号，提高最准确无误的文件绝对路径
-                print('apk路径获取源数据：' + apk_path_file_string)
+                # print('apk路径获取源数据：' + apk_path_file_string)
                 # apk_path_file_finally = eval(apk_path_file_string.split()[1].split('=')[1]).replace('/','\\')
                 # 更换为 re正则表达式 判断
-                apk_path_file_finally = ''.join(re.findall('name=\'(.*?)\'\s', apk_path_file_string)).replace('/', '\\')
+                # apk_path_file_finally = ''.join(re.findall('name=\'(.*?)\'\s', apk_path_file_string)).replace('/', '\\')
                 if apk_path_install_flag:
-                    s.apk_path_str.set(apk_path_file_finally)
-                    print('获取地址：' + str(apk_path_file_finally))
+                    s.apk_path_str.set(apk_path_file)
+                    print('获取地址：' + str(apk_path_file))
                     with open(apk_path_log, 'w') as fp:
-                        fp.write(apk_path_file_finally)
+                        fp.write(apk_path_file)
                 else:
-                    s.apk_path_package_str.set(apk_path_file_finally)
-                    print('获取地址：' + str(apk_path_file_finally))
+                    s.apk_path_package_str.set(apk_path_file)
+                    print('获取地址：' + str(apk_path_file))
                     with open(apk_path_package_log,'w') as fp:
-                        fp.write(apk_path_file_finally)
+                        fp.write(apk_path_file)
             s.apk_path_package_entry.config(state='normal')
             s.apk_path_entry.config(state='normal')
             s.apk_path_button_disable.place_forget()
@@ -2267,16 +2458,36 @@ class MainForm(object):
                     s.adb_str.set('本地ADB已开启！')
             except IndexError:
                 pass
-            apk_package_result_log = open(apk_aapt_log,'r',encoding='utf-8').read()
-            apk_package_result_re = re.findall('package: name=\'(.*?)\'\s', apk_package_result_log)
-            apk_package_result_finally = ''.join(apk_package_result_re)
-            if apk_package_result_finally == '':
+            # errors='ignore' 忽略错误，避免个别计算机出现异常
+            apk_package_result_log = open(apk_aapt_log,'r',encoding='utf-8',errors='ignore').read()
+            apk_package_result_finally = ''.join(re.findall('package: name=\'(.*?)\'\s', apk_package_result_log))
+            # print(apk_package_result_finally)
+            apk_version_result_finally = ''.join(re.findall('versionName=\'(.*?)\'\s', apk_package_result_log))
+            # print(apk_version_result_finally)
+            apk_name_result_finally = ''.join(re.findall('application-label-zh:\'(.*?)\'\s', apk_package_result_log))
+            # print(apk_name_result_finally)
+            if apk_name_result_finally.strip() == '':
+                apk_name_result_finally = ''.join(re.findall('application-label-en:\'(.*?)\'\s', apk_package_result_log))
+            if apk_package_result_finally == '' or apk_version_result_finally == '' or apk_name_result_finally == '':
                 s.uninstall_str.set('你选择的apk路径不存在或不是apk文件\n请重新选择正确无误的apk路径再试吧')
             else:
+                apk_size_result = os.stat(s.apk_path_package_get).st_size
+                # print(apk_size_result)
+                apk_size = round(apk_size_result / 1024 / 1024, 2)
+                # print(apk_size)
+                apk_md5 = public.file_md5(s.apk_path_package_get)
+                print('已获取当前apk所有信息：\napk包名：' + apk_package_result_finally
+                      + '\napk名称：' + apk_name_result_finally + '\napk版本号：' + apk_version_result_finally +
+                      '\napk包大小为：' + str(apk_size_result) + ' byte (' + str(apk_size) + 'MB)' +
+                      '\napk md5值：' + apk_md5)
+                print('---------------------------------------------')
                 with open(apk_aapt_log,'w') as fp:
-                    fp.write(apk_package_result_finally)
-                print('获取的包名为：' + apk_package_result_finally)
-                s.uninstall_str.set('已获取到包名为：\n' + apk_package_result_finally)
+                    if fp is not None:
+                        fp.write('已获取当前apk所有信息：\napk包名：' + apk_package_result_finally
+                          + '\napk名称：' + apk_name_result_finally + '\napk版本号：' + apk_version_result_finally +
+                          '\napk包大小为：' + str(apk_size_result) + ' byte (' + str(apk_size) + 'MB)' +
+                          '\napk md5值：' + apk_md5)
+                s.uninstall_str.set('已获取到apk所有信息\n请点击下方的"一键复制apk信息"即可')
             s.apk_package_button_disable.place_forget()
 
         t_apk_package = threading.Thread(target=t_apk_package)
@@ -2286,11 +2497,11 @@ class MainForm(object):
     def apk_package_copy_bind(s):
         def t_apk_package_copy():
             s.apk_package_copy_button_disable.place(x=200,y=200)
-            apk_package_name = open(apk_aapt_log,'r').read()
-            if apk_package_name == '':
-                tkinter.messagebox.showinfo('空包名','你还没有获取任何包名哦~\n现在暂时无法复制粘贴！')
+            apk_info_name = open(apk_aapt_log,'r').read()
+            if apk_info_name == '':
+                tkinter.messagebox.showinfo('空包名','你还没有获取任何apk信息哦~\n现在暂时无法复制粘贴！')
             else:
-                public.pyperclip_copy_paste(apk_package_name)
+                public.pyperclip_copy_paste(apk_info_name)
             s.apk_package_copy_button_disable.place_forget()
 
         t_apk_package_copy = threading.Thread(target=t_apk_package_copy)
@@ -2394,6 +2605,7 @@ class MainForm(object):
             if devices_sn_finally.strip() == 'No such file or directory':
                 # 从设备系统日志中过滤出SN
                 sn = public.execute_cmd('adb -s ' + devices + ' shell grep "sn" /data/syslog.log')
+                # print('测试：' + sn)
                 if sn.strip() == '':
                     s.devices_sn_str.set('首次查询需要进入“设置-关于”')
                     s.devices_sn.unbind('<Button-1>')
@@ -2405,108 +2617,135 @@ class MainForm(object):
                             fp.write(sn_result)
                         # 上传到设备里面方便保存读取
                         public.execute_cmd('adb -s ' + devices + ' push ' + linux_sn_path + ' /data/linux_sn.ini')
-                        s.devices_sn_str.set('设备序列号：' + sn_result.strip())
-                        s.devices_sn.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(sn_result))
-                    except IndexError:
-                        pass
+                        if sn_result.strip() == '':
+                            s.devices_sn_str.set('获取序列号失败！正在重新获取...')
+                            s.devices_sn.unbind('<Button-1>')
+                            public.execute_cmd('adb -s ' + devices + ' shell rm -rf /data/linux_sn.ini')
+                        else:
+                            s.devices_sn_str.set('设备序列号：' + sn_result.strip())
+                            s.devices_sn.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(sn_result))
+                    except (IndexError,SyntaxError):
+                        s.devices_sn_str.set('正在尝试重新获取序列号...')
+                        s.devices_sn.unbind('<Button-1>')
             else:
                 sn_result = public.execute_cmd('adb -s ' + devices + ' shell cat /data/linux_sn.ini')
-                s.devices_sn_str.set('设备序列号：' + sn_result.strip())
-                s.devices_sn.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(sn_result))
+                if sn_result.strip() == '':
+                    s.devices_sn_str.set('该设备还没有序列号，正在获取...')
+                    s.devices_sn.unbind('<Button-1>')
+                    public.execute_cmd('adb -s ' + devices + ' shell rm -rf /data/linux_sn.ini')
+                else:
+                    s.devices_sn_str.set('设备序列号：' + sn_result.strip())
+                    s.devices_sn.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(sn_result))
 
         def t_update_status():
             global software_version_flag
-            # 实时检测设备所有信息
-            devices = s.more_devices_value.get()
+            time.sleep(3)  # 3S后执行，错开启动线程避免阻塞
+            while True:
+                try:
+                    # 实时检测设备所有信息
+                    devices = s.more_devices_value.get()
 
-            if not public.device_connect():
-                pass
-            else:
-                # 更新设备类型
-                if s.devices_type_str.get() == 'Android（安卓）':
-                    s.devices_mode_str.set('设备类型：Android（安卓）')
-                    # 更新设备序列号（安卓）
-                    # 更换更加准确查询序列号的命令
-                    sn_result = public.execute_cmd('adb -s ' + devices + ' shell getprop gsm.serial')
-                    if sn_result.strip() == '':
-                        sn_result = public.execute_cmd('adb -s ' + devices + ' shell getprop ro.serialno')
-                    if len(sn_result) > 19:
-                        s.devices_sn_str.set('序列号:' + sn_result.strip())
+                    if not public.device_connect():
+                        pass
                     else:
-                        s.devices_sn_str.set('设备序列号:' + sn_result.strip())
-                    s.devices_sn.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(sn_result))
-                    public_mac_ip(devices)
-                    # 获取安卓版本号
-                    try:
-                        android_version = public.execute_cmd('adb -s ' + devices + ' shell getprop ro.build.version.release')
-                        s.android_version_str.set('安卓版本号：Android ' + android_version.strip())
-                    except TypeError:
-                        pass
-                    # 显示安卓的应用版本号label
-                    s.software_version.place(x=0, y=150)
-                    # 获取安卓的应用版本号和固件版本号
-                    try:
-                        software_version = public.android_software_version_result(devices)
-                        s.software_version_str.set('应用版本号：' + software_version)
-                    except TypeError:
-                        pass
-                    firmware_version = public.android_firmware_version_result(devices)
-                    try:
-                        s.firmware_version_str.set('固件版本号：' + firmware_version)
-                    except TypeError:
-                        pass
-                elif s.devices_type_str.get() == 'Linux':
-                    s.devices_mode_str.set('设备类型：Linux')
-                    # 更换设备序列号提示
-                    # s.devices_sn_str.set('设备序列号：' + device_SN.strip())
-                    # s.devices_sn.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(device_SN.strip()))
-                    linux_sn_number(devices)
-                    public_mac_ip(devices)
-                    # 更换安卓系统版本 --》 Linux设备UUID
-                    # uuid_get_result = public.execute_cmd('adb -s ' + device_SN + ' shell ls -lh /data/UUID.ini')
-                    # uuid_get_result_finally = ' '.join(uuid_get_result.split()).split(':')[-1]
-                    # agOsUUID_result = public.execute_cmd('adb -s ' + device_SN + ' shell ls -lh /data/agOsUUID.txt')
-                    # agOsUUID_result_finally = ' '.join(agOsUUID_result.split()).split(':')[-1]
-                    if s.devices_type_str.get() == 'Linux':
-                        # 隐藏安卓的应用版本号label
-                        s.software_version.place_forget()
-                    else:
-                        # 显示安卓的应用版本号label
-                        s.software_version.place(x=0,y=150)
-                    # if uuid_get_result_finally.strip() == 'No such file or directory' and \
-                    #         agOsUUID_result_finally.strip() == 'No such file or directory':
-                    #     s.android_version_str.set('该设备需要重新获取UUID')
-                    # else:
-                    #     # 复制UUID到剪贴板
-                    #     devices_uuid = public.execute_cmd('adb -s ' + device_SN + ' shell cat /data/UUID.ini')
-                    #     devices_uuid_finally = ' '.join(devices_uuid.strip().split()).split(':')[-1]
-                    #     if devices_uuid_finally.strip() == 'No such file or directory':
-                    #         uuid_result = public.execute_cmd(
-                    #             'adb -s ' + device_SN + ' shell cat /data/agOsUUID.txt').strip()
-                    #         s.android_version.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(uuid_result))
-                    #         s.android_version_str.set('设备UUID：\n' + uuid_result)
-                    #     else:
-                    #         s.android_version.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(devices_uuid))
-                    #         s.android_version_str.set('设备UUID：\n' + devices_uuid)
-                    uuid = public.execute_cmd('adb -s ' + devices + ' shell ag_os')
-                    uuid_re = re.findall('uuid:(.*?)\\n', uuid)
-                    uuid_result = ''.join(uuid_re).strip()
-                    s.android_version_str.set('设备UUID：\n' + uuid_result)
-                    s.android_version.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(uuid_result))
-                    # 显示安卓固件版本号 --》 固件版本号
-                    # ota_version = public.execute_cmd('adb -s ' + device_SN + ' shell cat /data/ota_version')
-                    # ota_version_finally = ' '.join(ota_version.split()).split(':')[-1]
-                    # if ota_version_finally.strip() == 'No such file or directory':
-                    #     s.firmware_version_str.set('该设备不支持查询固件版本')
-                    # else:
-                    #     s.firmware_version_str.set('固件版本：' + ota_version.strip())
-                    version = public.execute_cmd('adb -s ' + devices + ' shell ag_os')
-                    genie_re = re.findall('genie version:(.*?)\\n', version)
-                    firmware_re = re.findall('firmware version:(.*?)\\n', version)
-                    genie_version = ''.join(genie_re).strip()
-                    firmware_version = ''.join(firmware_re).strip()
-                    s.firmware_version_str.set('软件版本：' + genie_version.strip() + '\n'
-                                               + '固件版本：' + firmware_version.strip())
+                        # 更新设备类型
+                        if s.devices_type_str.get() == 'Android（安卓）':
+                            s.devices_mode_str.set('设备类型：Android（安卓）')
+                            # 更新设备序列号（安卓）
+                            # 更换更加准确查询序列号的命令
+                            sn_result = public.execute_cmd('adb -s ' + devices + ' shell getprop gsm.serial')
+                            if sn_result.strip() == '':
+                                sn_result = public.execute_cmd('adb -s ' + devices + ' shell getprop ro.serialno')
+                            if len(sn_result) > 19:
+                                s.devices_sn_str.set('序列号:' + sn_result.strip())
+                            else:
+                                s.devices_sn_str.set('设备序列号:' + sn_result.strip())
+                            s.devices_sn.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(sn_result))
+                            public_mac_ip(devices)
+                            # 获取安卓版本号
+                            try:
+                                android_version = public.execute_cmd('adb -s ' + devices + ' shell getprop ro.build.version.release')
+                                s.android_version_str.set('安卓版本号：Android ' + android_version.strip())
+                            except TypeError:
+                                pass
+                            # 显示安卓的应用版本号label
+                            s.software_version.place(x=0, y=150)
+                            # 获取安卓的应用版本号和固件版本号
+                            try:
+                                software_version = public.android_software_version_result(devices)
+                                s.software_version_str.set('应用版本号：' + software_version)
+                            except TypeError:
+                                pass
+                            firmware_version = public.android_firmware_version_result(devices)
+                            try:
+                                s.firmware_version_str.set('固件版本号：' + firmware_version)
+                            except TypeError:
+                                pass
+                        elif s.devices_type_str.get() == 'Linux':
+                            s.devices_mode_str.set('设备类型：Linux')
+                            # 更换设备序列号提示
+                            # s.devices_sn_str.set('设备序列号：' + device_SN.strip())
+                            # s.devices_sn.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(device_SN.strip()))
+                            linux_sn_number(devices)
+                            public_mac_ip(devices)
+                            # 更换安卓系统版本 --》 Linux设备UUID
+                            # uuid_get_result = public.execute_cmd('adb -s ' + device_SN + ' shell ls -lh /data/UUID.ini')
+                            # uuid_get_result_finally = ' '.join(uuid_get_result.split()).split(':')[-1]
+                            # agOsUUID_result = public.execute_cmd('adb -s ' + device_SN + ' shell ls -lh /data/agOsUUID.txt')
+                            # agOsUUID_result_finally = ' '.join(agOsUUID_result.split()).split(':')[-1]
+                            if s.devices_type_str.get() == 'Linux':
+                                # 隐藏安卓的应用版本号label
+                                s.software_version.place_forget()
+                            else:
+                                # 显示安卓的应用版本号label
+                                s.software_version.place(x=0,y=150)
+                            # if uuid_get_result_finally.strip() == 'No such file or directory' and \
+                            #         agOsUUID_result_finally.strip() == 'No such file or directory':
+                            #     s.android_version_str.set('该设备需要重新获取UUID')
+                            # else:
+                            #     # 复制UUID到剪贴板
+                            #     devices_uuid = public.execute_cmd('adb -s ' + device_SN + ' shell cat /data/UUID.ini')
+                            #     devices_uuid_finally = ' '.join(devices_uuid.strip().split()).split(':')[-1]
+                            #     if devices_uuid_finally.strip() == 'No such file or directory':
+                            #         uuid_result = public.execute_cmd(
+                            #             'adb -s ' + device_SN + ' shell cat /data/agOsUUID.txt').strip()
+                            #         s.android_version.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(uuid_result))
+                            #         s.android_version_str.set('设备UUID：\n' + uuid_result)
+                            #     else:
+                            #         s.android_version.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(devices_uuid))
+                            #         s.android_version_str.set('设备UUID：\n' + devices_uuid)
+                            uuid = public.execute_cmd('adb -s ' + devices + ' shell ag_os')
+                            uuid_re = re.findall('uuid:(.*?)\\n', uuid)
+                            uuid_result = ''.join(uuid_re).strip()
+                            if uuid_result == '':
+                                s.android_version_str.set('该设备没有写码无法获取UUID！')
+                                s.android_version.unbind('<Button-1>')
+                            else:
+                                s.android_version_str.set('设备UUID：\n' + uuid_result)
+                                s.android_version.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(uuid_result))
+                            # 显示安卓固件版本号 --》 固件版本号
+                            # ota_version = public.execute_cmd('adb -s ' + device_SN + ' shell cat /data/ota_version')
+                            # ota_version_finally = ' '.join(ota_version.split()).split(':')[-1]
+                            # if ota_version_finally.strip() == 'No such file or directory':
+                            #     s.firmware_version_str.set('该设备不支持查询固件版本')
+                            # else:
+                            #     s.firmware_version_str.set('固件版本：' + ota_version.strip())
+                            version = public.execute_cmd('adb -s ' + devices + ' shell ag_os')
+                            genie_re = re.findall('genie version:(.*?)\\n', version)
+                            firmware_re = re.findall('firmware version:(.*?)\\n', version)
+                            genie_version = ''.join(genie_re).strip()
+                            firmware_version = ''.join(firmware_re).strip()
+                            if genie_version == '' or firmware_version == '':
+                                s.firmware_version_str.set('该设备没有写码无法获取\n软件版本和固件版本')
+                                s.firmware_version.unbind('<Button-1>')
+                            else:
+                                s.firmware_version_str.set('软件版本：' + genie_version.strip() + '\n'
+                                                           + '固件版本：' + firmware_version.strip())
+                                s.firmware_version.bind('<Button-1>', lambda x: public.pyperclip_copy_paste('软件版本：' + genie_version.strip() + '\n'
+                                                           + '固件版本：' + firmware_version.strip()))
+                except AttributeError:
+                    pass
+                time.sleep(3)
 
         t_update_status = threading.Thread(target=t_update_status)
         t_update_status.setDaemon(True)
@@ -2561,6 +2800,7 @@ class MainForm(object):
                         s.flow_button_disable.place_forget()
                         s.flow_button.place(x=20, y=20)
                         break
+                time.sleep(3)
 
         t_flow = threading.Thread(target=t_flow)
         t_flow.setDaemon(True)
@@ -2569,3 +2809,35 @@ class MainForm(object):
         t_flow_close = threading.Thread(target=t_flow_close)
         t_flow_close.setDaemon(True)
         t_flow_close.start()
+
+    def md5_size_bind(s):
+        def t_md5_size():
+            # 初始化获取文件MD5和大小页面的状态
+            with open(public.md5_size_page(), 'w') as fp:
+                fp.write('')
+            md5_size = customize_main.MD5_Screen()
+            md5_size.md5_size_form(s.md5_size_button, s.md5_size_button_disable)
+
+        def t_md5_size_close():
+            # 监听获取文件MD5和大小页面的关闭状态
+            with open(public.md5_size_page(), 'w') as fp:
+                fp.write('')
+            while True:
+                md5_size_page_state = open(public.md5_size_page(), 'r').read()
+                if md5_size_page_state.strip() == '0':
+                    print('获取文件MD5和大小页面已关闭！')
+                    s.md5_size_button_disable.place_forget()
+                    s.md5_size_button.place(x=200, y=20)
+                    break
+                else:
+                    s.md5_size_button.place_forget()
+                    s.md5_size_button_disable.place(x=200, y=20)
+                time.sleep(3)
+
+        t_md5_size = threading.Thread(target=t_md5_size)
+        t_md5_size.setDaemon(True)
+        t_md5_size.start()
+
+        t_md5_size_close = threading.Thread(target=t_md5_size_close)
+        t_md5_size_close.setDaemon(True)
+        t_md5_size_close.start()

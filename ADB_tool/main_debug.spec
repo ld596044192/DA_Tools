@@ -5,7 +5,7 @@ block_cipher = None
 
 
 a = Analysis(['main_debug.py'],
-             pathex=['.\\public.py,.\\quickly.py,.\\main_form.py,.\\screen_record.py,.\\linux_main.py,.\\pywinauto_adb.py'],
+             pathex=['.\\public.py,.\\quickly.py,.\\main_form.py,.\\screen_record.py,.\\linux_main.py,.\\pywinauto_adb.py,.\\customize_main.py'],
              binaries=[],
              datas=[('icon','icon'),('version','version'),('temp','temp'),('resources','resources')],
              hiddenimports=[],
