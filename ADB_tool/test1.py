@@ -1,31 +1,50 @@
-from PIL import Image, ImageSequence
+#!/usr/bin/env python2.4
+# This program shows off a python decorator(
+# which implements tail call optimization. It
+# does this by throwing an exception if it is
+# it's own grandparent, and catching such
+# exceptions to recall the stack.
 
-import os
+import sys
 
-gifPath = r'C:\Users\lida\Desktop\123.gif'
 
-oriGif = Image.open(gifPath)
+class TailRecurseException(BaseException):
+    def __init__(self, args, kwargs):
+        self.args = args
+        self.kwargs = kwargs
 
-lifeTime = oriGif.info['duration']
 
-imgList = []
+def tail_call_optimized(g):
+    """
+    This function decorates a function with tail call
+    optimization. It does this by throwing an exception
+    if it is it's own grandparent, and catching such
+    exceptions to fake the tail call optimization.
 
-imgNew = []
+    This function fails if the decorated
+    function recurses in a non-tail context.
+    """
+    def func(*args, **kwargs):
+        f = sys._getframe()
+        if f.f_back and f.f_back.f_back \
+            and f.f_back.f_back.f_code == f.f_code:
+            # 抛出异常
+            raise TailRecurseException(args, kwargs)
+        else:
+            while 1:
+                try:
+                    return g(*args, **kwargs)
+                except TailRecurseException as e:
+                    args = e.args
+                    kwargs = e.kwargs
+    func.__doc__ = g.__doc__
+    return func
 
-for i in ImageSequence.Iterator(oriGif):
-    print(i.copy())
+@tail_call_optimized
+def factorial(n, acc=1):
+    "calculate a factorial"
+    if n == 0:
+        return acc
+    return factorial(n,n-2)
 
-    imgList.append(i.copy())
-
-for index, f in enumerate(imgList):
-    f.save("C:\\Users\\lida\\Desktop\\gif\\%d.png" % index)
-
-    img = Image.open("C:\\Users\\lida\\Desktop\\gif\\%d.png" % index)
-
-    img.thumbnail((111, 101), Image.ANTIALIAS)
-
-    imgNew.append(img)
-
-imgNew[0].save("C:\\Users\\lida\\Desktop\\new.gif", 'gif', save_all=True, append_images=imgNew[1:], loop=0,
-
-               duration=lifeTime)
+print(factorial(10000))
