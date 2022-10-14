@@ -1,4 +1,4 @@
-import sys,os,inspect,ctypes,getpass
+import sys,os,inspect,ctypes,getpass,re
 
 username = getpass.getuser()
 # 创建临时文件夹
@@ -40,4 +40,9 @@ def stop_thread(thread):
 def crawler_setting_page():
     # 创建爬虫通用设置页面
     crawler_page = crawler_settings + 'crawler_page'
+    if not os.path.exists(crawler_page):
+        with open(crawler_page,'w') as fp:
+            fp.write('')
+        fp.close()
     return crawler_page
+

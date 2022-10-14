@@ -16,6 +16,8 @@ main_version_path = public.resource_path(os.path.join('version','main_version_hi
 # 创建临时文件夹
 make_dir = 'C:\\Users\\' + username + '\\Documents\\DA_Tools\\'
 # ADB测试工具全部全局变量集
+# 全局变量标记-首次打开工具需要添加临时变量
+adb_tools_flag = True
 # 全局变量标记-首次打开工具需要处理的
 playGif_flag = False
 # 全局变量标记-设备类型
@@ -166,8 +168,13 @@ class ADB_Test(object):
         s.quickly_frame()
 
     def software_init(s):
-        global playGif_flag
+        global playGif_flag,adb_tools_flag
         # 每次启动本软件都需要进行初始化
+
+        if adb_tools_flag: # 表示首次启动本工具才执行，之后无需添加，避免多次重复添加临时变量
+            # 添加临时adb-tools环境变量（方便开发者调试，避免出现IndexError、ValueError异常） -- 双重保证系统及工具识别到本地服务
+            public.temporary_environ(make_dir + 'adb-tools')
+            adb_tools_flag = False
 
         # 启动ADB服务
         public.execute_cmd('adb start-server')
@@ -2904,6 +2911,7 @@ class ADB_Test(object):
                     s.flow_button_disable.place_forget()
                     s.flow_button.place(x=20, y=20)
                     if flow_page_state == '0':
+                        s.adb_test_close_disable.place_forget()
                         break
                 else:
                     if not first_button_flag:

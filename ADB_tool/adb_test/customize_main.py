@@ -538,7 +538,7 @@ class MD5_Screen(object):
         return self.md5_size_root
 
     def md5_size_startup(self,md5_size_Button,md5_size_Button_disable):
-        # 监听截图页面的打开状态
+        # 监听文件MD5和大小页面的打开状态
         md5_size_exists = self.md5_size_root.winfo_exists()
         print(md5_size_exists)
         if md5_size_exists == 1:
