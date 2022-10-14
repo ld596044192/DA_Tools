@@ -27,12 +27,12 @@ gsnap_path = public.resource_path(os.path.join('resources','gsnap'))
 system_path = public.resource_path(os.path.join('resources','system'))
 username = getpass.getuser()
 # 创建临时文件夹
-make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
-make_dir_main = make_dir + 'make_dir\\'
+make_dir = 'C:\\Users\\' + username + '\\Documents\\DA_Tools\\'
+make_dir_s = make_dir + 'adb_test_temp\\'
 if not os.path.exists(make_dir):
     os.makedirs(make_dir)
 # 截图页面启动标志
-screen_page = make_dir + 'screen_page_state.txt'
+screen_page = make_dir_s + 'screen_page_state.txt'
 # 自定义截图保存文件夹名
 linux_dirname = 'ADB工具-Linux截图（DA）'
 linux_save_path = 'C:\\Users\\' + username + '\\Desktop\\' + linux_dirname + '\\'
@@ -43,29 +43,29 @@ linux_log_path = 'C:\\Users\\' + username + '\\Desktop\\' + linux_dirname_log + 
 linux_camera_name = 'ADB_get_yuv'
 linux_camera_save = 'C:\\Users\\' + username + '\\Desktop\\' + linux_camera_name + '\\'
 # Linux截图计数
-linux_screen_count = make_dir + 'linux_screen_count.txt'
+linux_screen_count = make_dir_s + 'linux_screen_count.txt'
 # 取图文件夹计数
-linux_camera_count = make_dir + 'linux_camera_count.txt'
+linux_camera_count = make_dir_s + 'linux_camera_count.txt'
 # 记录照片旋转角度
-Image_rotate_path = make_dir + 'linux_screen_rotate.txt'
+Image_rotate_path = make_dir_s + 'linux_screen_rotate.txt'
 # 安装页面启动标志
-install_page = make_dir + 'install_page_state.txt'
+install_page = make_dir_s + 'install_page_state.txt'
 # 保存so库的文件路径
-so_file_path = make_dir_main + 'so_file_path.log'
+so_file_path = make_dir_s + 'so_file_path.log'
 # 保存amr安装的文件路径
-amr_file_path = make_dir_main + 'amr_file_path.log'
+amr_file_path = make_dir_s + 'amr_file_path.log'
 # 取图页面启动标志
-camera_page = make_dir + 'camera_page_state.txt'
+camera_page = make_dir_s + 'camera_page_state.txt'
 # 写号工具页面启动标志
-write_number_page = make_dir + 'linux_write_number_state.txt'
+write_number_page = make_dir_s + 'linux_write_number_state.txt'
 # 一键获取日志页面启动标志
-get_log_page = make_dir + 'get_log_state.txt'
+get_log_page = make_dir_s + 'get_log_state.txt'
 # 写号工具记录log
-write_SN_log = make_dir + 'write_SN_log.log'
+write_SN_log = make_dir_s + 'write_SN_log.log'
 # SN号记录标记
-SN_path = make_dir + 'SN.txt'
+SN_path = make_dir_s + 'SN.txt'
 # 实时保存设备序列号
-devices_log = make_dir + 'devices.log'
+devices_log = make_dir_s + 'devices.log'
 # Entry输入框焦点标记（用于右键菜单粘贴逻辑使用）
 install_library_entry_focus_flag = False
 install_software_entry_focus_flag = False
@@ -80,6 +80,18 @@ if not os.path.exists(write_SN_log):
     with open(write_SN_log,'w') as fp:
         fp.write('')
     fp.close()
+
+
+def page_log(adb_test_disable):
+    # 获取各页面的状态信息
+    screen_page_log = open(screen_page, 'r').read()
+    install_page_log = open(install_page,'r').read()
+    camera_page_log = open(camera_page,'r').read()
+    write_number_page_log = open(write_number_page,'r').read()
+    get_log_page_log = open(get_log_page,'r').read()
+    if screen_page_log != '' and install_page_log != '' and camera_page_log != '' and write_number_page_log != '' \
+        and get_log_page_log != '':
+        adb_test_disable.place_forget()
 
 
 def main_init(init_str,init_Button,init_Button_disable,device):
@@ -186,7 +198,7 @@ def devices_init(init_str,init_Button,init_Button_disable,device,init_again_butt
 
 # 截图工具界面
 class Linux_Screen(object):
-    def screen_form(self,init_str,linux_screen_Button,linux_screen_Button_disable,device):
+    def screen_form(self,init_str,linux_screen_Button,linux_screen_Button_disable,device,adb_test_disable):
         self.screen_root = tkinter.Toplevel()
         self.screen_root.title('Linux截图工具')
         # screenWidth = self.screen_root.winfo_screenwidth()
@@ -201,6 +213,7 @@ class Linux_Screen(object):
         # self.screen_root.wm_attributes('-topmost', 1)
 
         self.screen_startup(linux_screen_Button,linux_screen_Button_disable)
+        self.adb_test_disable = adb_test_disable
 
         self.screen_root.protocol('WM_DELETE_WINDOW',self.close_handle)
         self.main_frame(device)
@@ -222,6 +235,9 @@ class Linux_Screen(object):
             fp.write('0')
         fp.close()
         self.screen_root.destroy()
+
+
+        self.adb_test_disable.place_forget()
 
     # def device_monitor(self,init_str):
     #     # 监听设备连接状态
@@ -467,7 +483,7 @@ class Linux_Screen(object):
 
 # 安装应用界面
 class Linux_Install(object):
-    def install_form(self,init_str,linux_screen_Button,linux_screen_Button_disable,device):
+    def install_form(self,init_str,linux_screen_Button,linux_screen_Button_disable,device,adb_test_disable):
         self.install_root = tkinter.Toplevel()
         self.install_root.title('Linux一键安装工具')
         # screenWidth = self.install_root.winfo_screenwidth()
@@ -483,6 +499,7 @@ class Linux_Install(object):
         # self.install_root.wm_attributes('-topmost', 1)
 
         self.install_startup(linux_screen_Button,linux_screen_Button_disable)
+        self.adb_test_disable = adb_test_disable
 
         self.install_root.protocol('WM_DELETE_WINDOW',self.close_handle)
         self.main_frame(device)
@@ -504,6 +521,7 @@ class Linux_Install(object):
             fp.write('0')
         fp.close()
         self.install_root.destroy()
+        page_log(self.adb_test_disable)
 
     # def device_monitor(self,init_str):
     #     # 监听设备连接状态
@@ -842,7 +860,7 @@ class Linux_Install(object):
 
 # 获取扫描帧数图片界面
 class Linux_Camera(object):
-    def camera_form(self,init_str,linux_camera,linux_camera_disable,device):
+    def camera_form(self,init_str,linux_camera,linux_camera_disable,device,adb_test_disable):
         self.camera_root = tkinter.Toplevel()
         self.camera_root.title('Linux获取扫描帧数图片工具')
         # screenWidth = self.install_root.winfo_screenwidth()
@@ -858,6 +876,7 @@ class Linux_Camera(object):
         # self.camera_root.wm_attributes('-topmost', 1)
 
         self.camera_startup(linux_camera,linux_camera_disable)
+        self.adb_test_disable = adb_test_disable
 
         self.camera_root.protocol('WM_DELETE_WINDOW',self.close_handle)
         self.main_frame(linux_camera_disable,device)
@@ -881,6 +900,7 @@ class Linux_Camera(object):
         # 模拟键盘回车输入以便自动取消消息框
         # keyboard.press('enter')
         keyboard.press(Key.enter)
+        page_log(self.adb_test_disable)
 
     def main_frame(self,linux_camera_disable,device):
         # 获取图片状态栏
@@ -1202,7 +1222,7 @@ class Linux_Camera(object):
 
 # 写号工具页面
 class Linux_WriteNumber(object):
-    def write_number_form(self,init_str,write_number_Button,write_number_Button_disable,device):
+    def write_number_form(self,init_str,write_number_Button,write_number_Button_disable,device,adb_test_disable):
         self.write_number_root = tkinter.Toplevel()
         self.write_number_root.title('写号/写码工具 - Linux')
         screenWidth = self.write_number_root.winfo_screenwidth()
@@ -1218,6 +1238,7 @@ class Linux_WriteNumber(object):
         self.write_number_root.wm_attributes('-topmost', 1)
 
         self.write_number_startup(write_number_Button,write_number_Button_disable)
+        self.adb_test_disable = adb_test_disable
 
         self.write_number_root.protocol('WM_DELETE_WINDOW',self.close_handle)
         self.main_frame(device)
@@ -1238,6 +1259,7 @@ class Linux_WriteNumber(object):
             fp.write('0')
         fp.close()
         self.write_number_root.destroy()
+        page_log(self.adb_test_disable)
 
     def main_frame(self,device):
         # 获取写号工具状态栏
@@ -1574,7 +1596,7 @@ class Linux_WriteNumber(object):
 
 # 一键获取日志界面
 class Linux_Log(object):
-    def log_form(self,init_str,linux_log_Button,linux_log_Button_disable,device):
+    def log_form(self,init_str,linux_log_Button,linux_log_Button_disable,device,adb_test_disable):
         self.log_root = tkinter.Toplevel()
         self.log_root.title('Linux一键获取日志')
         # screenWidth = self.log_root.winfo_screenwidth()
@@ -1590,6 +1612,7 @@ class Linux_Log(object):
         # self.log_root.wm_attributes('-topmost', 1)
 
         self.log_startup(linux_log_Button,linux_log_Button_disable)
+        self.adb_test_disable = adb_test_disable
 
         self.log_root.protocol('WM_DELETE_WINDOW',self.close_handle)
         self.main_frame(device)
@@ -1610,6 +1633,7 @@ class Linux_Log(object):
             fp.write('0')
         fp.close()
         self.log_root.destroy()
+        page_log(self.adb_test_disable)
 
     def main_frame(self,device):
         # 一键获取日志状态栏

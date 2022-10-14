@@ -2,7 +2,7 @@ import sys,os,inspect,ctypes,getpass
 
 username = getpass.getuser()
 # 创建临时文件夹
-make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
+make_dir = 'C:\\Users\\' + username + '\\Documents\\DA_Tools\\'
 crawler_settings = make_dir + 'crawler_settings\\'
 # 初始化文件
 if not os.path.exists(crawler_settings):

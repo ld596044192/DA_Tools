@@ -11,21 +11,21 @@ import random  # 随机模块
 
 username = getpass.getuser()
 # 创建临时文件夹
-make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
-conflict_software_path = make_dir + 'conflict_software.txt'
-# 记录设置环境变量日志
-environ_log = make_dir + 'environ_log.log'
-# 记录apk包路径（检测包名）
-apk_path_package_log = make_dir + 'apk_path_package.log'
-# 简易ADB - adb-tools检测标志
-adb_tools_flag = make_dir + 'adb-tools'
+make_dir = 'C:\\Users\\' + username + '\\Documents\\DA_Tools\\'
 # 创建页面文件，记录文件状态
-make_dir_s = make_dir + 'make_dir\\'
+make_dir_s = make_dir + 'adb_test_temp\\'
+conflict_software_path = make_dir_s + 'conflict_software.txt'
+# 记录设置环境变量日志
+environ_log = make_dir_s + 'environ_log.log'
+# 记录apk包路径（检测包名）
+apk_path_package_log = make_dir_s + 'apk_path_package.log'
+# 简易ADB - adb-tools检测标志
+adb_tools_flag = make_dir_s + 'adb-tools'
 # 修改gif图片产生的缓存
-make_gif_temp = make_dir + 'gif_temp\\'
+make_gif_temp = make_dir_s + 'gif_temp\\'
 if not os.path.exists(make_dir_s):
     os.makedirs(make_dir_s)
-gif_playerGif_path = make_dir + 'playerGif_temp\\'
+gif_playerGif_path = make_dir_s + 'playerGif_temp\\'
 # 首次启动需要删除存在的gif缓存
 try:
     shutil.rmtree(gif_playerGif_path)

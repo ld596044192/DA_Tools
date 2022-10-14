@@ -5,7 +5,7 @@ import public
 
 username = getpass.getuser()
 # 创建临时文件夹
-make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
+make_dir = 'C:\\Users\\' + username + '\\Documents\\DA_Tools\\'
 # 进入某功能需要实时监测功能是否已经启动
 crawler_settings = make_dir + 'crawler_settings\\'
 crawler_settings_log = crawler_settings + 'crawler_settings.ini'

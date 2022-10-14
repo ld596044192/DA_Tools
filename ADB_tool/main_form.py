@@ -63,7 +63,7 @@ main_version_path = main_public.resource_path(os.path.join('version','main_versi
 main_public.resource_path(os.path.join('adb_test','adb_test'))  # ADB测试工具
 # -----------------------------------
 # 创建临时文件夹
-make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
+make_dir = 'C:\\Users\\' + username + '\\Documents\\DA_Tools\\'
 # 进入某功能需要实时监测功能是否已经启动
 main = make_dir + 'main\\'
 if not os.path.exists(main):
@@ -127,7 +127,7 @@ class MainForm(object):
 
     def all_function(self):
         # 所有应用返回主界面都要默认加载
-        self.root.title('达之领域万能工具' + version + ' Windows版')
+        self.root.title('DA万能工具' + version + ' Windows版')
         main_logo = main_public.resource_path(os.path.join('icon', 'my-da.ico'))
         self.root.iconbitmap(main_logo)
         self.display_main_test()

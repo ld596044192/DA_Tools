@@ -10,10 +10,11 @@ flow_package = public.resource_path(os.path.join('temp','flow_package.txt'))
 flow_package_log = public.resource_path(os.path.join('temp','flow_package_log.txt'))
 devices_type_log = public.resource_path(os.path.join('temp','devices_type_log.txt'))  # 记录设备类型
 username = getpass.getuser()
-make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
-path_page = make_dir + 'path_page\\'
+make_dir = 'C:\\Users\\' + username + '\\Documents\\DA_Tools\\'
+make_dir_s = make_dir + 'adb_test_temp\\'
+path_page = make_dir_s + 'path_page\\'
 # 实时保存设备序列号
-devices_log = make_dir + 'devices.log'
+devices_log = make_dir_s + 'devices.log'
 # md5和大小路径保存
 md5_size_path = path_page + 'md5_size_path.log'
 # 判断当前包名是否一致标记
@@ -24,9 +25,17 @@ if not os.path.exists(path_page):
     os.makedirs(path_page)
 
 
+def page_log(adb_test_disable):
+    # 获取各页面的状态信息
+    flow_page_log = open(public.flow_page(), 'r').read()
+    md5_size_page_log = open(public.md5_size_page(), 'r').read()
+    if flow_page_log != '' and md5_size_page_log != '' :
+        adb_test_disable.place_forget()
+
+
 # 查询应用流量值工具界面
 class Flow_Screen(object):
-    def flow_form(self,flow_Button,flow_Button_disable):
+    def flow_form(self,flow_Button,flow_Button_disable,adb_test_disable):
         self.flow_root = tkinter.Toplevel()
         self.flow_root.title('查询应用流量值工具')
         # screenWidth = self.screen_root.winfo_screenwidth()
@@ -41,6 +50,7 @@ class Flow_Screen(object):
         # self.screen_root.wm_attributes('-topmost', 1)
 
         self.flow_startup(flow_Button,flow_Button_disable)
+        self.adb_test_disable = adb_test_disable
 
         self.flow_root.protocol('WM_DELETE_WINDOW',self.close_handle)
         self.main_frame()
@@ -62,6 +72,7 @@ class Flow_Screen(object):
             fp.write('0')
         fp.close()
         self.flow_root.destroy()
+        page_log(self.adb_test_disable)
 
     def main_frame(self):
         # 上行流量与下行流量Label
@@ -502,7 +513,7 @@ class Flow_Screen(object):
 
 # 获取文件MD5和大小页面
 class MD5_Screen(object):
-    def md5_size_form(self,md5_size_Button,md5_size_Button_disable):
+    def md5_size_form(self,md5_size_Button,md5_size_Button_disable,adb_test_disable):
         self.md5_size_root = tkinter.Toplevel()
         self.md5_size_root.title('文件MD5大小计算工具')
         screenWidth = self.md5_size_root.winfo_screenwidth()
@@ -518,6 +529,7 @@ class MD5_Screen(object):
         self.md5_size_root.wm_attributes('-topmost', 1)
 
         self.md5_size_startup(md5_size_Button,md5_size_Button_disable)
+        self.adb_test_disable = adb_test_disable
 
         self.md5_size_root.protocol('WM_DELETE_WINDOW',self.close_handle)
         self.main_frame()
@@ -539,6 +551,7 @@ class MD5_Screen(object):
             fp.write('0')
         fp.close()
         self.md5_size_root.destroy()
+        page_log(self.adb_test_disable)
 
     def count_md5_size(self,file_path):
         def t_count_md5():

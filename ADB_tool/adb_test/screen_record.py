@@ -11,20 +11,21 @@ adb_path = public.resource_path(os.path.join('adb-tools'))
 record_state = public.resource_path(os.path.join('temp','record_state.txt'))
 # record_main = public.resource_path(os.path.join('background_program','record_main.exe'))
 username = getpass.getuser()
-make_dir = 'C:\\Users\\' + username + '\\Documents\\ADB_Tools(DA)\\'
-count_path = make_dir + 'screenshots_count.txt'
-record_count = make_dir + 'record_count.txt'
-record_count_1 = make_dir + 'record_count_1.txt'
-record_name = make_dir + 'record_name.txt'
+make_dir = 'C:\\Users\\' + username + '\\Documents\\DA_Tools\\'
+make_dir_s = make_dir + 'adb_test_temp\\'
+count_path = make_dir_s + 'screenshots_count.txt'
+record_count = make_dir_s + 'record_count.txt'
+record_count_1 = make_dir_s + 'record_count_1.txt'
+record_name = make_dir_s + 'record_name.txt'
 # record_model_log = make_dir + 'record_model.log'
 # 录屏时间
-record_time_txt = make_dir + 'record_time.txt'
+record_time_txt = make_dir_s + 'record_time.txt'
 # 获取录屏程序开始状态
-record_began = make_dir + 'record_state.txt'
+record_began = make_dir_s + 'record_state.txt'
 # 记录程序位置
 exe_path = public.resource_path(os.path.join('temp','exe_path.log'))
 # 录屏停止处理1
-record_stop = make_dir + 'record_stop.ini'
+record_stop = make_dir_s + 'record_stop.ini'
 # 自定义截图保存文件夹名
 dirname = 'ADB工具-截图（DA）'
 save_path = 'C:\\Users\\' + username + '\\Desktop\\' + dirname + '\\'
