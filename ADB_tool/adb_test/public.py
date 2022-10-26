@@ -3,7 +3,7 @@ import sys,os
 import subprocess,windnd
 import tkinter,tkinter.messagebox
 import psutil,shutil,getpass,pyperclip,hashlib
-import re,time
+import re,time,tempfile
 from tkinter import *
 import zipfile
 from PIL import Image, ImageSequence
@@ -75,6 +75,27 @@ def execute_cmd(cmd):
     except UnicodeDecodeError:
         result = proc.stdout.read().decode('utf-8')  # 适用于截图录屏功能，针对截图录屏文件名中文编码报错的异常处理
     proc.stdout.close()
+    return result
+
+
+def linux_sn_cmd(cmd):  # 解决执行命令后导致subprocess阻塞的问题
+    # 子进程产生一些数据，他们会被buffer起来，当buffer满了，会写到子进程的标准输出和标准错误输出，这些东西通过管道发送给父进程。
+    # 当管道满了之后，子进程就停止写入，于是就卡住了，及时取走管道的输出就不会出现阻塞了
+    # 但是本人此处采取的是临时文件接收子进程输出，由于临时文件是建立在磁盘上的，没有size的限制，并且文件被close后，相应的磁盘上的空间也会被释放掉。
+    # 启用子进程执行外部shell命令
+    # 得到一个临时文件对象， 调用close后，此文件从磁盘删除
+    out_temp = tempfile.TemporaryFile(mode='w+')
+    # 获取临时文件的文件号
+    fileno = out_temp.fileno()
+    # 执行外部shell命令， 输出结果存入临时文件中
+    p = subprocess.Popen(cmd, shell=True, stdout=fileno, stderr=fileno)
+    p.wait()
+    # 从临时文件读出shell命令的输出结果
+    out_temp.seek(0)
+    rt = out_temp.read()
+    # 以换行符拆分数据，并去掉换行符号存入列表
+    result = ''.join(rt.strip().split('\n'))
+    out_temp.close()
     return result
 
 

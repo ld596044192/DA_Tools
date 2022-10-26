@@ -8,7 +8,6 @@ import tkinter,tkinter.ttk,tkinter.messagebox,tkinter.filedialog
 import threading
 import getpass,pyperclip,win32api,win32ui
 import public,quickly,screen_record,linux_main,customize_main
-from PIL import Image,ImageTk
 
 
 username = getpass.getuser()
@@ -1062,8 +1061,8 @@ class ADB_Test(object):
         s.init_str.set('此处显示初始化状态')
 
         # 初始化按钮
-        s.linux_extra_Button = tkinter.Button(s.linux_frame1, text='其他快捷功能', width=width_button)
-        s.linux_extra_Button_disable = tkinter.Button(s.linux_frame1, text='其他快捷功能', width=width_button)
+        s.linux_extra_Button = tkinter.Button(s.linux_frame1, text='其他快捷功能（Linux）', width=width_button)
+        s.linux_extra_Button_disable = tkinter.Button(s.linux_frame1, text='其他快捷功能（Linux）', width=width_button)
         s.linux_extra_Button_disable.config(state='disable')
         s.linux_extra_Button.place(x=20,y=155)
 
@@ -1074,8 +1073,11 @@ class ADB_Test(object):
         s.linux_type_label.image = linux_type_picture
         s.linux_type_label.place(x=175,y=155)
 
-        s.linux_type_combobox = tkinter.ttk.Combobox(s.linux_frame1)
-        s.linux_type_combobox.place(x=200,y=155)
+        s.linux_type_combobox = tkinter.ttk.Combobox(s.linux_frame1,width=18)
+        s.linux_type_combobox['value'] = ['全志/索智/阿里']
+        s.linux_type_combobox.config(state='readonly')
+        s.linux_type_combobox.current(0)
+        s.linux_type_combobox.place(x=210,y=160)
 
         # 功能禁用状态标签
         button_disable_content = '该设备没有初始化，已隐藏所有功能\n请点击上方按钮进行设备初始化\n以便开启所有Linux功能' \
@@ -1498,7 +1500,7 @@ class ADB_Test(object):
         devices_sn_finally = ' '.join(devices_sn.strip().split()).split(':')[-1]
         if devices_sn_finally.strip() == 'No such file or directory':
             # 从设备系统日志中过滤出SN
-            sn = public.execute_cmd('adb -s ' + devices + ' shell grep "sn" /data/syslog.log')
+            sn = public.linux_sn_cmd('adb -s ' + devices + ' shell grep "sn" /data/syslog.log')
             # print('测试：' + sn)
             if sn.strip() == '':
                 s.devices_sn_str.set('首次查询需要进入“设置-关于”')
@@ -1705,7 +1707,7 @@ class ADB_Test(object):
                 # else:
                 # print('正在检测设备类型 -----------')
                 try:
-                    time.sleep(3)  # 延时3S等待设备序列号加载出来
+                    time.sleep(2)  # 延时2S等待设备序列号加载出来
                     device_SN = s.more_devices_value.get()
                     device_type = public.device_type_android(device_SN)
                     # print(device_type.strip())  # 调试Logs
@@ -1786,7 +1788,10 @@ class ADB_Test(object):
                                 and s.more_devices_value.get().strip() != '':
                             s.more_devices_list = devices_list
                             s.more_devices_combobox['value'] = s.more_devices_list
-                            s.more_devices_combobox.current(0)
+                            try:
+                                s.more_devices_combobox.current(0)
+                            except tkinter.TclError:
+                                continue
                         else:
                             s.more_devices_list = devices_list
                             s.more_devices_combobox['value'] = s.more_devices_list
@@ -1804,7 +1809,7 @@ class ADB_Test(object):
                                     except tkinter.TclError:
                                         pass
                             lower_CPU_utility = False
-                time.sleep(3)
+                time.sleep(2)
 
         def t_devices():
             global adb_server_flag,conflict_model_flag,adb_server_all_flag,lower_CPU_utility_connect,lower_CPU_utility_disconnect
