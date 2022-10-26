@@ -5,11 +5,10 @@ import tkinter,tkinter.ttk,tkinter.messagebox,tkinter.filedialog
 import threading
 import main_public,getpass
 from adb_test import adb_test_main  # 调用ADB测试工具
-from translate_crawler import public_crawler_setting
 from PIL import Image,ImageTk
 
 #!/usr/bin/env python3+
-# This program shows off a python decorator(
+# This program shows off a python decorator
 # which implements tail call optimization. It
 # does this by throwing an exception if it is
 # it's own grandparent, and catching such
@@ -142,18 +141,11 @@ class MainForm(object):
         self.test_list_label_disbale.place(x=60,y=15)
         self.test_list_label.bind('<Button-1>',lambda x:self.display_test_frame())
 
-        # 爬虫工具列表
-        self.crawler_list_label = tkinter.Label(self.root_label_frame, text='爬虫工具')
-        self.crawler_list_label_disbale = tkinter.Label(self.root_label_frame, text='爬虫工具')
-        self.crawler_list_label_disbale.config(state='disable')
-        self.crawler_list_label.place(x=120, y=15)
-        self.crawler_list_label.bind('<Button-1>', lambda x: self.display_crawler_frame())
-
         # 历史版本显示
         self.main_history_label = tkinter.Label(self.root_label_frame,text='历史版本')
         self.main_history_label_disbale = tkinter.Label(self.root_label_frame,text='历史版本')
         self.main_history_label_disbale.config(state='disable')
-        self.main_history_label.place(x=180,y=15)
+        self.main_history_label.place(x=120,y=15)
         self.main_history_label.bind('<Button-1>',lambda x: self.display_history_frame())
 
         self.root_label_frame.place(x=0,y=0)
@@ -164,7 +156,6 @@ class MainForm(object):
 
         # 恢复按钮显示
         self.main_history_label_disbale.place_forget()
-        self.crawler_list_label_disbale.place_forget()
 
         self.test_list_label_disbale.place(x=60, y=15)
         try:
@@ -191,46 +182,6 @@ class MainForm(object):
 
         self.test_button_frame.place(y=50)  # 默认显示的测试工具页面
 
-    def display_crawler_frame(self):
-        # 显示主界面爬虫工具页面
-        self.display_main_crawler()
-
-        # 默认第一个的两个都要换
-        self.test_list_label.place(x=60, y=15)
-        self.test_list_label_disbale.place_forget()
-        self.main_history_label_disbale.place_forget()
-
-        self.crawler_list_label_disbale.place(x=120,y=15)
-        try:
-            self.test_button_frame.place_forget()
-        except AttributeError:
-            pass
-
-    def display_main_crawler(self):
-        # 爬虫页面逻辑
-        self.crawler_button_frame = tkinter.Frame(self.root, width=600, height=400)
-
-        # 显示自制翻译入口按钮
-        translate_Logo_path = main_public.resource_path(os.path.join('icon', 'translate.jpeg'))
-        self.translate_test_button = tkinter.Button(self.crawler_button_frame, bg='red')
-        img = Image.open(translate_Logo_path)
-        adb_test_photo = ImageTk.PhotoImage(img)
-        self.translate_test_button.config(image=adb_test_photo)
-        self.translate_test_button.image = adb_test_photo
-        # self.translate_test_button.bind('<Button-1>', lambda x: self.adb_test_function())
-        self.translate_test_button.place(x=40, y=0)
-        # 自制翻译工具应用名称显示
-        self.translate_test_name = tkinter.Label(self.crawler_button_frame, text='自制翻译工具')
-        self.translate_test_name.place(x=50, y=100)
-
-        # 通用爬虫参数设置
-        self.general_params_button = tkinter.Button(self.crawler_button_frame,text='通用参数设置')
-        self.general_params_button_disable = tkinter.Button(self.crawler_button_frame,text='通用参数设置')
-        self.general_params_button_disable.config(state='disable')
-        self.general_params_button.bind('<Button-1>', lambda x: self.crawler_settings_bind())
-        self.general_params_button.place(x=500, y=0)
-
-        self.crawler_button_frame.place(y=50)
 
     def display_history_frame(self):
         # 显示主界面历史版本页面
@@ -239,9 +190,8 @@ class MainForm(object):
         # 默认第一个的两个都要换
         self.test_list_label.place(x=60, y=15)
         self.test_list_label_disbale.place_forget()
-        self.crawler_list_label_disbale.place_forget()
 
-        self.main_history_label_disbale.place(x=180,y=15)
+        self.main_history_label_disbale.place(x=120,y=15)
         try:
             self.test_button_frame.place_forget()
         except AttributeError:
@@ -268,15 +218,15 @@ class MainForm(object):
         # 进入ADB测试工具
         def t_adb_test():
             global adb_server_all_flag
-            if tkinter.messagebox.askyesno('打开提醒','是否打开ADB测试工具'):
-                self.function_status_listen()  # 开始监听开关状态
-                self.adb_test_button.place_forget()
-                self.root_label_frame.place_forget()
-                self.test_button_frame.place_forget()
-                # 每次进入需要打开ADB服务
-                adb_server_all_flag = True
-                adb_test = adb_test_main.ADB_Test()
-                adb_test.adb_root_form(self.root)
+            # if tkinter.messagebox.askyesno('打开提醒','是否打开ADB测试工具'):
+            self.function_status_listen()  # 开始监听开关状态
+            self.adb_test_button.place_forget()
+            self.root_label_frame.place_forget()
+            self.test_button_frame.place_forget()
+            # 每次进入需要打开ADB服务
+            adb_server_all_flag = True
+            adb_test = adb_test_main.ADB_Test()
+            adb_test.adb_root_form(self.root)
 
         t_adb_test = threading.Thread(target=t_adb_test)
         t_adb_test.setDaemon(True)
@@ -290,40 +240,40 @@ class MainForm(object):
             os.kill(pid,signal.SIGINT)  # 避免残留后台运行强制杀死
             sys.exit()  # 终止程序
 
-    def crawler_settings_bind(self):
-        def t_crawler_settings():
-            # 初始化通用爬虫参数设置页面的状态
-            with open(main_public.crawler_setting_page(), 'w') as fp:
-                fp.write('')
-            fp.close()
-            crawer_settings = public_crawler_setting.Crawler_Settings()
-            crawer_settings.setting_form(self.general_params_button,self.general_params_button_disable)
-
-        def t_crawler_settings_close():
-            # 监听通用爬虫参数设置页面的关闭状态
-            with open(main_public.crawler_setting_page(), 'w') as fp:
-                fp.write('')
-            fp.close()
-            while True:
-                md5_size_page_state = open(main_public.crawler_setting_page(), 'r').read()
-                if md5_size_page_state.strip() == '0':
-                    print('获取通用爬虫参数设置页面已关闭！')
-                    self.general_params_button_disable.place_forget()
-                    self.general_params_button.place(x=500, y=0)
-                    try:
-                        main_public.stop_thread(t_crawler_settings)  # 关闭后终止线程
-                    except ValueError:
-                        pass
-                    break
-                else:
-                    self.general_params_button.place_forget()
-                    self.general_params_button_disable.place(x=500, y=0)
-                time.sleep(1)
-
-        t_crawler_settings = threading.Thread(target=t_crawler_settings)
-        t_crawler_settings.setDaemon(True)
-        t_crawler_settings.start()
-
-        t_crawler_settings_close = threading.Thread(target=t_crawler_settings_close)
-        t_crawler_settings_close.setDaemon(True)
-        t_crawler_settings_close.start()
+    # def crawler_settings_bind(self):
+    #     def t_crawler_settings():
+    #         # 初始化通用爬虫参数设置页面的状态
+    #         with open(main_public.crawler_setting_page(), 'w') as fp:
+    #             fp.write('')
+    #         fp.close()
+    #         crawer_settings = public_crawler_setting.Crawler_Settings()
+    #         crawer_settings.setting_form(self.general_params_button,self.general_params_button_disable)
+    #
+    #     def t_crawler_settings_close():
+    #         # 监听通用爬虫参数设置页面的关闭状态
+    #         with open(main_public.crawler_setting_page(), 'w') as fp:
+    #             fp.write('')
+    #         fp.close()
+    #         while True:
+    #             md5_size_page_state = open(main_public.crawler_setting_page(), 'r').read()
+    #             if md5_size_page_state.strip() == '0':
+    #                 print('获取通用爬虫参数设置页面已关闭！')
+    #                 self.general_params_button_disable.place_forget()
+    #                 self.general_params_button.place(x=500, y=0)
+    #                 try:
+    #                     main_public.stop_thread(t_crawler_settings)  # 关闭后终止线程
+    #                 except ValueError:
+    #                     pass
+    #                 break
+    #             else:
+    #                 self.general_params_button.place_forget()
+    #                 self.general_params_button_disable.place(x=500, y=0)
+    #             time.sleep(1)
+    #
+    #     t_crawler_settings = threading.Thread(target=t_crawler_settings)
+    #     t_crawler_settings.setDaemon(True)
+    #     t_crawler_settings.start()
+    #
+    #     t_crawler_settings_close = threading.Thread(target=t_crawler_settings_close)
+    #     t_crawler_settings_close.setDaemon(True)
+    #     t_crawler_settings_close.start()

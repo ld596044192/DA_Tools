@@ -605,7 +605,7 @@ class Linux_Install(object):
         self.install_library_combobox = tkinter.ttk.Combobox(self.install_root, state="readonly", width=30,
                                                           textvariable=self.install_library_value)
         # state：“正常”，“只读”或“禁用”之一。在“只读”状态下，可能无法直接编辑该值，并且用户只能从下拉列表中选择值。在“正常”状态下，文本字段可直接编辑。在“禁用”状态下，不可能进行交互。
-        self.install_library_combobox['value'] = ('Liunx库默认位置','dosmono指定位置 /etc/miniapp/jsapis/','牛津词典指定位置 /etc/miniapp/jsapis/')
+        self.install_library_combobox['value'] = ('Liunx库默认位置','dosmono指定位置 /etc/miniapp/jsapis/','某些第三方指定位置 /etc/miniapp/jsapis/')
         self.install_library_combobox.current(0)
         self.install_library_combobox.place(x=110, y=125)
 
@@ -615,6 +615,7 @@ class Linux_Install(object):
         public.CreateToolTip(self.install_software_combobox_label, '根据实际情况选择安装路径，否则出现问题\n备注：\n'
                                         '主程序默认安装路径：/etc/miniapp/resources/presetpkgs/8180000000000020.amr\n'
                                         '引导页默认安装路径：/etc/miniapp/resources/presetpkgs/8180000000000026.amr\n'
+                                        '工厂模式默认安装路径：/etc/miniapp/resources/presetpkgs/8180000000000022.amr\n'
                                         '喜马拉雅默认安装路径：/etc/miniapp/resources/presetpkgs/8080231999314849.amr\n'
                                         '牛津词典默认安装路径：/etc/miniapp/resources/presetpkgs/8080251822789980.amr')
 
@@ -623,7 +624,7 @@ class Linux_Install(object):
         self.install_software_combobox = tkinter.ttk.Combobox(self.install_root, state="readonly", width=30,
                                                              textvariable=self.install_software_value)
         # state：“正常”，“只读”或“禁用”之一。在“只读”状态下，可能无法直接编辑该值，并且用户只能从下拉列表中选择值。在“正常”状态下，文本字段可直接编辑。在“禁用”状态下，不可能进行交互。
-        self.install_software_combobox['value'] = ('主程序默认安装位置 ','引导页默认安装位置 ','喜马拉雅默认安装位置 ','牛津词典默认安装位置 ')
+        self.install_software_combobox['value'] = ('主程序默认安装位置 ','引导页默认安装位置 ','工厂模式默认安装位置 ','喜马拉雅默认安装位置 ','牛津词典默认安装位置 ')
         self.install_software_combobox.current(0)
         self.install_software_combobox.place(x=110, y=155)
 
@@ -813,7 +814,7 @@ class Linux_Install(object):
                                         print(main_result)
                                         print(library_files_path + ' 已上传')
                                     elif self.install_library_value.get().strip() == 'dosmono指定位置 /etc/miniapp/jsapis/' or \
-                                        self.install_library_value.get().strip() == '牛津词典指定位置 /etc/miniapp/jsapis/':
+                                        self.install_library_value.get().strip() == '某些第三方指定位置 /etc/miniapp/jsapis/':
                                         main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + library_files_path + '"' + ' /etc/miniapp/jsapis/')
                                         print(main_result)
                                         print(library_files_path + ' 已上传')
@@ -830,6 +831,11 @@ class Linux_Install(object):
                                     elif self.install_software_value.get().strip() == '引导页默认安装位置':
                                         main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + software_files_path + '"' +
                                                                                    ' /etc/miniapp/resources/presetpkgs/8180000000000026.amr')
+                                        print(main_result)
+                                        print(software_files_path + ' 已上传')
+                                    elif self.install_software_value.get().strip() == '工厂模式默认安装位置':
+                                        main_result = public.execute_cmd('adb -s ' + device + ' push ' + '"' + software_files_path + '"' +
+                                                                                   ' /etc/miniapp/resources/presetpkgs/8180000000000022.amr')
                                         print(main_result)
                                         print(software_files_path + ' 已上传')
                                     elif self.install_software_value.get().strip() == '喜马拉雅默认安装位置':

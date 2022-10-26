@@ -1,1 +1,1 @@
-Android
+/bin/sh: getprop: not found
