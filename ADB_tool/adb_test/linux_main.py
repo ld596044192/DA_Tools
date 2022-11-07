@@ -89,12 +89,13 @@ def page_log(adb_test_disable):
     camera_page_log = open(camera_page,'r').read()
     write_number_page_log = open(write_number_page,'r').read()
     get_log_page_log = open(get_log_page,'r').read()
+    linux_extra_page_log = open(public.linux_extra_page(),'r').read()
     if screen_page_log != '' and install_page_log != '' and camera_page_log != '' and write_number_page_log != '' \
-        and get_log_page_log != '':
+        and get_log_page_log != '' and linux_extra_page_log != '':
         adb_test_disable.place_forget()
 
 
-def main_init(init_str,init_Button,init_Button_disable,device):
+def main_init(init_str,init_Button,init_Button_disable,device,linux_type_init):
     # 检测设备核心函数
     # 设备初始化
     init_str.set('正在检测设备是否初始化...')
@@ -104,16 +105,20 @@ def main_init(init_str,init_Button,init_Button_disable,device):
     # init_final = public.execute_cmd('adb -s ' + device + ' shell cat /data/adb_init.ini')
     # if init_final == 'The device initialized' and only_read != ' No such file or directory':
     if only_read.strip() != 'No such file or directory':
-        init_str.set('该设备已初始化\n无需初始化，可正常使用下方功能')
-        init_Button.place_forget()
-        init_Button_disable.place(x=200, y=110)
+        if linux_type_init == '全志/索智/阿里':
+            init_str.set('该设备已初始化\n无需初始化，可正常使用下方功能')
+            init_Button.place_forget()
+            init_Button_disable.place(x=200, y=110)
+        else:
+            init_str.set('你选择的方案商不支持初始化检测功能！')
     else:
         init_str.set('该设备没有初始化\n请点击下方按钮进行设备初始化')
+        public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/adb_init.ini')
         init_Button_disable.place_forget()
         init_Button.place(x=200, y=110)
 
 
-def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux_all_button_close,device,init_again_button_disable):
+def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux_all_button_close,device,init_again_button_disable,linux_type_init):
     def t_check_init():
         init_Button_disable.place_forget()   # 避免创建过多的Button_disable
         init_again_button_disable.place(x=20,y=110)
@@ -134,22 +139,25 @@ def check_init(init_str,init_Button,init_Button_disable,devices_linux_flag,linux
                 init_str.set('您所连接的设备为Android\n无法使用Linux模式所有功能')
                 init_Button.place_forget()
             else:
-                try:
-                    # 中文状态下
-                    adb_finally = public.adb_connect()[1]
-                    # 英文状态下
-                    adb_english = ' '.join(public.adb_connect()).split(',')[1]
+                if linux_type_init.strip() == '全志/索智/阿里':
+                    try:
+                        # 中文状态下
+                        adb_finally = public.adb_connect()[1]
+                        # 英文状态下
+                        adb_english = ' '.join(public.adb_connect()).split(',')[1]
 
-                    # 判断是否为内置ADB，如果为内置ADB需要延迟5S，如果为本地ADB则无需延迟
-                    if adb_finally == '不是内部或外部命令，也不是可运行的程序' or adb_english == ' operable program or batch file.':
-                        time.sleep(5)
-                        main_init(init_str, init_Button, init_Button_disable,device)
-                    else:
-                        main_init(init_str, init_Button, init_Button_disable,device)
-                except IndexError:
-                    print('出现IndexError,无需处理该异常，继续检测')
-                    main_init(init_str, init_Button, init_Button_disable,device)
-                    pass
+                        # 判断是否为内置ADB，如果为内置ADB需要延迟5S，如果为本地ADB则无需延迟
+                        if adb_finally == '不是内部或外部命令，也不是可运行的程序' or adb_english == ' operable program or batch file.':
+                            time.sleep(5)
+                            main_init(init_str, init_Button, init_Button_disable,device,linux_type_init.strip())
+                        else:
+                            main_init(init_str, init_Button, init_Button_disable,device,linux_type_init.strip())
+                    except IndexError:
+                        print('出现IndexError,无需处理该异常，继续检测')
+                        main_init(init_str, init_Button, init_Button_disable,device,linux_type_init.strip())
+                        pass
+                else:
+                    main_init(init_str, init_Button, init_Button_disable, device,linux_type_init.strip())
         init_again_button_disable.place_forget()
 
     t_check_init = threading.Thread(target=t_check_init)
@@ -1875,3 +1883,144 @@ class Linux_Log(object):
         t_yuv_data.start()
 
 
+# 快捷功能界面
+class Linux_Quick(object):
+    def quick_form(self,init_str,linux_quick_Button,linux_quick_Button_disable,device,adb_test_disable):
+        self.quick_root = tkinter.Toplevel()
+        self.quick_root.title('Linux一键获取日志')
+        # screenWidth = self.log_root.winfo_screenwidth()
+        # screenHeight = self.log_root.winfo_screenheight()
+        w = 310
+        h = 300
+        # x = (screenWidth - w) / 2
+        # y = (screenHeight - h) / 2
+        # self.log_root.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        self.quick_root.geometry('%dx%d' % (w, h))
+        self.quick_root.iconbitmap(LOGO_path)
+        self.quick_root.resizable(0, 0)
+        # self.log_root.wm_attributes('-topmost', 1)
+
+        self.quick_startup(linux_quick_Button,linux_quick_Button_disable)
+        self.adb_test_disable = adb_test_disable
+
+        self.quick_root.protocol('WM_DELETE_WINDOW',self.close_handle)
+        self.main_frame(device)
+
+        return self.quick_root
+
+    def quick_startup(self,linux_quick_Button,linux_quick_Button_disable):
+        # 监听一键获取日志页面的打开状态
+        quick_exists = self.quick_root.winfo_exists()
+        print(quick_exists)
+        if quick_exists == 1:
+            linux_quick_Button.place_forget()
+            linux_quick_Button_disable.place(x=20, y=155)
+
+    def close_handle(self):
+        # 监听页面消失
+        with open(public.linux_extra_page(),'w') as fp:
+            fp.write('0')
+        fp.close()
+        self.quick_root.destroy()
+        page_log(self.adb_test_disable)
+
+    def main_frame(self,device):
+        # 状态栏
+        self.quick_str = tkinter.StringVar()
+        self.linux_quick_label = tkinter.Label(self.quick_root, textvariable=self.quick_str, bg='black', fg='#FFFFFF',
+                                           width=35, height=2)
+        self.linux_quick_label.place(x=35, y=10)
+        self.quick_str.set('此处显示快捷功能执行状态')
+
+        # 清理设备缓存
+        self.device_clear_button = tkinter.Button(self.quick_root, text='清理设备缓存', width=30)
+        self.device_clear_button.bind('<Button-1>', lambda x: self.devices_clear_bind(device))
+        self.device_clear_button_disable = tkinter.Button(self.quick_root, text='正在清理设备缓存中...', width=30)
+        self.device_clear_button_disable.config(state='disable')
+        self.device_clear_button.place(x=50, y=60)
+
+        # 设置设备常亮
+        self.device_lighting_button = tkinter.Button(self.quick_root, text='设置屏幕常亮', width=30)
+        self.device_lighting_button.bind('<Button-1>', lambda x: self.open_lighting(device))
+        self.device_lighting_button_disable = tkinter.Button(self.quick_root, text='正在设置屏幕常亮中...', width=30)
+        self.device_lighting_button_disable.config(state='disable')
+        self.device_lighting_button.place(x=50, y=95)
+
+        # 设置设备常亮
+        self.device_lighting_close_button = tkinter.Button(self.quick_root, text='关闭屏幕常亮', width=30)
+        self.device_lighting_close_button.bind('<Button-1>', lambda x: self.close_lighting(device))
+        self.device_lighting_close_button_disable = tkinter.Button(self.quick_root, text='正在关闭屏幕常亮中...', width=30)
+        self.device_lighting_close_button_disable.config(state='disable')
+        self.device_lighting_close_button.place(x=50, y=130)
+
+    def devices_clear_bind(self,device):
+        def t_devices_clear():
+            # 清理设备缓存逻辑
+            self.device_clear_button_disable.place(x=50, y=60)
+            self.quick_str.set('正在清理设备缓存中并重启...')
+            devices_state = public.device_connect()
+            if not devices_state:
+                self.quick_str.set('检测到没有连接到设备\n请连接设备后再使用本功能')
+            else:
+                devices = open(devices_log, 'r').read()
+                device_type = public.device_type_android(devices)
+                if device_type.strip() == 'Android':
+                    self.quick_str.set('您所连接的设备为Android\n无法使用清理设备缓存功能')
+                else:
+                    # 删除设备中的缓存文件
+                    public.execute_cmd('adb -s ' + device + ' shell rm -rf /data/miniapp/data')
+                    public.execute_cmd('adb -s ' + device + ' shell reboot')
+                    self.quick_str.set('设备成功清理缓存！')
+            self.device_clear_button_disable.place_forget()
+
+        t_devices_clear = threading.Thread(target=t_devices_clear)
+        t_devices_clear.setDaemon(True)
+        t_devices_clear.start()
+
+    def device_lighting_main(self,device,device_lighting_flag):
+        def t_device_lighting_main():
+            # 设备永不休眠开关逻辑
+            if not device_lighting_flag:
+                self.device_lighting_close_button_disable.place(x=50, y=130)
+                self.quick_str.set('正在关闭屏幕永不休眠并重启...')
+            else:
+                self.device_lighting_button_disable.place(x=50, y=95)
+                self.quick_str.set('正在设置屏幕永不休眠并重启...')
+            devices_state = public.device_connect()
+            if not devices_state:
+                self.quick_str.set('检测到没有连接到设备\n请连接设备后再使用本功能')
+            else:
+                devices = open(devices_log, 'r').read()
+                device_type = public.device_type_android(devices)
+                if device_type.strip() == 'Android':
+                    self.quick_str.set('您所连接的设备为Android\n无法使用清理设备缓存功能')
+                else:
+                    # 设置屏幕永不休眠命令
+                    if not device_lighting_flag:
+                        public.execute_cmd('adb -s ' + device + ' shell uci set system.autoOffScreen.enable=1')
+                    else:
+                        public.execute_cmd('adb -s ' + device + ' shell uci set system.autoOffScreen.enable=0')
+                    public.execute_cmd('adb -s ' + device + ' shell uci commit')
+                    public.execute_cmd('adb -s ' + device + ' shell reboot -f ')
+                    if not device_lighting_flag:
+                        self.quick_str.set('关闭设备永不休眠，等待设备重启即可生效')
+                    else:
+                        self.quick_str.set('设置永不休眠成功，等待设备重启即可生效')
+            if not device_lighting_flag:
+                self.device_lighting_close_button_disable.place_forget()
+            else:
+                self.device_lighting_button_disable.place_forget()
+
+        t_device_lighting_main = threading.Thread(target=t_device_lighting_main)
+        t_device_lighting_main.setDaemon(True)
+        t_device_lighting_main.start()
+
+    def open_lighting(self,device):
+        # 开启永不休眠
+        device_lighting_flag = True
+        self.device_lighting_main(device,device_lighting_flag)
+
+    def close_lighting(self,device):
+        # 关闭永不休眠
+        device_lighting_flag = False
+        self.device_lighting_main(device,device_lighting_flag)

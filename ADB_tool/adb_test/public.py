@@ -92,8 +92,12 @@ def linux_sn_cmd(cmd):  # 解决执行命令后导致subprocess阻塞的问题
     p.wait()
     # 从临时文件读出shell命令的输出结果
     out_temp.seek(0)
-    rt = out_temp.read()
-    # 以换行符拆分数据，并去掉换行符号存入列表
+    try:
+        rt = out_temp.read()
+    except UnicodeDecodeError:
+        # UnicodeDecodeError: 'gbk' codec can't decode byte 0x8c in position 394: illegal multibyte sequence
+        rt = out_temp.read().encode('utf-8-sig').decode('utf-8')
+    # 以换行符拆分数据，并去掉换行符号存入列表，再转为
     result = ''.join(rt.strip().split('\n'))
     out_temp.close()
     return result
@@ -661,3 +665,9 @@ def md5_size_page():
     # 创建获取文件MD5和大小页面
     md5_size_page = make_dir_s + 'md5_size_page.txt'
     return md5_size_page
+
+
+def linux_extra_page():
+    # 创建其他快捷功能页面
+    linux_extra_page = make_dir_s + 'linux_extra_page.txt'
+    return linux_extra_page

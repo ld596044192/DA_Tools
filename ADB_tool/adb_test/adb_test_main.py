@@ -1,19 +1,21 @@
 # 这是ADB测试工具主逻辑文件
-import sys,os
+import sys, os
 import re
 import shutil
 import signal
 import time
-import tkinter,tkinter.ttk,tkinter.messagebox,tkinter.filedialog
+import tkinter, tkinter.ttk, tkinter.messagebox, tkinter.filedialog
 import threading
-import getpass,pyperclip,win32api,win32ui
-import public,quickly,screen_record,linux_main,customize_main
-
+import getpass, pyperclip, win32api, win32ui
+import public, quickly, screen_record, linux_main, customize_main
+import traceback
 
 username = getpass.getuser()
-main_version_path = public.resource_path(os.path.join('version','main_version_history.txt'))
+main_version_path = public.resource_path(os.path.join('version', 'main_version_history.txt'))
 # 创建临时文件夹
 make_dir = 'C:\\Users\\' + username + '\\Documents\\DA_Tools\\'
+# 工具全局监控异常日志
+traceback_log = make_dir + 'traceback.log'
 # ADB测试工具全部全局变量集
 # 全局变量标记-首次打开工具需要添加临时变量
 adb_tools_flag = True
@@ -26,7 +28,9 @@ lower_CPU_utility_disconnect = False
 # 全局变量标记-设备类型
 devices_linux_flag = False
 # 全局变量标记-设备检测
-adb_service_flag = True
+adb_service_flag = False
+# 全局变量标记-Linux设备初始化检测
+linux_Initialize_flag = True
 # 全局变量标记-设备UUID
 uuid_server_flag = False
 # 全局变量标记-获取UUID需要重启时需要处理的标识
@@ -44,15 +48,15 @@ first_button_flag = False
 tkinter_messagebox_flag = False
 # 冲突软件列表
 conflict_software_list = ['PhoenixSuit.exe']
-version_path = public.resource_path(os.path.join('version/adb_test_version','version_history.txt'))
-adb_path = public.resource_path(os.path.join('resources','adb-tools.zip'))
-adb_version_path = public.resource_path(os.path.join('resources','Android Debug Bridge version.txt'))
-uuid_path = public.resource_path(os.path.join('resources','UUID.ini'))
-record_state = public.resource_path(os.path.join('temp','record_state.txt'))
-devices_type_log = public.resource_path(os.path.join('temp','devices_type_log.txt'))  # 记录设备类型
-my_logo_path = public.resource_path(os.path.join('resources','my_logo.gif'))
-linux_type_photo = public.resource_path(os.path.join('resources','linux_type_instruction.gif'))
-linux_sn_path = public.resource_path(os.path.join('resources','linux_sn.ini'))
+version_path = public.resource_path(os.path.join('version/adb_test_version', 'version_history.txt'))
+adb_path = public.resource_path(os.path.join('resources', 'adb-tools.zip'))
+adb_version_path = public.resource_path(os.path.join('resources', 'Android Debug Bridge version.txt'))
+uuid_path = public.resource_path(os.path.join('resources', 'UUID.ini'))
+record_state = public.resource_path(os.path.join('temp', 'record_state.txt'))
+devices_type_log = public.resource_path(os.path.join('temp', 'devices_type_log.txt'))  # 记录设备类型
+my_logo_path = public.resource_path(os.path.join('resources', 'my_logo.gif'))
+linux_type_photo = public.resource_path(os.path.join('resources', 'linux_type_instruction.gif'))
+linux_sn_path = public.resource_path(os.path.join('resources', 'linux_sn.ini'))
 if not os.path.exists(make_dir):
     os.makedirs(make_dir)
 # 创建页面文件，记录文件状态
@@ -98,7 +102,7 @@ record_name = make_dir_s + 'record_name.txt'
 # 录屏时间
 record_time_txt = make_dir_s + 'record_time.txt'
 # 记录程序位置
-exe_path = public.resource_path(os.path.join('temp','exe_path.log'))
+exe_path = public.resource_path(os.path.join('temp', 'exe_path.log'))
 # 录屏模式
 record_model_log = make_dir_s + 'record_model.log'
 record_count = make_dir_s + 'record_count.txt'
@@ -126,17 +130,17 @@ apk_path_log = make_dir_s + 'apk_path.log'
 # 记录apk安装信息
 apk_install_log = make_dir_s + 'apk_install_log.log'
 # 启动前初始化
-with open(adb_upgrade_flag,'w') as fp:
+with open(adb_upgrade_flag, 'w') as fp:
     fp.write('ADB is the latest version')
 fp.close()
-with open(conflict_software_path,'w') as fp:
+with open(conflict_software_path, 'w') as fp:
     fp.write('')
 fp.close()
 # 调用ADB服务开关
 adb_server_all_flag = True  # 默认True打开
 # 统一修改版本号
-adb_version = 'V1.0.1.18'
-adb_version_code = 10118
+adb_version = 'V1.0.1.20'
+adb_version_code = 10120
 # 统一修改frame的宽高
 width = 367
 height = 405
@@ -149,7 +153,7 @@ function_status = main + 'function_status.log'
 
 
 class ADB_Test(object):
-    def adb_root_form(s,root):
+    def adb_root_form(s, root):
         global adb_server_all_flag
         s.root = root
         adb_server_all_flag = True  # 默认True打开ADB服务
@@ -164,22 +168,33 @@ class ADB_Test(object):
         # s.root.wm_attributes('-topmost', 1)
         # s.root.protocol('WM_DELETE_WINDOW', s.exit)  # 点击Tk窗口关闭时直接调用s.exit，不使用默认关闭
         # 主程序启动标志
-        with open(root_state,'w') as fp:
+        with open(root_state, 'w') as fp:
             fp.write('1')
         fp.close()
 
-        # 先创建主Frame
-        s.main_frame_adb_test()
-        # 初始化
-        s.software_init()
-        # 默认显示窗口页面
-        s.quickly_frame()
+        try:
+            # 先创建主Frame
+            s.main_frame_adb_test()
+            # 初始化
+            s.software_init()
+            # 默认显示窗口页面
+            s.quickly_frame()
+        except Exception as e:
+            traceback.print_exc()
+            # 记录异常
+            with open(traceback_log,'w') as fp:
+                fp.write(str(traceback.format_exc()))
+            content = '''
+            功能发生异常，请联系开发者596044192@qq.com进行修复
+            异常日志已保存在{}
+            '''
+            tkinter.messagebox.showinfo('异常',content.format(traceback_log))
 
     def software_init(s):
-        global playGif_flag,adb_tools_flag
+        global playGif_flag, adb_tools_flag
         # 每次启动本软件都需要进行初始化
 
-        if adb_tools_flag: # 表示首次启动本工具才执行，之后无需添加，避免多次重复添加临时变量
+        if adb_tools_flag:  # 表示首次启动本工具才执行，之后无需添加，避免多次重复添加临时变量
             # 添加临时adb-tools环境变量（方便开发者调试，避免出现IndexError、ValueError异常） -- 双重保证系统及工具识别到本地服务
             public.temporary_environ(make_dir + 'adb-tools')
             adb_tools_flag = False
@@ -188,7 +203,7 @@ class ADB_Test(object):
         public.execute_cmd('adb start-server')
 
         # 初始化Linux模式下的特定按钮状态
-        init_button_files = [screen_page,install_page,camera_page,write_number_page,get_log_page]
+        init_button_files = [screen_page, install_page, camera_page, write_number_page, get_log_page]
         for init_button_file in init_button_files:
             try:
                 os.remove(init_button_file)
@@ -197,28 +212,29 @@ class ADB_Test(object):
 
         # 创建特定必须的文件
         if not os.path.exists(apk_aapt_log):
-            with open(apk_aapt_log,'w') as fp:
+            with open(apk_aapt_log, 'w') as fp:
                 fp.write('')
             fp.close()
         if playGif_flag:
             public.playGif(gif_new_path)  # 实例化gif动态播放对象
 
         # 每次启动需要加载的frame
-        s.my_logo_label_warning = tkinter.Label(s.root, bg='black', fg='#ffffff',text='正在加载中...', width=29)
+        s.my_logo_label_warning = tkinter.Label(s.root, bg='black', fg='#ffffff', text='正在加载中...', width=29)
         s.my_logo_label_warning.place(x=375, y=205)
         s.moving_device_frame(s.main_frame_adb)
         s.moving_software_info()
 
     def adb_close(s):
         def t_adb_close():
-            global adb_server_all_flag,playGif_flag
+            global adb_server_all_flag, playGif_flag
             s.adb_test_close_disable.place(x=400, y=370)
-            if tkinter.messagebox.askyesno(title='退出提醒',message='确定要退出ADB测试工具？\n点击"确定"这将返回到主界面'):
+            if tkinter.messagebox.askyesno(title='退出提醒', message='确定要退出ADB测试工具？\n点击"确定"这将返回到主界面'):
                 # 结束ADB测试工具相关程序
                 s.close_str = tkinter.StringVar()
-                s.close_label = tkinter.Label(s.root,width=50,height=10,bg='yellow',fg='red',textvariable=s.close_str,
-                                              font=('宋体',10))
-                s.close_label.place(x=120,y=100)
+                s.close_label = tkinter.Label(s.root, width=50, height=10, bg='yellow', fg='red',
+                                              textvariable=s.close_str,
+                                              font=('宋体', 10))
+                s.close_label.place(x=120, y=100)
 
                 # 退出程序需要结束或处理任务
                 s.close_str.set('正在关闭gif动画和删除gif临时缓存文件...')
@@ -233,7 +249,7 @@ class ADB_Test(object):
                 s.close_str.set('正在关闭ADB测试工具所有frame...')
                 s.main_frame_adb.place_forget()  # 关闭主Frame
 
-                with open(function_status,'w') as fp:
+                with open(function_status, 'w') as fp:
                     fp.write('close')
                 fp.close()
                 print('ADB测试工具已完全退出！')
@@ -245,15 +261,15 @@ class ADB_Test(object):
 
     def main_frame_adb_test(s):
         # 主frame
-        s.main_frame_adb = tkinter.Frame(s.root,width=600,height=450)
+        s.main_frame_adb = tkinter.Frame(s.root, width=600, height=450)
         s.main_menu_bar(s.main_frame_adb)
         s.moving_device_frame(s.main_frame_adb)
-        s.main_frame_adb.place(x=0,y=0)
+        s.main_frame_adb.place(x=0, y=0)
 
-    def main_menu_bar(s,main_frame_adb):
+    def main_menu_bar(s, main_frame_adb):
         # 切换窗口（选择模式）
-        s.main_frame = tkinter.Frame(main_frame_adb,width=380,height=20)
-        s.main_menu = tkinter.Menubutton(s.main_frame,text='快捷模式')
+        s.main_frame = tkinter.Frame(main_frame_adb, width=380, height=20)
+        s.main_menu = tkinter.Menubutton(s.main_frame, text='快捷模式')
         s.main_menu1 = tkinter.Menubutton(s.main_frame, text='快捷模式')
         s.main_menu1.place(x=0, y=0)
         s.main_menu1.config(state='disable')
@@ -273,53 +289,53 @@ class ADB_Test(object):
         s.customize_menu1 = tkinter.Menubutton(s.main_frame, text='自定义模式')
         s.customize_menu1.config(state='disable')
 
-        s.verion_menu = tkinter.Menubutton(s.main_frame,text='版本历史')
+        s.verion_menu = tkinter.Menubutton(s.main_frame, text='版本历史')
         s.verion_menu1 = tkinter.Menubutton(s.main_frame, text='版本历史')
         s.verion_menu1.config(state='disable')
 
-        s.main_menu.bind('<Button-1>',lambda x:s.display_main_frame())
-        s.verion_menu.bind('<Button-1>',lambda x:s.display_version_frame())
-        s.screen_menu.bind('<Button-1>',lambda x:s.display_screenshot_frame())
-        s.linux_menu.bind('<Button-1>',lambda x:s.display_linux_frame())
-        s.install_menu.bind('<Button-1>',lambda x:s.display_install_frame())
-        s.customize_menu.bind('<Button-1>',lambda x:s.display_customize_frame())
+        s.main_menu.bind('<Button-1>', lambda x: s.display_main_frame())
+        s.verion_menu.bind('<Button-1>', lambda x: s.display_version_frame())
+        s.screen_menu.bind('<Button-1>', lambda x: s.display_screenshot_frame())
+        s.linux_menu.bind('<Button-1>', lambda x: s.display_linux_frame())
+        s.install_menu.bind('<Button-1>', lambda x: s.display_install_frame())
+        s.customize_menu.bind('<Button-1>', lambda x: s.display_customize_frame())
 
-        s.main_menu.place(x=0,y=0)
+        s.main_menu.place(x=0, y=0)
         s.screen_menu.place(x=60, y=0)
-        s.install_menu.place(x=120,y=0)
-        s.linux_menu.place(x=180,y=0)
-        s.customize_menu.place(x=240,y=0)
-        s.verion_menu.place(x=305,y=0)
-        s.main_frame.place(x=0,y=0)
+        s.install_menu.place(x=120, y=0)
+        s.linux_menu.place(x=180, y=0)
+        s.customize_menu.place(x=240, y=0)
+        s.verion_menu.place(x=305, y=0)
+        s.main_frame.place(x=0, y=0)
 
         # 连接设备功能
-        s.devices_state_label = tkinter.Label(main_frame_adb,text='设备连接状态：')
+        s.devices_state_label = tkinter.Label(main_frame_adb, text='设备连接状态：')
         s.devices_null = tkinter.StringVar()
         s.devices_str = tkinter.StringVar()
-        s.devices_success = tkinter.Label(main_frame_adb,textvariable=s.devices_str,fg='green')
-        s.devices_fail = tkinter.Label(main_frame_adb,textvariable=s.devices_null,fg='red')
+        s.devices_success = tkinter.Label(main_frame_adb, textvariable=s.devices_str, fg='green')
+        s.devices_fail = tkinter.Label(main_frame_adb, textvariable=s.devices_null, fg='red')
         s.devices_success.place(x=450, y=0)
         s.devices_state_label.config(command=s.devices_bind())
-        s.devices_state_label.place(x=370,y=0)
+        s.devices_state_label.place(x=370, y=0)
 
         # 检测本地adb服务（None则使用内置adb）
         s.adb_state_label = tkinter.Label(main_frame_adb, text='ADB服务连接状态：')
         s.adb_state_label.config(command=s.adb_bind())
         s.adb_str = tkinter.StringVar()
-        s.adb_success = tkinter.Label(main_frame_adb,textvariable=s.adb_str,fg='green')
+        s.adb_success = tkinter.Label(main_frame_adb, textvariable=s.adb_str, fg='green')
         s.adb_str.set('正在检测ADB服务连接状态...')
-        s.adb_success.place(x=110,y=425)
-        s.adb_state_label.place(x=0,y=425)
+        s.adb_success.place(x=110, y=425)
+        s.adb_state_label.place(x=0, y=425)
 
         # 检测设备类型 Android Linux
-        s.devices_type_label = tkinter.Label(main_frame_adb,text='设备类型：')
+        s.devices_type_label = tkinter.Label(main_frame_adb, text='设备类型：')
         s.devices_type_str = tkinter.StringVar()
         s.devices_type_error = tkinter.StringVar()
-        s.devices_type_success = tkinter.Label(main_frame_adb,textvariable=s.devices_type_str,fg='green')
-        s.devices_type_fail = tkinter.Label(main_frame_adb,textvariable=s.devices_type_error,fg='red')
+        s.devices_type_success = tkinter.Label(main_frame_adb, textvariable=s.devices_type_str, fg='green')
+        s.devices_type_fail = tkinter.Label(main_frame_adb, textvariable=s.devices_type_error, fg='red')
         s.devices_type_str.set('正在检测设备类型...')
-        s.devices_type_label.place(x=270,y=425)
-        s.devices_type_success.place(x=325,y=425)
+        s.devices_type_label.place(x=270, y=425)
+        s.devices_type_success.place(x=325, y=425)
 
         # 设备序列号下拉框说明
         content = '''
@@ -333,7 +349,7 @@ class ADB_Test(object):
         s.more_devices_list = [' ']
         s.more_devices_value = tkinter.StringVar()
         s.more_devices_combobox = tkinter.ttk.Combobox(main_frame_adb, state="readonly", width=25,
-                                                             textvariable=s.more_devices_value)
+                                                       textvariable=s.more_devices_value)
         # s.more_devices_combobox.config(command=s.more_devices_bind())
         # state：“正常”，“只读”或“禁用”之一。在“只读”状态下，可能无法直接编辑该值，并且用户只能从下拉列表中选择值。在“正常”状态下，文本字段可直接编辑。在“禁用”状态下，不可能进行交互。
         s.more_devices_combobox.place(x=380, y=80)
@@ -347,11 +363,11 @@ class ADB_Test(object):
         # s.moving_radio_button1.config(command=s.moving_radio_bind())
 
         # 退出ADB测试工具按钮
-        s.adb_test_close = tkinter.Button(main_frame_adb,text='退出ADB测试工具',width=width_button)
-        s.adb_test_close_disable = tkinter.Button(main_frame_adb,text='退出ADB测试工具',width=width_button)
+        s.adb_test_close = tkinter.Button(main_frame_adb, text='退出ADB测试工具', width=width_button)
+        s.adb_test_close_disable = tkinter.Button(main_frame_adb, text='退出ADB测试工具', width=width_button)
         s.adb_test_close_disable.config(state='disable')
-        s.adb_test_close.bind('<Button-1>',lambda x:s.adb_close())
-        s.adb_test_close.place(x=400,y=370)
+        s.adb_test_close.bind('<Button-1>', lambda x: s.adb_close())
+        s.adb_test_close.place(x=400, y=370)
 
     # def moving_radio_bind(s):
     #     def t_moving_radio():
@@ -366,76 +382,78 @@ class ADB_Test(object):
     #     t_moving_radio.setDaemon(True)
     #     t_moving_radio.start()
 
-    def moving_device_frame(s,main_frame_adb):
+    def moving_device_frame(s, main_frame_adb):
         # 动态设备信息frame
-        s.moving_device_frame1 = tkinter.Frame(main_frame_adb,width=210,height=220)
+        s.moving_device_frame1 = tkinter.Frame(main_frame_adb, width=210, height=220)
 
         # 设备类型
         s.devices_mode_str = tkinter.StringVar()
-        s.devices_mode = tkinter.Label(s.moving_device_frame1,textvariable=s.devices_mode_str,width=29,bg='black',fg='#FFFFFF')
-        s.devices_mode.place(x=0,y=0)
+        s.devices_mode = tkinter.Label(s.moving_device_frame1, textvariable=s.devices_mode_str, width=29, bg='black',
+                                       fg='#FFFFFF')
+        s.devices_mode.place(x=0, y=0)
         # s.devices_mode.config(command=s.update_status())
         s.devices_mode_str.set('此处显示设备类型')
 
         # 获取设备序列号（安卓+Linux）
         s.devices_sn_str = tkinter.StringVar()
         s.devices_sn = tkinter.Label(s.moving_device_frame1, textvariable=s.devices_sn_str, width=29, bg='black',
-                                       fg='#FFFFFF')
+                                     fg='#FFFFFF')
         s.devices_sn.place(x=0, y=30)
         s.devices_sn_str.set('此处显示设备序列号（安卓）')
 
         # 获取设备MAC（物理）地址
         s.devices_mac_str = tkinter.StringVar()
         s.devices_mac = tkinter.Label(s.moving_device_frame1, textvariable=s.devices_mac_str, width=29, bg='black',
-                                     fg='#FFFFFF')
+                                      fg='#FFFFFF')
         s.devices_mac.place(x=0, y=60)
         s.devices_mac_str.set('此处显示设备MAC地址')
 
         # 获取设备ip地址
         s.devices_ip_str = tkinter.StringVar()
         s.devices_ip = tkinter.Label(s.moving_device_frame1, textvariable=s.devices_ip_str, width=29, bg='black',
-                                      fg='#FFFFFF')
+                                     fg='#FFFFFF')
         s.devices_ip.place(x=0, y=90)
         s.devices_ip_str.set('此处显示设备ip地址')
 
         # 获取安卓版本号  wraplength表示内容超过该宽度就会自动换行
         s.android_version_str = tkinter.StringVar()
-        s.android_version = tkinter.Label(s.moving_device_frame1, textvariable=s.android_version_str, width=29, bg='black',
-                                     fg='#FFFFFF',wraplength=200)
+        s.android_version = tkinter.Label(s.moving_device_frame1, textvariable=s.android_version_str, width=29,
+                                          bg='black',
+                                          fg='#FFFFFF', wraplength=200)
         s.android_version.place(x=0, y=120)
         s.android_version_str.set('此处显示安卓版本号')
 
         # 获取安卓的应用版本号和固件版本号
         s.software_version_str = tkinter.StringVar()
         s.software_version = tkinter.Label(s.moving_device_frame1, textvariable=s.software_version_str, width=29,
-                                          bg='black',
-                                          fg='#FFFFFF')
+                                           bg='black',
+                                           fg='#FFFFFF')
         s.software_version.place(x=0, y=150)
         s.software_version_str.set('此处显示安卓应用版本号')
         s.firmware_version_str = tkinter.StringVar()
         s.firmware_version = tkinter.Label(s.moving_device_frame1, textvariable=s.firmware_version_str, width=29,
-                                           bg='black',fg='#FFFFFF',wraplength=200)
+                                           bg='black', fg='#FFFFFF', wraplength=200)
         s.firmware_version.place(x=0, y=180)
         s.firmware_version_str.set('此处显示安卓固件版本号')
 
     def moving_software_info(s):
-        s.moving_software_info_frame = tkinter.Frame(s.main_frame_adb,width=210,height=220)
+        s.moving_software_info_frame = tkinter.Frame(s.main_frame_adb, width=210, height=220)
         # 个人常用头像
         if not os.path.exists(personal_photo_path):
-            with open(personal_photo_path,'w') as fp:
+            with open(personal_photo_path, 'w') as fp:
                 fp.write('')
             fp.close()
         if not os.path.exists(personal_photo_origin):
-            with open(personal_photo_origin,'w') as fp:
+            with open(personal_photo_origin, 'w') as fp:
                 fp.write('')
             fp.close()
-        s.my_logo_label = tkinter.Label(s.moving_software_info_frame,cursor='hand2')  # hand2光标放在标签上变为手的样式
-        personal_logo_path = open(personal_photo_path,'r').read()
+        s.my_logo_label = tkinter.Label(s.moving_software_info_frame, cursor='hand2')  # hand2光标放在标签上变为手的样式
+        personal_logo_path = open(personal_photo_path, 'r').read()
 
         s.my_logo_remind_str = tkinter.StringVar()
         s.my_logo_remind_label = tkinter.Label(s.moving_software_info_frame, fg='red',
                                                textvariable=s.my_logo_remind_str,
-                                               width=30,wraplength=200)
+                                               width=30, wraplength=200)
         s.my_logo_remind_label.place(x=0, y=125)
 
         type_file = personal_logo_path.split('\\')[-1].split('.')[-1]
@@ -455,8 +473,8 @@ class ADB_Test(object):
                         s.my_logo_label.config(image=my_log_photo)
                         s.my_logo_label.image = my_log_photo
                     except tkinter.TclError:
-                       pass
-                personal_logo_origin = open(personal_photo_origin,'r').read()
+                        pass
+                personal_logo_origin = open(personal_photo_origin, 'r').read()
                 if personal_logo_origin.strip() == '':
                     s.my_logo_remind_str.set('此图为用户手动上传！')
                 else:
@@ -467,15 +485,15 @@ class ADB_Test(object):
                 s.my_logo_label.config(image=my_log_photo)
                 s.my_logo_label.image = my_log_photo
                 s.my_logo_remind_str.set('这是ADB工具111X101的默认图片！\n可点击上方选择图片进行替换哦！')
-        s.my_logo_label.bind('<Button-1>',lambda x:s.my_logo_select())
-        s.my_logo_label.place(x=45,y=10)
+        s.my_logo_label.bind('<Button-1>', lambda x: s.my_logo_select())
+        s.my_logo_label.place(x=45, y=10)
 
         # 个人简介信息
         my_info_content = 'ADB工具制作者：达之领域\n' \
                           '联系方式：596044192@qq.com\n' \
                           '        ld596044192@gmail.com'
-        s.my_info_label = tkinter.Label(s.moving_software_info_frame,text=my_info_content,justify=tkinter.LEFT)
-        s.my_info_label.place(x=10,y=165)
+        s.my_info_label = tkinter.Label(s.moving_software_info_frame, text=my_info_content, justify=tkinter.LEFT)
+        s.my_info_label.place(x=10, y=165)
 
     def init_gif_thread(s):
         # 启动工具时默认把耗时的gif动态加载在线程中，以便快速启动工具，避免卡顿
@@ -490,14 +508,14 @@ class ADB_Test(object):
         def t_my_logo_select():
             global gif
             # 选择并打开图像文件
-            s.adb_test_close_disable.place(x=400,y=370)
+            s.adb_test_close_disable.place(x=400, y=370)
             photoFilter = "Photo Files (*.jpg,*.jpeg,*.png,*.gif,*.bmp)|*.jpg;*.jpeg;*.png;*.gif;*.bmp|"  # so文件过滤
             dlg = win32ui.CreateFileDialog(True, "csv", None, 0x04 | 0x02, photoFilter)  # True表示打开文件对话框，0或False表示另存为对话框
             dlg.SetOFNInitialDir('C:\\Users\\' + getpass.getuser() + '\\Desktop')  # 设置打开文件对话框中的初始显示目录
             dlg.DoModal()  # 显示文件选择框
             photo_file = dlg.GetPathName()  # 获取选择的文件名称
             type_file = photo_file.split('\\')[-1].split('.')[-1]
-            with open(personal_photo_origin,'w') as fp:
+            with open(personal_photo_origin, 'w') as fp:
                 fp.write(photo_file)
             fp.close()
             # 更新个人图片
@@ -511,7 +529,7 @@ class ADB_Test(object):
 
                     # 修改gif图片大小，默认修改尺寸为111X101
                     s.my_logo_remind_str.set('正在修改gif图片尺寸大小\n请耐心等待...')
-                    public.gif_size_revise(photo_file,111,101,gif_new_path)
+                    public.gif_size_revise(photo_file, 111, 101, gif_new_path)
                     s.my_logo_remind_str.set('gif图片尺寸大小修改完成')
                     # my_log_photo = tkinter.PhotoImage(file=gif_new_path)
                     # s.my_logo_label.config(image=my_log_photo)
@@ -519,7 +537,7 @@ class ADB_Test(object):
 
                     # 实现gif图片动态播放
                     gif = public.playGif(gif_new_path)  # 实例化gif动态播放对象
-                    gif.playGif(s.moving_software_info_frame,s.my_logo_label)
+                    gif.playGif(s.moving_software_info_frame, s.my_logo_label)
 
                     s.my_logo_remind_str.set('已应用修改后的gif图片！')
                     with open(personal_photo_path, 'w') as fp:
@@ -528,10 +546,10 @@ class ADB_Test(object):
                 else:
                     gif.close()  # 结束播放并删除临时文件
                     gif.stop(s.my_logo_label)
-                    s.my_logo_label.place(x=45,y=10)
+                    s.my_logo_label.place(x=45, y=10)
 
                     s.my_logo_remind_str.set('正在修改非gif图片尺寸大小\n请耐心等待...')
-                    public.not_gif_revise(photo_file,111,101,not_gif_new_path)
+                    public.not_gif_revise(photo_file, 111, 101, not_gif_new_path)
                     s.my_logo_remind_str.set('非gif图片尺寸大小修改完成')
                     my_log_photo = tkinter.PhotoImage(file=not_gif_new_path)
                     s.my_logo_label.config(image=my_log_photo)
@@ -623,8 +641,8 @@ class ADB_Test(object):
 
         # 初始化按钮
         if apk_install_flag:
-            s.apk_button_disable.place(x=20,y=325)
-            s.apk_install_info_button_disable.place(x=200,y=325)
+            s.apk_button_disable.place(x=20, y=325)
+            s.apk_install_info_button_disable.place(x=200, y=325)
             s.install_str.set('正在安装apk中...')
 
     def display_linux_frame(s):
@@ -685,60 +703,60 @@ class ADB_Test(object):
             pass
 
     def quickly_frame(s):
-        s.quickly_frame1 = tkinter.Frame(s.main_frame_adb,width=width,height=height)
+        s.quickly_frame1 = tkinter.Frame(s.main_frame_adb, width=width, height=height)
 
         # 返回功能
-        s.back_button = tkinter.Button(s.quickly_frame1,text='返回 & 后退（安卓）',width=width_button)
-        s.back_button.bind('<Button-1>',lambda x: s.back_bind())
-        s.back_button_disable = tkinter.Button(s.quickly_frame1,text='正在返回...',width=width_button)
+        s.back_button = tkinter.Button(s.quickly_frame1, text='返回 & 后退（安卓）', width=width_button)
+        s.back_button.bind('<Button-1>', lambda x: s.back_bind())
+        s.back_button_disable = tkinter.Button(s.quickly_frame1, text='正在返回...', width=width_button)
         s.back_button_disable.config(state='disable')
-        s.back_button.place(x=20,y=20)
+        s.back_button.place(x=20, y=20)
 
         # 进入系统设置功能
-        s.settings_button = tkinter.Button(s.quickly_frame1,text='进入系统设置（安卓）',width=width_button)
-        s.settings_button.bind('<Button-1>',lambda x: s.settings_bind())
-        s.settings_button_disable = tkinter.Button(s.quickly_frame1,text='正在进入中...',width=width_button)
+        s.settings_button = tkinter.Button(s.quickly_frame1, text='进入系统设置（安卓）', width=width_button)
+        s.settings_button.bind('<Button-1>', lambda x: s.settings_bind())
+        s.settings_button_disable = tkinter.Button(s.quickly_frame1, text='正在进入中...', width=width_button)
         s.settings_button_disable.config(state='disable')
-        s.settings_button.place(x=190,y=20)
+        s.settings_button.place(x=190, y=20)
 
         # 重启设备功能（通用）
-        s.reboot_button = tkinter.Button(s.quickly_frame1,text='重启设备（通用）',width=width_button)
-        s.reboot_button.bind('<Button-1>',lambda x: s.reboot_bind())
+        s.reboot_button = tkinter.Button(s.quickly_frame1, text='重启设备（通用）', width=width_button)
+        s.reboot_button.bind('<Button-1>', lambda x: s.reboot_bind())
         s.reboot_str = tkinter.StringVar()
-        s.reboot_button_disable = tkinter.Button(s.quickly_frame1,textvariable=s.reboot_str,width=width_button)
+        s.reboot_button_disable = tkinter.Button(s.quickly_frame1, textvariable=s.reboot_str, width=width_button)
         s.reboot_button_disable.config(state='disable')
-        s.reboot_button.place(x=20,y=60)
+        s.reboot_button.place(x=20, y=60)
 
         # 关机设备功能
-        s.shutdown_button = tkinter.Button(s.quickly_frame1,text='设备关机（安卓）',width=width_button)
-        s.shutdown_button.bind('<Button-1>',lambda x: s.shutdown_bind())
-        s.shutdown_button_disable = tkinter.Button(s.quickly_frame1,text='正在关机...',width=width_button)
+        s.shutdown_button = tkinter.Button(s.quickly_frame1, text='设备关机（安卓）', width=width_button)
+        s.shutdown_button.bind('<Button-1>', lambda x: s.shutdown_bind())
+        s.shutdown_button_disable = tkinter.Button(s.quickly_frame1, text='正在关机...', width=width_button)
         s.shutdown_button_disable.config(state='disable')
-        s.shutdown_button.place(x=190,y=60)
+        s.shutdown_button.place(x=190, y=60)
 
         # 清理缓存（初始化）功能
-        s.clear_button = tkinter.Button(s.quickly_frame1,text='清理缓存（初始化-安卓）',width=width_button)
-        s.clear_button.bind('<Button-1>',lambda x: s.clear_bind())
-        s.clear_button_disable = tkinter.Button(s.quickly_frame1,text='正在初始化...',width=width_button)
+        s.clear_button = tkinter.Button(s.quickly_frame1, text='清理缓存（初始化-安卓）', width=width_button)
+        s.clear_button.bind('<Button-1>', lambda x: s.clear_bind())
+        s.clear_button_disable = tkinter.Button(s.quickly_frame1, text='正在初始化...', width=width_button)
         s.clear_button_disable.config(state='disable')
-        s.clear_button.place(x=20,y=100)
+        s.clear_button.place(x=20, y=100)
 
         # 终止（结束）程序
-        s.kill_button = tkinter.Button(s.quickly_frame1,text='终止（结束）应用（安卓）',width=width_button)
-        s.kill_button.bind('<Button-1>',lambda x: s.kill_bind())
-        s.kill_button_disable = tkinter.Button(s.quickly_frame1,text='正在结束...',width=width_button)
+        s.kill_button = tkinter.Button(s.quickly_frame1, text='终止（结束）应用（安卓）', width=width_button)
+        s.kill_button.bind('<Button-1>', lambda x: s.kill_bind())
+        s.kill_button_disable = tkinter.Button(s.quickly_frame1, text='正在结束...', width=width_button)
         s.kill_button_disable.config(state='disable')
-        s.kill_button.place(x=190,y=100)
+        s.kill_button.place(x=190, y=100)
 
         # 返回Launcher桌面
-        s.desktop_button = tkinter.Button(s.quickly_frame1,text='返回桌面（安卓）',width=width_button)
-        s.desktop_button.bind('<Button-1>',lambda x: s.desktop_bind())
-        s.desktop_button_disable = tkinter.Button(s.quickly_frame1,text='正在返回...',width=width_button)
+        s.desktop_button = tkinter.Button(s.quickly_frame1, text='返回桌面（安卓）', width=width_button)
+        s.desktop_button.bind('<Button-1>', lambda x: s.desktop_bind())
+        s.desktop_button_disable = tkinter.Button(s.quickly_frame1, text='正在返回...', width=width_button)
         s.desktop_button_disable.config(state='disable')
-        s.desktop_button.place(x=20,y=140)
+        s.desktop_button.place(x=20, y=140)
 
         # 唤醒屏幕
-        s.awake_button = tkinter.Button(s.quickly_frame1,text='唤醒屏幕（安卓）',width=width_button)
+        s.awake_button = tkinter.Button(s.quickly_frame1, text='唤醒屏幕（安卓）', width=width_button)
         s.awake_button.bind('<Button-1>', lambda x: s.awake_bind())
         s.awake_button_disable = tkinter.Button(s.quickly_frame1, text='正在唤醒...', width=width_button)
         s.awake_button_disable.config(state='disable')
@@ -765,51 +783,52 @@ class ADB_Test(object):
         连接设备后点击按钮，可在设备上观察调试现象
         若设备类型与按钮提示的类型不符合时无现象为正常
         '''
-        s.instructions_label = tkinter.Label(s.quickly_frame1,text=content,fg='red')
-        s.instructions_label.place(x=20,y=220)
+        s.instructions_label = tkinter.Label(s.quickly_frame1, text=content, fg='red')
+        s.instructions_label.place(x=20, y=220)
         s.quickly_frame1.place(y=20)
 
     def screen_frame(s):
         # 截图录屏窗口
-        s.screen_frame1 = tkinter.Frame(s.main_frame_adb,width=width,height=height)
+        s.screen_frame1 = tkinter.Frame(s.main_frame_adb, width=width, height=height)
 
         # 截图状态栏
         s.screen_str = tkinter.StringVar()
-        s.screenshut_label = tkinter.Label(s.screen_frame1,textvariable=s.screen_str,bg='black',fg='#FFFFFF',width=46,height=2)
-        s.screenshut_label.place(x=20,y=20)
+        s.screenshut_label = tkinter.Label(s.screen_frame1, textvariable=s.screen_str, bg='black', fg='#FFFFFF',
+                                           width=46, height=2)
+        s.screenshut_label.place(x=20, y=20)
         s.screen_str.set('此处显示截图状态')
 
         # 截图文件名
-        s.screen_entry = tkinter.Entry(s.screen_frame1,width=35)
-        s.screenshut_star = tkinter.Label(s.screen_frame1,text='*',fg='red',font=('宋体',15))
-        s.screen_entry.insert(tkinter.END,'test')
-        s.screen_entry.place(x=50,y=80)
-        s.screenshut_star.place(x=300,y=80)
+        s.screen_entry = tkinter.Entry(s.screen_frame1, width=35)
+        s.screenshut_star = tkinter.Label(s.screen_frame1, text='*', fg='red', font=('宋体', 15))
+        s.screen_entry.insert(tkinter.END, 'test')
+        s.screen_entry.place(x=50, y=80)
+        s.screenshut_star.place(x=300, y=80)
 
         # 截图文件名说明
         content = '''* 说明：此处可以修改截图生成的文件名称(默认test)\n生成的文件保存在桌面上的“ADB工具-截图（DA）”里面
                 '''
-        s.screen_readme_label = tkinter.Label(s.screen_frame1, text=content, fg='red',font=('宋体',10))
+        s.screen_readme_label = tkinter.Label(s.screen_frame1, text=content, fg='red', font=('宋体', 10))
         s.screen_readme_label.place(x=20, y=100)
 
         # 截图按钮
-        s.screen_button = tkinter.Button(s.screen_frame1,text='一键截图',width=width_button)
-        s.screen_button.bind('<Button-1>', lambda x:s.screenshot_bind())
-        s.screen_button_disable = tkinter.Button(s.screen_frame1,text='正在截图...',width=width_button)
+        s.screen_button = tkinter.Button(s.screen_frame1, text='一键截图', width=width_button)
+        s.screen_button.bind('<Button-1>', lambda x: s.screenshot_bind())
+        s.screen_button_disable = tkinter.Button(s.screen_frame1, text='正在截图...', width=width_button)
         s.screen_button_disable.config(state='disable')
-        s.screen_button.place(x=20,y=140)
+        s.screen_button.place(x=20, y=140)
 
         # 打开截图文件夹按钮
-        s.open_screen_button = tkinter.Button(s.screen_frame1,text='打开截图文件夹',width=width_button)
-        s.open_screen_button.bind('<Button-1>', lambda x:s.open_screen_bind())
-        s.open_screen_button_disable = tkinter.Button(s.screen_frame1,text='正在打开...',width=width_button)
+        s.open_screen_button = tkinter.Button(s.screen_frame1, text='打开截图文件夹', width=width_button)
+        s.open_screen_button.bind('<Button-1>', lambda x: s.open_screen_bind())
+        s.open_screen_button_disable = tkinter.Button(s.screen_frame1, text='正在打开...', width=width_button)
         s.open_screen_button_disable.config(state='disable')
-        s.open_screen_button.place(x=200,y=140)
+        s.open_screen_button.place(x=200, y=140)
 
         # 录屏状态栏
         s.record_str = tkinter.StringVar()
         s.record_label = tkinter.Label(s.screen_frame1, textvariable=s.record_str, bg='black', fg='#FFFFFF',
-                                           width=46, height=2)
+                                       width=46, height=2)
         s.record_label.place(x=20, y=180)
         s.record_str.set('此处显示录屏状态')
 
@@ -822,8 +841,8 @@ class ADB_Test(object):
 
         # 录屏文件名说明
         # s.record_readme_label = tkinter.Label(s.screen_frame1, text=content, fg='red', font=('宋体', 10))
-        s.record_readme_button = tkinter.Button(s.screen_frame1,text='点击显示录屏注意事项',width=width_button)
-        s.record_readme_button.bind('<Button-1>',lambda x:s.record_readme_bind())
+        s.record_readme_button = tkinter.Button(s.screen_frame1, text='点击显示录屏注意事项', width=width_button)
+        s.record_readme_button.bind('<Button-1>', lambda x: s.record_readme_bind())
         s.record_readme_button.place(x=120, y=260)
 
         # 录屏时间说明
@@ -833,7 +852,7 @@ class ADB_Test(object):
 
         # 录屏时间下拉框
         s.record_time = tkinter.StringVar()
-        s.record_combobox = tkinter.ttk.Combobox(s.screen_frame1, state="readonly",width=5, textvariable=s.record_time)
+        s.record_combobox = tkinter.ttk.Combobox(s.screen_frame1, state="readonly", width=5, textvariable=s.record_time)
         # state：“正常”，“只读”或“禁用”之一。在“只读”状态下，可能无法直接编辑该值，并且用户只能从下拉列表中选择值。在“正常”状态下，文本字段可直接编辑。在“禁用”状态下，不可能进行交互。
         s.record_combobox['value'] = ('180秒', '120秒', '60秒', '30秒', '10秒')
         s.record_combobox.current(0)
@@ -841,13 +860,13 @@ class ADB_Test(object):
 
         # 录屏模式单选按钮
         s.record_model_str = tkinter.IntVar()
-        s.record_radio_button1 = tkinter.Radiobutton(s.screen_frame1,text='手动模式',variable=s.record_model_str,value=0)
-        s.record_radio_button1.place(x=200,y=300)
+        s.record_radio_button1 = tkinter.Radiobutton(s.screen_frame1, text='手动模式', variable=s.record_model_str, value=0)
+        s.record_radio_button1.place(x=200, y=300)
         s.record_radio_button2 = tkinter.Radiobutton(s.screen_frame1, text='连续模式', variable=s.record_model_str, value=1)
         s.record_radio_button2.place(x=270, y=300)
         # 气泡提示对话框
-        public.CreateToolTip(s.record_radio_button1,text='手动模式：到达指定时间就会自动停止（没到达指定时间时也可以手动停止）\n且不会重新录制')
-        public.CreateToolTip(s.record_radio_button2,text='连续模式：到达指定时间会自动重新录制（除非手动停止）\n，每一轮录制后都会自动保存')
+        public.CreateToolTip(s.record_radio_button1, text='手动模式：到达指定时间就会自动停止（没到达指定时间时也可以手动停止）\n且不会重新录制')
+        public.CreateToolTip(s.record_radio_button2, text='连续模式：到达指定时间会自动重新录制（除非手动停止）\n，每一轮录制后都会自动保存')
 
         # 录屏按钮
         s.record_button = tkinter.Button(s.screen_frame1, text='开始录屏', width=width_button)
@@ -858,7 +877,7 @@ class ADB_Test(object):
 
         # 停止录屏按钮
         s.record_stop_button = tkinter.Button(s.screen_frame1, text='停止录屏', width=width_button)
-        s.record_stop_button.bind('<Button-1>', lambda x:s.record_stop_bind())
+        s.record_stop_button.bind('<Button-1>', lambda x: s.record_stop_bind())
         s.record_stop_button_disable = tkinter.Button(s.screen_frame1, text='停止录屏', width=width_button)
         s.record_stop_button_disable.config(state='disable')
         s.record_stop_button_disable.place(x=200, y=330)
@@ -875,7 +894,7 @@ class ADB_Test(object):
         s.reset_button.bind('<Button-1>', lambda x: s.reset_bind())
         s.reset_button_disable = tkinter.Button(s.screen_frame1, text='一键重置', width=width_button)
         s.reset_button_disable.config(state='disable')
-        s.reset_button_disable.bind('<Button-1>',lambda x: s.reset_disable_bind())
+        s.reset_button_disable.bind('<Button-1>', lambda x: s.reset_disable_bind())
         s.reset_button.place(x=200, y=370)
 
         s.screen_frame1.place(y=20)
@@ -890,7 +909,7 @@ class ADB_Test(object):
             4.录屏时请勿使用本地ADB服务，否则会中断录屏
             5.如果你正在进行设备固件升级，需要使用ADB本地服务，请勿使用录屏功能（因为录屏结束时会中断ADB服务）
             '''
-            tkinter.messagebox.showinfo('录屏注意事项',content)
+            tkinter.messagebox.showinfo('录屏注意事项', content)
 
         t_record_readme = threading.Thread(target=t_record_readme)
         t_record_readme.setDaemon(True)
@@ -903,10 +922,9 @@ class ADB_Test(object):
         # 卸载状态栏
         s.uninstall_str = tkinter.StringVar()
         s.uninstall_label = tkinter.Label(s.install_frame1, textvariable=s.uninstall_str, bg='black', fg='#FFFFFF',
-                                           width=46, height=2)
+                                          width=46, height=2)
         s.uninstall_label.place(x=20, y=20)
         s.uninstall_str.set('此处显示卸载apk状态')
-
 
         # 检测包名按钮
         s.check_package_name_button = tkinter.Button(s.install_frame1, text='点击检测当前包名', width=width_button)
@@ -925,38 +943,38 @@ class ADB_Test(object):
         # 检测包名说明
         check_package_content = '请把apk包拖拽到下方框后，点击“获取apk包名”可获得Apk包名\n' \
                                 '若拖放功能不可用，也可以点击“浏览”选择apk包哦~'
-        s.check_package_label = tkinter.Label(s.install_frame1,fg='red',text=check_package_content)
-        s.check_package_label.place(x=20,y=120)
+        s.check_package_label = tkinter.Label(s.install_frame1, fg='red', text=check_package_content)
+        s.check_package_label.place(x=20, y=120)
 
         # apk包文件路径单行文本框
         s.apk_path_package_str = tkinter.StringVar()
-        s.apk_path_package_entry = tkinter.Entry(s.install_frame1,textvariable=(s.apk_path_package_str),
-                                                    width=40, highlightcolor='yellow', validate="focusin"
-                                                    , highlightthickness=5)
-        s.apk_path_package_entry.place(x=20,y=160)
+        s.apk_path_package_entry = tkinter.Entry(s.install_frame1, textvariable=(s.apk_path_package_str),
+                                                 width=40, highlightcolor='yellow', validate="focusin"
+                                                 , highlightthickness=5)
+        s.apk_path_package_entry.place(x=20, y=160)
 
         # apk文件获取路径拖拽功能（windnd）
-        public.windnd_hook_files(s.apk_path_package_entry,s.apk_path_package_str)
+        public.windnd_hook_files(s.apk_path_package_entry, s.apk_path_package_str)
         if not os.path.exists(apk_path_package_log):
             with open(apk_path_package_log, 'w') as fp:
                 fp.write('')
             fp.close()
-        path_msg = open(apk_path_package_log,'r').read()
-        s.apk_path_package_entry.insert(tkinter.END,path_msg)
+        path_msg = open(apk_path_package_log, 'r').read()
+        s.apk_path_package_entry.insert(tkinter.END, path_msg)
 
         # 浏览apk文件按钮
-        s.apk_path_package_button = tkinter.Button(s.install_frame1,text='浏览')
-        s.apk_path_package_button_disable = tkinter.Button(s.install_frame1,text='浏览')
-        s.apk_path_package_button.bind('<Button-1>',lambda x:s.open_apk_path_files(apk_path_install_flag))
+        s.apk_path_package_button = tkinter.Button(s.install_frame1, text='浏览')
+        s.apk_path_package_button_disable = tkinter.Button(s.install_frame1, text='浏览')
+        s.apk_path_package_button.bind('<Button-1>', lambda x: s.open_apk_path_files(apk_path_install_flag))
         s.apk_path_package_button_disable.config(state='disable')
-        s.apk_path_package_button.place(x=320,y=160)
+        s.apk_path_package_button.place(x=320, y=160)
 
         # 检测apk文件包名按钮
-        s.apk_package_button = tkinter.Button(s.install_frame1,text='获取apk文件信息',width=width_button)
-        s.apk_package_button_disable = tkinter.Button(s.install_frame1,text='正在获取中...',width=width_button)
+        s.apk_package_button = tkinter.Button(s.install_frame1, text='获取apk文件信息', width=width_button)
+        s.apk_package_button_disable = tkinter.Button(s.install_frame1, text='正在获取中...', width=width_button)
         s.apk_package_button_disable.config(state='disable')
-        s.apk_package_button.bind('<Button-1>',lambda x:s.apk_package_bind())
-        s.apk_package_button.place(x=20,y=200)
+        s.apk_package_button.bind('<Button-1>', lambda x: s.apk_package_bind())
+        s.apk_package_button.place(x=20, y=200)
 
         # 一键复制粘贴apk包名按钮
         s.apk_package_copy_button = tkinter.Button(s.install_frame1, text='一键复制apk信息', width=width_button)
@@ -968,15 +986,15 @@ class ADB_Test(object):
         # 安装状态栏
         s.install_str = tkinter.StringVar()
         s.install_label = tkinter.Label(s.install_frame1, textvariable=s.install_str, bg='black', fg='#FFFFFF',
-                                          width=46, height=2)
+                                        width=46, height=2)
         s.install_label.place(x=20, y=240)
         s.install_str.set('此处显示安装apk状态')
 
         # 安装apk单行文本框
         s.apk_path_str = tkinter.StringVar()
         s.apk_path_entry = tkinter.Entry(s.install_frame1, textvariable=s.apk_path_str,
-                                                 width=40, highlightcolor='yellow', validate="focusin"
-                                                 , highlightthickness=5)
+                                         width=40, highlightcolor='yellow', validate="focusin"
+                                         , highlightthickness=5)
         s.apk_path_entry.place(x=20, y=285)
 
         # 安装apk拖拽功能（windnd）
@@ -1010,14 +1028,14 @@ class ADB_Test(object):
         s.apk_install_info_button.place(x=200, y=325)
 
         # 选择apk安装模式label
-        s.apk_install_mode_label = tkinter.Label(s.install_frame1,text='请选择安装模式：')
-        s.apk_install_mode_label.place(x=20,y=365)
+        s.apk_install_mode_label = tkinter.Label(s.install_frame1, text='请选择安装模式：')
+        s.apk_install_mode_label.place(x=20, y=365)
 
         # apk安装模式下拉框选择
         s.apk_install_mode_value = tkinter.StringVar()
         s.apk_install_mode_combobox = tkinter.ttk.Combobox(s.install_frame1, state="readonly", width=25,
-                                                       textvariable=s.apk_install_mode_value)
-        s.apk_install_mode_combobox['value'] = ('默认','-d选项 无视版本高低安装')
+                                                           textvariable=s.apk_install_mode_value)
+        s.apk_install_mode_combobox['value'] = ('默认', '-d选项 无视版本高低安装')
         s.apk_install_mode_combobox.current(0)
         # state：“正常”，“只读”或“禁用”之一。在“只读”状态下，可能无法直接编辑该值，并且用户只能从下拉列表中选择值。在“正常”状态下，文本字段可直接编辑。在“禁用”状态下，不可能进行交互。
         s.apk_install_mode_combobox.place(x=120, y=365)
@@ -1030,7 +1048,7 @@ class ADB_Test(object):
 
         # 设备初始化说明
         init_content = '注意：Linux设备使用本软件功能前需要初始化！\n否则无法正常使用下面功能哦'
-        s.init_label = tkinter.Label(s.linux_frame1, text=init_content, fg='red',font=('宋体', 10))
+        s.init_label = tkinter.Label(s.linux_frame1, text=init_content, fg='red', font=('宋体', 10))
         s.init_label.place(x=20, y=20)
 
         # 初始化按钮
@@ -1038,25 +1056,34 @@ class ADB_Test(object):
         s.linux_init_Button = tkinter.Button(s.linux_frame1, text='初始化设备', width=width_button)
         s.linux_init_Button_disable = tkinter.Button(s.linux_frame1, text='初始化设备', width=width_button)
         s.linux_init_Button_disable.config(state='disable')
-        s.linux_init_Button.bind('<Button-1>', lambda x: linux_main.devices_init(s.init_str,s.linux_init_Button
-                                                    ,s.linux_init_Button_disable,s.more_devices_value.get(),s.init_again_Button_disable))
+        s.linux_init_Button.bind('<Button-1>', lambda x: linux_main.devices_init(s.init_str, s.linux_init_Button
+                                                                                 , s.linux_init_Button_disable,
+                                                                                 s.more_devices_value.get(),
+                                                                                 s.init_again_Button_disable))
         s.linux_init_Button_disable.place(x=200, y=110)
+
+        s.linux_type_str = tkinter.StringVar()  # 先定义在前面防止报错 - 设备固件方案商类型及下拉列表
 
         # 重新检测按钮
         s.init_again_Button = tkinter.Button(s.linux_frame1, text='点击重新检测', width=width_button)
         s.init_again_Button_disable = tkinter.Button(s.linux_frame1, text='正在检测中...', width=width_button)
         s.init_again_Button_disable.config(state='disable')
-        s.init_again_Button.bind('<Button-1>',lambda x:linux_main.check_init(s.init_str,s.linux_init_Button
-                                    ,s.linux_init_Button_disable,devices_linux_flag,s.linux_all_button_close
-                                    ,s.more_devices_value.get(),s.init_again_Button_disable))
-        s.init_again_Button.place(x=20,y=110)
+        s.init_again_Button.bind('<Button-1>', lambda x: linux_main.check_init(s.init_str, s.linux_init_Button
+                                                                               , s.linux_init_Button_disable,
+                                                                               devices_linux_flag,
+                                                                               s.linux_all_button_close
+                                                                               , s.more_devices_value.get(),
+                                                                               s.init_again_Button_disable,
+                                                                               s.linux_type_str.get()))
+        s.init_again_Button.place(x=20, y=110)
 
         # 初始化状态栏
         s.init_label = tkinter.Label(s.linux_frame1, textvariable=s.init_str, bg='black', fg='#FFFFFF',
-                                       width=46, height=2)
-        s.init_label.config(command=linux_main.check_init(s.init_str,s.linux_init_Button,s.linux_init_Button_disable,
-                                devices_linux_flag,s.linux_all_button_close,s.more_devices_value.get(),
-                                s.init_again_Button_disable))
+                                     width=46, height=2)
+        s.init_label.config(command=linux_main.check_init(s.init_str, s.linux_init_Button, s.linux_init_Button_disable,
+                                                          devices_linux_flag, s.linux_all_button_close,
+                                                          s.more_devices_value.get(),
+                                                          s.init_again_Button_disable, s.linux_type_str.get()))
         s.init_label.place(x=20, y=60)
         s.init_str.set('此处显示初始化状态')
 
@@ -1064,51 +1091,60 @@ class ADB_Test(object):
         s.linux_extra_Button = tkinter.Button(s.linux_frame1, text='其他快捷功能（Linux）', width=width_button)
         s.linux_extra_Button_disable = tkinter.Button(s.linux_frame1, text='其他快捷功能（Linux）', width=width_button)
         s.linux_extra_Button_disable.config(state='disable')
-        s.linux_extra_Button.place(x=20,y=155)
+        s.linux_extra_Button.bind('<Button-1>', lambda x: s.linux_extra_bind())
+        s.linux_extra_Button.place(x=20, y=155)
 
         # 设备固件方案商类型及下拉列表
         s.linux_type_label = tkinter.Label(s.linux_frame1)
         linux_type_picture = tkinter.PhotoImage(file=linux_type_photo)
         s.linux_type_label.config(image=linux_type_picture)
         s.linux_type_label.image = linux_type_picture
-        s.linux_type_label.place(x=175,y=155)
+        s.linux_type_label.place(x=175, y=155)
+        content = '说明：\n' \
+                  '为了区别不同方案商的固件支持的功能\n' \
+                  '点击右侧下拉列表可以根据你测试的设备选择对应的方案商\n' \
+                  '如果选择与当前测试设备不对应的方案商会导致工具功能异常\n' \
+                  '如果可选择的方案商没有你所需要的方案商，待后续版本更新！'
+        public.CreateToolTip(s.linux_type_label, content)
 
-        s.linux_type_combobox = tkinter.ttk.Combobox(s.linux_frame1,width=18)
-        s.linux_type_combobox['value'] = ['全志/索智/阿里']
+        s.linux_type_combobox = tkinter.ttk.Combobox(s.linux_frame1, textvariable=s.linux_type_str, width=18)
+        s.linux_type_combobox['value'] = ['全志/索智/阿里', '其他方案商（测试）']
         s.linux_type_combobox.config(state='readonly')
         s.linux_type_combobox.current(0)
-        s.linux_type_combobox.place(x=210,y=160)
+        s.linux_type_combobox.place(x=210, y=160)
 
         # 功能禁用状态标签
         button_disable_content = '该设备没有初始化，已隐藏所有功能\n请点击上方按钮进行设备初始化\n以便开启所有Linux功能' \
-                                 '\n温馨提示：\n如果设备已初始化但功能无法使用\n请检查设备是否正常已连接\n如已连接请点击“重新检测”按钮进行检测'
+                                 '\n温馨提示：\n如果设备已初始化但功能无法使用\n请检查设备是否正常已连接\n如已连接请点击“重新检测”按钮进行检测' \
+                                 '\n如选择“其他方案商”等不支持功能也无法使用'
         s.linux_button_label = tkinter.Label(s.linux_frame1, text=button_disable_content, fg='red',
-                                     width=46, height=7)
+                                             width=46, height=8)
         s.linux_button_bind()
 
         # 截图功能
-        s.linux_screen_Button = tkinter.Button(s.linux_frame1,text='截图工具（Linux）',width=width_button)
-        s.linux_screen_Button_disable = tkinter.Button(s.linux_frame1,text='截图工具（Linux）',width=width_button)
-        s.linux_screen_Button.bind('<Button-1>',lambda x:s.linux_screen_bind())
+        s.linux_screen_Button = tkinter.Button(s.linux_frame1, text='截图工具（Linux）', width=width_button)
+        s.linux_screen_Button_disable = tkinter.Button(s.linux_frame1, text='截图工具（Linux）', width=width_button)
+        s.linux_screen_Button.bind('<Button-1>', lambda x: s.linux_screen_bind())
         s.linux_screen_Button_disable.config(state='disable')
-        s.linux_screen_Button.place(x=20,y=190)
+        s.linux_screen_Button.place(x=20, y=190)
 
         # 关闭开发者模式
         s.linux_developer_mode_Button_close = tkinter.Button(s.linux_frame1, text='访问设备本地盘', width=width_button)
-        s.linux_developer_mode_Button_close_disable = tkinter.Button(s.linux_frame1, text='正在关闭开发者模式...', width=width_button)
+        s.linux_developer_mode_Button_close_disable = tkinter.Button(s.linux_frame1, text='正在关闭开发者模式...',
+                                                                     width=width_button)
         s.linux_developer_mode_Button_close.bind('<Button-1>', lambda x: s.linux_developer_mode_close_bind())
         s.linux_developer_mode_Button_close_disable.config(state='disable')
         s.linux_developer_mode_Button_close.place(x=200, y=190)
         s.linux_developer_mode_content = """访问设备本地盘需要关闭ADB命令，届时本工具不能连接该设备\n恢复ADB命令需要手动在设备上的“设置-关于-固件版本”，连续点击5下后输入密码“2022#888”后点击确定再重启
 恢复ADB命令后，计算机不能访问设备本地盘，但本工具可连接该设备\n在adb shell中通过cd /mnt/UDISK/ 也可访问到本地盘的数据"""
-        public.CreateToolTip(s.linux_developer_mode_Button_close,s.linux_developer_mode_content)
+        public.CreateToolTip(s.linux_developer_mode_Button_close, s.linux_developer_mode_content)
 
         # 安装软件
         s.linux_install = tkinter.Button(s.linux_frame1, text='一键安装工具（Linux）', width=width_button)
         s.linux_install_disable = tkinter.Button(s.linux_frame1, text='一键安装工具（Linux）', width=width_button)
         s.linux_install.bind('<Button-1>', lambda x: s.linux_install_bind())
         s.linux_install_disable.config(state='disable')
-        s.linux_install.place(x=20,y=230)
+        s.linux_install.place(x=20, y=230)
 
         # 一键取图
         s.linux_camera = tkinter.Button(s.linux_frame1, text='一键取图工具（Linux）', width=width_button)
@@ -1165,7 +1201,7 @@ class ADB_Test(object):
         s.linux_frame1.place(y=20)
 
     def customize_frame(s):
-        s.customize_frame1 = tkinter.Frame(s.main_frame_adb,width=width,height=height)
+        s.customize_frame1 = tkinter.Frame(s.main_frame_adb, width=width, height=height)
 
         # 查询设备应用流量值
         s.flow_button = tkinter.Button(s.customize_frame1, text='查询应用流量值', width=width_button)
@@ -1185,7 +1221,7 @@ class ADB_Test(object):
 
     def linux_all_button_close(s):
         def linux_all_button_place_forget():
-            global uuid_server_flag
+            global uuid_server_flag, linux_Initialize_flag
             global uuid_reboot_flag
             global uuid_run_flag
 
@@ -1207,6 +1243,8 @@ class ADB_Test(object):
             s.uuid_get_disable.place_forget()
             s.get_log.place_forget()
             s.get_log_disable.place_forget()
+            s.linux_extra_Button.place_forget()
+            s.linux_extra_Button_disable.place_forget()
 
             # 恢复绑定事件的标识
             if not uuid_reboot_flag:
@@ -1214,6 +1252,14 @@ class ADB_Test(object):
             else:
                 pass
             uuid_run_flag = False
+
+            devices_state = public.device_connect()
+            if devices_state and not linux_Initialize_flag:
+                # 每次连接设备仅启动一次（新增每次连接Linux设备时都会检测一遍是否初始化）
+                linux_main.check_init(s.init_str, s.linux_init_Button
+                                      , s.linux_init_Button_disable, devices_linux_flag, s.linux_all_button_close
+                                      , s.more_devices_value.get(), s.init_again_Button_disable, s.linux_type_str.get())
+                linux_Initialize_flag = True
 
             s.linux_button_label.place(x=20, y=220)
 
@@ -1251,8 +1297,8 @@ class ADB_Test(object):
             s.md5_size_button_disable.place_forget()
             s.md5_size_button.place(x=200, y=20)
 
-    def linux_all_button_open(s):
-        global uuid_server_flag
+    def linux_all_button_open(s):  # 获取或显示Linux所有功能
+        global uuid_server_flag, linux_Initialize_flag
 
         # 先禁用初始化按钮
         s.linux_init_Button.place_forget()
@@ -1260,7 +1306,7 @@ class ADB_Test(object):
 
         # 先初始化按钮状态
         if not os.path.exists(screen_page):
-            with open(screen_page,'w') as fp:
+            with open(screen_page, 'w') as fp:
                 fp.write('0')
             fp.close()
         if not os.path.exists(install_page):
@@ -1279,13 +1325,18 @@ class ADB_Test(object):
             with open(get_log_page, 'w') as fp:
                 fp.write('0')
             fp.close()
+        if not os.path.exists(public.linux_extra_page()):
+            with open(public.linux_extra_page(), 'w') as fp:
+                fp.write('0')
+            fp.close()
 
         # 读取一次Linux所有页面状态
-        screen_page_state = open(screen_page,'r').read()
-        install_page_state = open(install_page,'r').read()
-        camera_page_state = open(camera_page,'r').read()
-        write_number_page_state = open(write_number_page,'r').read()
-        get_log_page_state = open(get_log_page,'r').read()
+        screen_page_state = open(screen_page, 'r').read()
+        install_page_state = open(install_page, 'r').read()
+        camera_page_state = open(camera_page, 'r').read()
+        write_number_page_state = open(write_number_page, 'r').read()
+        get_log_page_state = open(get_log_page, 'r').read()
+        linux_extra_page_state = open(public.linux_extra_page(), 'r').read()
         if screen_page_state == '':
             s.linux_screen_Button_disable.place(x=20, y=190)
             s.adb_test_close_disable.place(x=400, y=370)
@@ -1316,10 +1367,16 @@ class ADB_Test(object):
         else:
             s.get_log_disable.place_forget()
             s.get_log.place(x=200, y=270)
+        if linux_extra_page_state == '':
+            s.linux_extra_Button_disable.place(x=20, y=155)
+            s.adb_test_close_disable.place(x=400, y=370)
+        else:
+            s.linux_extra_Button_disable.place_forget()
+            s.linux_extra_Button.place(x=20, y=155)
 
         # 正常情况下开启linux模式所有功能
         s.linux_button_label.place_forget()
-        s.linux_developer_mode_Button_close.place(x=200,y=190)
+        s.linux_developer_mode_Button_close.place(x=200, y=190)
         s.uuid_label.place(x=20, y=310)
         s.uuid_paste.place(x=200, y=360)
         s.uuid_get.place(x=20, y=360)
@@ -1327,24 +1384,25 @@ class ADB_Test(object):
         # 启动特定的绑定事件（每次连接设备仅启动一次）
         if not uuid_server_flag:
             s.uuid_get_bind()  # 自动获取设备UUID
-            uuid_server_flag = True
 
             # 每次连接设备仅启动一次（新增每次连接Linux设备时都会检测一遍是否初始化）
             linux_main.check_init(s.init_str, s.linux_init_Button
                                   , s.linux_init_Button_disable, devices_linux_flag, s.linux_all_button_close
-                                  , s.more_devices_value.get(), s.init_again_Button_disable)
+                                  , s.more_devices_value.get(), s.init_again_Button_disable, s.linux_type_str.get())
+
+            uuid_server_flag = True
 
     def version_history_frame(s):
         # 历史版本信息窗口
-        s.verion_frame_full = tkinter.Frame(s.main_frame_adb,width=width,height=height)
-        s.verion_frame = tkinter.Frame(s.verion_frame_full,width=width,height=height)
+        s.verion_frame_full = tkinter.Frame(s.main_frame_adb, width=width, height=height)
+        s.verion_frame = tkinter.Frame(s.verion_frame_full, width=width, height=height)
         s.scrollbar = tkinter.Scrollbar(s.verion_frame)
-        s.version_listbox = tkinter.Listbox(s.verion_frame, width=50, height=19,yscrollcommand=(s.scrollbar.set))
-        s.version_listbox.bindtags((s.version_listbox,'all'))
+        s.version_listbox = tkinter.Listbox(s.verion_frame, width=50, height=19, yscrollcommand=(s.scrollbar.set))
+        s.version_listbox.bindtags((s.version_listbox, 'all'))
         s.scrollbar.config(command=(s.version_listbox.yview))
         s.scrollbar.pack(side=(tkinter.RIGHT), fill=(tkinter.Y))
         s.version_listbox.pack()
-        version_read = open(version_path,'r',encoding='utf-8')
+        version_read = open(version_path, 'r', encoding='utf-8')
         for readline in version_read.readlines():
             s.version_listbox.insert(tkinter.END, readline)
         version_read.close()
@@ -1353,7 +1411,7 @@ class ADB_Test(object):
 
     def back_bind(s):
         def t_back():
-            s.back_button_disable.place(x=20,y=20)
+            s.back_button_disable.place(x=20, y=20)
             devices_SN = s.more_devices_value.get()
             quickly.android_back(devices_SN)
             s.back_button_disable.place_forget()
@@ -1364,7 +1422,7 @@ class ADB_Test(object):
 
     def settings_bind(s):
         def t_settings():
-            s.settings_button_disable.place(x=190,y=20)
+            s.settings_button_disable.place(x=190, y=20)
             devices_SN = s.more_devices_value.get()
             quickly.android_settings(devices_SN)
             s.settings_button_disable.place_forget()
@@ -1375,7 +1433,7 @@ class ADB_Test(object):
 
     def reboot_bind(s):
         def t_reboot():
-            s.reboot_button_disable.place(x=20,y=60)
+            s.reboot_button_disable.place(x=20, y=60)
             s.reboot_str.set('正在重启...')
             devices_SN = s.more_devices_value.get()
             state = quickly.current_reboot(devices_SN)
@@ -1397,7 +1455,7 @@ class ADB_Test(object):
 
     def shutdown_bind(s):
         def t_shutdown():
-            s.shutdown_button_disable.place(x=190,y=60)
+            s.shutdown_button_disable.place(x=190, y=60)
             devices_SN = s.more_devices_value.get()
             quickly.android_shutdown(devices_SN)
             s.shutdown_button_disable.place_forget()
@@ -1408,7 +1466,7 @@ class ADB_Test(object):
 
     def clear_bind(s):
         def t_clear():
-            s.clear_button_disable.place(x=20,y=100)
+            s.clear_button_disable.place(x=20, y=100)
             devices_SN = s.more_devices_value.get()
             quickly.clear_cache(devices_SN)
             s.clear_button_disable.place_forget()
@@ -1419,7 +1477,7 @@ class ADB_Test(object):
 
     def kill_bind(s):
         def t_kill():
-            s.kill_button_disable.place(x=190,y=100)
+            s.kill_button_disable.place(x=190, y=100)
             devices_SN = s.more_devices_value.get()
             quickly.terminate_program(devices_SN)
             s.kill_button_disable.place_forget()
@@ -1430,7 +1488,7 @@ class ADB_Test(object):
 
     def desktop_bind(s):
         def t_desktop():
-            s.desktop_button_disable.place(x=20,y=140)
+            s.desktop_button_disable.place(x=20, y=140)
             devices_SN = s.more_devices_value.get()
             quickly.android_desktop(devices_SN)
             s.desktop_button_disable.place_forget()
@@ -1441,7 +1499,7 @@ class ADB_Test(object):
 
     def awake_bind(s):
         def t_awake():
-            s.awake_button_disable.place(x=190,y=140)
+            s.awake_button_disable.place(x=190, y=140)
             devices_SN = s.more_devices_value.get()
             quickly.android_awake(devices_SN)
             s.awake_button_disable.place_forget()
@@ -1476,7 +1534,7 @@ class ADB_Test(object):
         t_copy_SN.setDaemon(True)
         t_copy_SN.start()
 
-    def public_mac_ip(s,devices):
+    def public_mac_ip(s, devices):
         # 获取设备MAC（物理）地址
         mac_result = public.wifi_mac_result(devices)
         if mac_result.strip() == '':
@@ -1494,7 +1552,7 @@ class ADB_Test(object):
             s.devices_ip_str.set('设备ip地址：' + ip_result.strip())
             s.devices_ip.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(ip_result))
 
-    def linux_sn_number(s,devices):
+    def linux_sn_number(s, devices):
         # Linux SN号 获取方式
         devices_sn = public.execute_cmd('adb -s ' + devices + ' shell cat /data/linux_sn.ini')
         devices_sn_finally = ' '.join(devices_sn.strip().split()).split(':')[-1]
@@ -1509,11 +1567,17 @@ class ADB_Test(object):
                 try:
                     sn_re = re.findall('"sn":(.*?)}', sn)
                     sn_result = eval(sn_re[0])
-                    with open(linux_sn_path,'w') as fp:
-                        fp.write(sn_result)
-                    fp.close()
-                    # 上传到设备里面方便保存读取
-                    public.execute_cmd('adb -s ' + devices + ' push ' + linux_sn_path + ' /data/linux_sn.ini')
+                    # 判断序列号是否只含有字母或数字，如果有特殊字符就返回False，否则返回True
+                    string_sn = sn_result.isalnum()
+                    # print(string_sn)
+                    if not string_sn:
+                        sn_result = ''
+                    else:
+                        with open(linux_sn_path, 'w') as fp:
+                            fp.write(sn_result)
+                        fp.close()
+                        # 上传到设备里面方便保存读取
+                        public.execute_cmd('adb -s ' + devices + ' push ' + linux_sn_path + ' /data/linux_sn.ini')
                     if sn_result.strip() == '':
                         s.devices_sn_str.set('获取序列号失败！正在重新获取...')
                         s.devices_sn.unbind('<Button-1>')
@@ -1521,7 +1585,7 @@ class ADB_Test(object):
                     else:
                         s.devices_sn_str.set('设备序列号：' + sn_result.strip())
                         s.devices_sn.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(sn_result))
-                except (IndexError,SyntaxError):
+                except (IndexError, SyntaxError):
                     s.devices_sn_str.set('正在尝试重新获取序列号...')
                     s.devices_sn.unbind('<Button-1>')
         else:
@@ -1543,12 +1607,12 @@ class ADB_Test(object):
                 except AttributeError:
                     pass
                 # 显示选中的frame
-                s.moving_device_frame1.place(x=375,y=115)
+                s.moving_device_frame1.place(x=375, y=115)
             elif s.moving_str.get() == 1:
                 # 隐藏非选中的frame
                 s.moving_device_frame1.place_forget()
                 # 显示选中的frame
-                s.moving_software_info_frame.place(x=375,y=115)
+                s.moving_software_info_frame.place(x=375, y=115)
 
         def moving_devices():
             # 恢复被隐藏的label
@@ -1573,12 +1637,12 @@ class ADB_Test(object):
         def t_update_status():
             global software_version_flag
             time.sleep(3)  # 延时3S，等待Linux类型显示出来
-            try:
-                s.my_logo_label_warning.place_forget()  # 加载完毕就隐藏提示
-            except AttributeError:
-                pass
             while True:
-                time.sleep(0.001)
+                time.sleep(1)
+                try:
+                    s.my_logo_label_warning.place_forget()  # 确保加载完毕就一定隐藏提示
+                except AttributeError:
+                    pass
                 try:
                     # 实时检测设备所有信息
                     devices = s.more_devices_value.get()
@@ -1696,7 +1760,7 @@ class ADB_Test(object):
             # time.sleep(2)
             # 检测设备类型
             global devices_linux_flag
-            adb_install_state = open(adb_upgrade_flag,'r').read()
+            adb_install_state = open(adb_upgrade_flag, 'r').read()
             # conflict_software_flag = public.find_pid_name(conflict_software_list)
             if adb_install_state == 'ADB upgrade':
                 print('ADB正在升级2....')
@@ -1715,7 +1779,7 @@ class ADB_Test(object):
                     if device_type.strip() == 'Android':
                         s.devices_type_str.set('Android（安卓）')
                         devices_linux_flag = False
-                        with open(devices_type_log,'w') as fp:
+                        with open(devices_type_log, 'w') as fp:
                             fp.write(device_type.strip())
                         fp.close()
                         # print('安卓')
@@ -1739,7 +1803,7 @@ class ADB_Test(object):
                     pass
 
         def t_more_devices():
-            global adb_server_all_flag,lower_CPU_utility
+            global adb_server_all_flag, lower_CPU_utility
             devices_current_flag = False
             # 多设备连接匹配
             while True:
@@ -1812,7 +1876,8 @@ class ADB_Test(object):
                 time.sleep(2)
 
         def t_devices():
-            global adb_server_flag,conflict_model_flag,adb_server_all_flag,lower_CPU_utility_connect,lower_CPU_utility_disconnect
+            global adb_server_flag, conflict_model_flag, adb_server_all_flag, lower_CPU_utility_connect, \
+                lower_CPU_utility_disconnect, linux_Initialize_flag
             s.devices_str.set('正在检测设备连接状态...')
             lower_CPU_utility_connect = False
             lower_CPU_utility_disconnect = False
@@ -1828,7 +1893,7 @@ class ADB_Test(object):
                         pass
                     adb_install_state = open(adb_upgrade_flag, 'r').read()
                     conflict_software_flag = public.find_pid_name(conflict_software_list)
-                    conflict_software_name = open(conflict_software_path,'r').read()
+                    conflict_software_name = open(conflict_software_path, 'r').read()
                     # print('冲突软件标志：' + str(conflict_software_flag))
                     # print(conflict_software_name)
                     if conflict_software_flag:
@@ -1837,12 +1902,13 @@ class ADB_Test(object):
                         # 重要提示需要置顶
                         s.root.wm_attributes('-topmost', 1)
                         if tkinter.messagebox.askokcancel('防冲突警告', '已检测到冲突软件 ' + conflict_software_name + ' 正在运行\n'
-                                                       '已自动强制关闭冲突软件！！！\n'
-                                                       '如果你坚持使用冲突软件，则需要点击“确定”关闭本软件，否则点击“取消”不关闭本软件'):
-                                                        # 取消置顶
-                                                        s.root.wm_attributes('-topmost', 0)
-                                                        my_pid = os.getpid()
-                                                        os.kill(my_pid,signal.SIGINT)
+                                                                                                          '已自动强制关闭冲突软件！！！\n'
+                                                                                                          '如果你坚持使用冲突软件，则需要点击“确定”会退出本工具，否则点击“取消”不退出本工具'):
+                            # 取消置顶
+                            s.root.wm_attributes('-topmost', 0)
+                            # my_pid = os.getpid()
+                            # os.kill(my_pid, signal.SIGINT)
+                            s.adb_close()  # 退出ADB测试工具
                         # 取消置顶
                         s.root.wm_attributes('-topmost', 0)
                     else:
@@ -1860,43 +1926,44 @@ class ADB_Test(object):
                             devices_finally = public.device_connect()
                             # print('检测设备连接状态 === ' + str(devices_finally))
                             if not devices_finally:
+                                # 动态设备参数调整
+                                moving_devices()
                                 if not lower_CPU_utility_disconnect:
                                     print('已断开连接！')
                                     s.devices_fail.place(x=470, y=0)
-                                    s.devices_type_fail.place(x=325,y=425)
+                                    s.devices_type_fail.place(x=325, y=425)
                                     s.devices_success.place_forget()
                                     s.devices_type_success.place_forget()
-                                    # 动态设备参数调整
-                                    moving_devices()
                                     # 确保切换设备类型时Linux相关功能按钮不会主动显示出来
                                     try:
                                         s.linux_all_button_close()
                                     except AttributeError:
                                         pass
                                     lower_CPU_utility_disconnect = True
-                                    lower_CPU_utility_connect = False
+                                    # lower_CPU_utility_connect = False
+                                    linux_Initialize_flag = False
                             else:
-                                if not lower_CPU_utility_connect:
-                                    print('已连接设备！')
-                                    # print('成功检测设备 ++++++ ')
-                                    s.devices_fail.place_forget()
-                                    s.devices_type_fail.place_forget()
-                                    s.devices_success.place(x=450,y=0)
-                                    s.devices_type_success.place(x=325,y=425)
-                                    for devices in devices_finally:
-                                        if len(devices_finally) == 1:
-                                            if len(devices) > 15:
-                                                # 超过长度限制用...表示
-                                                s.devices_str.set(devices[:13] + '... 已连接')
-                                            else:
-                                                s.devices_str.set(devices + ' 已连接')
-                                            continue
-                                        elif len(devices_finally) > 1:
-                                            s.devices_str.set('多部设备已连接')
-                                            continue
-                                    devices_type()  # 调用检测设备类型
-                                    lower_CPU_utility_connect = True
-                                    lower_CPU_utility_disconnect = False
+                                # if not lower_CPU_utility_connect:
+                                # print('已连接设备！')
+                                # print('成功检测设备 ++++++ ')
+                                s.devices_fail.place_forget()
+                                s.devices_type_fail.place_forget()
+                                s.devices_success.place(x=450, y=0)
+                                s.devices_type_success.place(x=325, y=425)
+                                for devices in devices_finally:
+                                    if len(devices_finally) == 1:
+                                        if len(devices) > 15:
+                                            # 超过长度限制用...表示
+                                            s.devices_str.set(devices[:13] + '... 已连接')
+                                        else:
+                                            s.devices_str.set(devices + ' 已连接')
+                                        continue
+                                    elif len(devices_finally) > 1:
+                                        s.devices_str.set('多部设备已连接')
+                                        continue
+                                devices_type()  # 调用检测设备类型
+                                # lower_CPU_utility_connect = True
+                                lower_CPU_utility_disconnect = False
                 time.sleep(3)
 
         t_devices = threading.Thread(target=t_devices)
@@ -1914,24 +1981,24 @@ class ADB_Test(object):
     def adb_bind(s):
         # 检测ADB服务状态
         def adb_install_main():
-             shutil.copy(adb_path, make_dir)
-             # 解压
-             zip_path = make_dir + 'adb-tools.zip'
-             public.zip_extract(zip_path, make_dir)
-             # 清理压缩包
-             os.remove(zip_path)
-             # 配置环境变量
-             public.temporary_environ(adb_tools_flag)
-             public.permanent_environ(adb_tools_flag)
-             # 打印测试
-             print(public.execute_cmd('adb version'))
+            shutil.copy(adb_path, make_dir)
+            # 解压
+            zip_path = make_dir + 'adb-tools.zip'
+            public.zip_extract(zip_path, make_dir)
+            # 清理压缩包
+            os.remove(zip_path)
+            # 配置环境变量
+            public.temporary_environ(adb_tools_flag)
+            public.permanent_environ(adb_tools_flag)
+            # 打印测试
+            print(public.execute_cmd('adb version'))
 
         def adb_install_upgrade():
             if not os.path.exists(adb_tools_path):
                 adb_install_main()
             else:
                 # ADB调试桥版本升级
-                adb_version_new = int(open(adb_version_path,'r').read())
+                adb_version_new = int(open(adb_version_path, 'r').read())
                 print(adb_version_new)
                 adb_version = int(public.adb_version())
                 print('当前ADB版本号：' + str(adb_version))
@@ -1975,15 +2042,17 @@ class ADB_Test(object):
                     pass
 
         def t_adb():
-            global adb_server_all_flag
-            # time.sleep(5)  # 等待ADB服务启动完毕
+            global adb_server_all_flag,adb_service_flag
+            if not adb_service_flag:
+                time.sleep(5)  # 等待ADB服务启动完毕
+                adb_service_flag = True
             while True:
                 if not adb_server_all_flag:
                     break
                 else:
                     # 中文状态下
                     adb_finally = public.adb_connect()[1]
-                    with open(log_path,'w') as fp:
+                    with open(log_path, 'w') as fp:
                         fp.write('工具已成功启动，正在打印日志中...\n')
                         fp.write('中文状态下:' + adb_finally + '\n')
                     fp.close()
@@ -2006,7 +2075,7 @@ class ADB_Test(object):
                             s.adb_str.set('本地ADB已开启！')
                             print(public.execute_cmd('adb version'))
                             break
-                    except (IndexError,ValueError):
+                    except (IndexError, ValueError):
                         print('IndexError异常，无影响！')
                         if adb_finally == '不是内部或外部命令，也不是可运行的程序':
                             # os.chdir(adb_path)
@@ -2030,10 +2099,10 @@ class ADB_Test(object):
         t_adb.setDaemon(True)
         t_adb.start()
 
-    def main_screenshot(s,touch_name):
+    def main_screenshot(s, touch_name):
         # 截图功能核心逻辑代码
         devices_SN = s.more_devices_value.get()
-        screenshot_success = screen_record.main_screenshots(touch_name,devices_SN)
+        screenshot_success = screen_record.main_screenshots(touch_name, devices_SN)
         s.screen_str.set(screenshot_success)
 
     def screenshot_bind(s):
@@ -2073,7 +2142,7 @@ class ADB_Test(object):
 
     def open_screen_bind(s):
         def open_screen():
-            s.open_screen_button_disable.place(x=200,y=140)
+            s.open_screen_button_disable.place(x=200, y=140)
             screen_record.open_screenshots()
             s.open_screen_button_disable.place_forget()
 
@@ -2084,10 +2153,10 @@ class ADB_Test(object):
     def record_stop_bind(s):
         # 停止录屏标志
         s.record_stop_button_disable.place(x=200, y=330)
-        with open(record_state,'w') as fp:
+        with open(record_state, 'w') as fp:
             fp.write('Stop recording screen')
         fp.close()
-        with open(record_screen_state,'w') as fp:
+        with open(record_screen_state, 'w') as fp:
             fp.write('Stop recording screen')
         fp.close()
 
@@ -2113,13 +2182,13 @@ class ADB_Test(object):
                 # 记录录屏模式
                 s.record_model_selected = s.record_model_str.get()
                 print('录屏模式：' + str(s.record_model_selected))
-                with open(record_model_log,'w') as fp:
+                with open(record_model_log, 'w') as fp:
                     fp.write(str(s.record_model_selected))
                 fp.close()
 
                 # 获取录屏时间
                 s.record_time_get = s.record_time.get()
-                s.record_time_re = re.findall('(.*?)秒',s.record_time_get)
+                s.record_time_re = re.findall('(.*?)秒', s.record_time_get)
                 s.record_time_selected = ''.join(s.record_time_re)
                 # with open(record_time_txt,'w') as fp:
                 #     fp.write(s.record_time_selected)
@@ -2150,7 +2219,7 @@ class ADB_Test(object):
                 # with open(record_name,'w') as fp:
                 #     fp.write(s.record_name)
                 devices_SN = s.more_devices_value.get()
-                screen_record.record(s.record_name,s.record_time_selected,str(s.record_model_selected),devices_SN)
+                screen_record.record(s.record_name, s.record_time_selected, str(s.record_model_selected), devices_SN)
 
         def record_time():
             # 显示录屏状态
@@ -2164,7 +2233,7 @@ class ADB_Test(object):
                 # record_end_finally = screen_record.record_time(s.record_str)
                 screen_record.record_time(s.record_str)
                 record_model_get = open(record_model_log, 'r').read()
-                record_state_finally = open(record_screen_state,'r').read()
+                record_state_finally = open(record_screen_state, 'r').read()
                 if record_model_get == '0':
                     if record_state_finally == 'Non-Android Devices':
                         pass
@@ -2173,7 +2242,7 @@ class ADB_Test(object):
                         # s.record_name = open(record_name,'r').read()
                         s.record_name = s.record_entry.get()
                         devices_SN = s.more_devices_value.get()
-                        screen_record.record_pull(s.record_name, record_model_get,devices_SN)
+                        screen_record.record_pull(s.record_name, record_model_get, devices_SN)
                         time.sleep(3)  # 延迟3S同步状态
                         # s.record_str.set('注意：录屏时间仅供参考，具体查看文件时长\n录屏文件保存成功！录屏时间为：' + record_end_finally)
                         s.record_str.set('录屏文件保存成功！\n打开录屏文件夹即可查看哦~')
@@ -2197,7 +2266,7 @@ class ADB_Test(object):
                         s.record_str.set('正在保存连续模式录屏文件，请稍等...')
                         s.record_name = s.record_entry.get()
                         devices_SN = s.more_devices_value.get()
-                        screen_record.record_pull(s.record_name,record_model_get,devices_SN)
+                        screen_record.record_pull(s.record_name, record_model_get, devices_SN)
                         time.sleep(3)  # 延迟3S同步状态
                         s.record_str.set('连续模式已结束！（录屏文件已保存）')
                 s.record_button_disable.place_forget()
@@ -2208,16 +2277,16 @@ class ADB_Test(object):
             # 录屏停止机制
             global record_stop_flag
             record_stop_flag = False
-            with open(record_screen_state,'w') as fp:
+            with open(record_screen_state, 'w') as fp:
                 fp.write('')
             fp.close()
-            with open(record_stop_config,'w') as fp:
+            with open(record_stop_config, 'w') as fp:
                 fp.write('')
             fp.close()
             while True:
                 record_device = public.device_connect()
-                record_stop_state = open(record_screen_state,'r').read()
-                record_stop_ini = open(record_stop_config,'r').read()
+                record_stop_state = open(record_screen_state, 'r').read()
+                record_stop_ini = open(record_stop_config, 'r').read()
                 if record_stop_state == 'Stop recording screen' and record_stop_ini == '0':
                     # os.popen('taskkill /F /IM %s ' % 'adb.exe /T', 'r')
                     # os.popen('taskkill /F /IM %s ' % 'record_main.exe /T', 'r')
@@ -2284,7 +2353,7 @@ class ADB_Test(object):
 
     def open_record_bind(s):
         def open_record():
-            s.open_record_button_disable.place(x=20,y=370)
+            s.open_record_button_disable.place(x=20, y=370)
             screen_record.open_screenrecords()
             s.open_record_button_disable.place_forget()
 
@@ -2300,20 +2369,21 @@ class ADB_Test(object):
             2.将会清空所有相关截图录屏的缓存文件
             3.将会重置截图录屏的文件名计数（重置为零）
             """
-            if tkinter.messagebox.askyesno(title='重置警告',message=reset_message):
+            if tkinter.messagebox.askyesno(title='重置警告', message=reset_message):
                 screen_record.reset_screenrecord()
-                tkinter.messagebox.showinfo(title='完成',message='一键重置完成！！！')
+                tkinter.messagebox.showinfo(title='完成', message='一键重置完成！！！')
 
         t_reset = threading.Thread(target=t_reset)
         t_reset.setDaemon(True)
         t_reset.start()
 
     def reset_disable_bind(s):
-        tkinter.messagebox.showwarning(title='录屏警告',message='正在进行录屏，无法重置！！！')
+        tkinter.messagebox.showwarning(title='录屏警告', message='正在进行录屏，无法重置！！！')
 
     def linux_button_bind(s):
         def t_linux_button():
             global adb_server_all_flag
+
             def check_only_read():
                 devices_SN = s.more_devices_value.get()
                 check_only_read = public.execute_cmd('adb -s ' + devices_SN + ' shell ls -lh /data/.overlay')
@@ -2327,20 +2397,22 @@ class ADB_Test(object):
                     devices_finally = public.device_connect()
                     s.init_text = s.init_str.get()
                     only_read = check_only_read()
-                    if not devices_linux_flag or not devices_finally or only_read.strip() == 'No such file or directory':
+                    if not devices_linux_flag or not devices_finally or only_read.strip() == 'No such file or directory' \
+                            or s.linux_type_str.get().strip() != '全志/索智/阿里':
                         try:
                             s.android_all_button_open()
                         except AttributeError:
                             pass
                         s.linux_all_button_close()
                     elif devices_linux_flag and devices_finally and only_read.strip() != 'No such file or directory':
-                        s.linux_all_button_open()
+                        if s.linux_type_str.get().strip() == '全志/索智/阿里':
+                            s.linux_all_button_open()
                     elif only_read.strip() == 'ls requires an argument':
                         error_content = '检测初始化只读权限异常错误，解决方案如下：' \
                                         '1.重新拔插设备后点击重新检测' \
                                         '2.重启软件后再重新检测初始化' \
                                         'PS：建议按照以上方案进行操作，以免功能无法正常使用！'
-                        tkinter.messagebox.showerror(title='初始化错误',message=error_content)
+                        tkinter.messagebox.showerror(title='初始化错误', message=error_content)
                         break
                 time.sleep(3)
 
@@ -2356,7 +2428,8 @@ class ADB_Test(object):
             fp.close()
             linux_screen = linux_main.Linux_Screen()
             device_SN = s.more_devices_value.get()
-            linux_screen.screen_form(s.init_str,s.linux_screen_Button,s.linux_screen_Button_disable,device_SN,s.adb_test_close_disable)
+            linux_screen.screen_form(s.init_str, s.linux_screen_Button, s.linux_screen_Button_disable, device_SN,
+                                     s.adb_test_close_disable)
 
         def t_screen_close():
             # 监听截图页面的关闭状态
@@ -2367,7 +2440,7 @@ class ADB_Test(object):
             while True:
                 # 通过没有连接设备判断可优化按钮闪现情况
                 devices_connect = public.device_connect()
-                screen_page_state = open(screen_page,'r').read()
+                screen_page_state = open(screen_page, 'r').read()
                 if not devices_connect:
                     break
                 else:
@@ -2389,10 +2462,10 @@ class ADB_Test(object):
         def t_developer_mode_close():
             # 关闭开发者模式
             linux_developer_mode_content = '你确定要关闭开发者选项并访问设备本地盘吗？\n\n点击“确定”则访问设备本地盘且无法使用ADB命令\n点击“取消”则不能访问设备本地盘'
-            if tkinter.messagebox.askokcancel(title='',message=linux_developer_mode_content):
+            if tkinter.messagebox.askokcancel(title='', message=linux_developer_mode_content):
                 s.init_str.set('正在关闭开发者模式并重启设备中...')
                 s.linux_developer_mode_Button_close.place_forget()
-                s.linux_developer_mode_Button_close_disable.place(x=200,y=190)
+                s.linux_developer_mode_Button_close_disable.place(x=200, y=190)
                 device_SN = s.more_devices_value.get()
                 public.execute_cmd('adb -s ' + device_SN + ' shell rm -rf /data/.adb_config')
                 public.execute_cmd('adb -s ' + device_SN + ' shell reboot')
@@ -2413,7 +2486,8 @@ class ADB_Test(object):
             fp.close()
             linux_install = linux_main.Linux_Install()
             device_SN = s.more_devices_value.get()
-            linux_install.install_form(s.init_str,s.linux_install,s.linux_install_disable,device_SN,s.adb_test_close_disable)
+            linux_install.install_form(s.init_str, s.linux_install, s.linux_install_disable, device_SN,
+                                       s.adb_test_close_disable)
 
         def t_install_close():
             # 监听安装页面的关闭状态
@@ -2423,7 +2497,7 @@ class ADB_Test(object):
             s.adb_test_close_disable.place(x=400, y=370)
             while True:
                 devices_connect = public.device_connect()
-                install_page_state = open(install_page,'r').read()
+                install_page_state = open(install_page, 'r').read()
                 if not devices_connect:
                     break
                 else:
@@ -2449,7 +2523,8 @@ class ADB_Test(object):
             fp.close()
             linux_camera = linux_main.Linux_Camera()
             device_SN = s.more_devices_value.get()
-            linux_camera.camera_form(s.init_str,s.linux_camera,s.linux_camera_disable,device_SN,s.adb_test_close_disable)
+            linux_camera.camera_form(s.init_str, s.linux_camera, s.linux_camera_disable, device_SN,
+                                     s.adb_test_close_disable)
 
         def t_camera_close():
             # 监听取图页面的关闭状态
@@ -2481,7 +2556,7 @@ class ADB_Test(object):
         def t_uninstall():
             global uninstall_flag
             # 卸载APK流程
-            s.uninstall_button_disable.place(x=200,y=80)
+            s.uninstall_button_disable.place(x=200, y=80)
             s.uninstall_str.set('正在卸载APK中...')
             # 卸载标记
             uninstall_flag = False
@@ -2492,12 +2567,12 @@ class ADB_Test(object):
         t_uninstall.setDaemon(True)
         t_uninstall.start()
 
-    def check_package_name_bind(s,uninstall_flag):
+    def check_package_name_bind(s, uninstall_flag):
         def t_check_package_name():
             global uninstall_flag
             # 检测当前包名
-            s.check_package_name_button_disable.place(x=20,y=80)
-            s.uninstall_button_disable.place(x=200,y=80)
+            s.check_package_name_button_disable.place(x=20, y=80)
+            s.uninstall_button_disable.place(x=200, y=80)
             devices_state = public.device_connect()
             if not devices_state:
                 s.uninstall_str.set('请连接设备后再重新检测')
@@ -2512,7 +2587,7 @@ class ADB_Test(object):
                         package_name = public.found_packages(device_SN)
                         print(package_name)
                         s.uninstall_str.set('已检测到当前包名(可点击复制！)\n' + package_name)
-                        s.uninstall_label.bind('<Button-1>',lambda x:public.pyperclip_copy_paste(package_name))
+                        s.uninstall_label.bind('<Button-1>', lambda x: public.pyperclip_copy_paste(package_name))
 
                         if not uninstall_flag:
                             s.uninstall_str.set('检测到' + package_name + '\n正在卸载中...')
@@ -2521,7 +2596,7 @@ class ADB_Test(object):
                             s.uninstall_str.set('APK已卸载成功！')
                         else:
                             pass
-                    except (IndexError,TypeError):
+                    except (IndexError, TypeError):
                         s.uninstall_str.set('检测到非安卓设备\n请使用安卓设备进行操作')
                         s.uninstall_label.unbind('<Button-1>')
                 else:
@@ -2543,7 +2618,8 @@ class ADB_Test(object):
             fp.close()
             linux_write_number = linux_main.Linux_WriteNumber()
             device_SN = s.more_devices_value.get()
-            linux_write_number.write_number_form(s.init_str,s.write_number,s.write_number_disable,device_SN,s.adb_test_close_disable)
+            linux_write_number.write_number_form(s.init_str, s.write_number, s.write_number_disable, device_SN,
+                                                 s.adb_test_close_disable)
 
         def t_write_number_close():
             # 监听写号工具页面的关闭状态
@@ -2586,9 +2662,9 @@ class ADB_Test(object):
 
     def uuid_get_bind(s):
         def t_uuid_get():
-            global uuid_reboot_flag,uuid_run_flag
+            global uuid_reboot_flag, uuid_run_flag
             # 重新获取UUID
-            s.uuid_get_disable.place(x=20,y=360)
+            s.uuid_get_disable.place(x=20, y=360)
             s.uuid_paste_disable.place(x=200, y=360)
             devices_state = public.device_connect()
             s.uuid_str.set('正在获取设备UUID中...')
@@ -2630,7 +2706,7 @@ class ADB_Test(object):
     def uuid_paste_bind(s):
         def t_uuid_paste():
             # 一键复制UUID
-            s.uuid_paste_disable.place(x=200,y=360)
+            s.uuid_paste_disable.place(x=200, y=360)
             device_SN = s.more_devices_value.get()
             uuid_get_result = public.execute_cmd('adb -s ' + device_SN + ' shell ls -lh /data/UUID.ini')
             uuid_get_result_finally = ' '.join(uuid_get_result.split()).split(':')[-1]
@@ -2677,7 +2753,7 @@ class ADB_Test(object):
             fp.close()
             linux_get_log = linux_main.Linux_Log()
             device_SN = s.more_devices_value.get()
-            linux_get_log.log_form(s.init_str,s.get_log,s.get_log_disable,device_SN,s.adb_test_close_disable)
+            linux_get_log.log_form(s.init_str, s.get_log, s.get_log_disable, device_SN, s.adb_test_close_disable)
 
         def t_get_log_close():
             # 监听一键获取日志页面的关闭状态
@@ -2705,12 +2781,12 @@ class ADB_Test(object):
         t_get_log_close.setDaemon(True)
         t_get_log_close.start()
 
-    def open_apk_path_files(s,apk_path_install_flag):
+    def open_apk_path_files(s, apk_path_install_flag):
         def t_open_apk_path():
             # 打开库文件代码
             s.adb_test_close_disable.place(x=400, y=370)
-            s.apk_path_package_button_disable.place(x=320,y=160)
-            s.apk_path_button_disable.place(x=320,y=285)
+            s.apk_path_package_button_disable.place(x=320, y=160)
+            s.apk_path_button_disable.place(x=320, y=285)
             s.apk_path_package_entry.config(state='disable')
             s.apk_path_entry.config(state='disable')
             apkFilter = "APK Files (*.apk)|*.apk|"  # apk文件过滤
@@ -2722,7 +2798,7 @@ class ADB_Test(object):
                 path_msg_finally = '\\'.join(path_msg.split('\\')[:-1])  # 只获取目录地址（不包含具体文件）
                 dlg.SetOFNInitialDir(path_msg_finally)  # 设置打开文件对话框中的初始显示目录
             else:
-                apk_path = open(apk_path_log,'r').read()
+                apk_path = open(apk_path_log, 'r').read()
                 apk_path_finally = '\\'.join(apk_path.split('\\')[:-1])
                 dlg.SetOFNInitialDir(apk_path_finally)
             dlg.DoModal()  # 显示文件选择框
@@ -2748,7 +2824,7 @@ class ADB_Test(object):
                 else:
                     s.apk_path_package_str.set(apk_path_file)
                     print('获取地址：' + str(apk_path_file))
-                    with open(apk_path_package_log,'w') as fp:
+                    with open(apk_path_package_log, 'w') as fp:
                         fp.write(apk_path_file)
                     fp.close()
             s.apk_path_package_entry.config(state='normal')
@@ -2764,7 +2840,7 @@ class ADB_Test(object):
     def apk_package_bind(s):
         def t_apk_package():
             # 根据apk文件获取包名
-            s.apk_package_button_disable.place(x=20,y=200)
+            s.apk_package_button_disable.place(x=20, y=200)
             s.uninstall_str.set('正在获取apk文件包名中...')
             s.apk_path_package_get = s.apk_path_package_str.get()
             print(s.apk_path_package_get)
@@ -2775,11 +2851,11 @@ class ADB_Test(object):
                 if apk_package_result_error == '不是内部或外部命令，也不是可运行的程序':
                     s.uninstall_str.set('检测到ADB包中缺少aapt\n正在更新ADB本地包...')
                     s.adb_str.set('正在更新ADB...')
-                    with open(adb_upgrade_flag,'w') as fp:
+                    with open(adb_upgrade_flag, 'w') as fp:
                         fp.write('ADB upgrade')
                     fp.close()
                     public.upgrade_adb()
-                    with open(adb_upgrade_flag,'w') as fp:
+                    with open(adb_upgrade_flag, 'w') as fp:
                         fp.write('')
                     fp.close()
                     s.uninstall_str.set('ADB本地包更新成功！')
@@ -2787,7 +2863,7 @@ class ADB_Test(object):
             except IndexError:
                 pass
             # errors='ignore' 忽略错误，避免个别计算机出现异常
-            apk_package_result_log = open(apk_aapt_log,'r',encoding='utf-8',errors='ignore').read()
+            apk_package_result_log = open(apk_aapt_log, 'r', encoding='utf-8', errors='ignore').read()
             apk_package_result_finally = ''.join(re.findall('package: name=\'(.*?)\'\s', apk_package_result_log))
             # print(apk_package_result_finally)
             apk_version_result_finally = ''.join(re.findall('versionName=\'(.*?)\'\s', apk_package_result_log))
@@ -2795,7 +2871,8 @@ class ADB_Test(object):
             apk_name_result_finally = ''.join(re.findall('application-label-zh:\'(.*?)\'\s', apk_package_result_log))
             # print(apk_name_result_finally)
             if apk_name_result_finally.strip() == '':
-                apk_name_result_finally = ''.join(re.findall('application-label-en:\'(.*?)\'\s', apk_package_result_log))
+                apk_name_result_finally = ''.join(
+                    re.findall('application-label-en:\'(.*?)\'\s', apk_package_result_log))
             if apk_package_result_finally == '' or apk_version_result_finally == '' or apk_name_result_finally == '':
                 s.uninstall_str.set('你选择的apk路径不存在或不是apk文件\n请重新选择正确无误的apk路径再试吧')
             else:
@@ -2809,12 +2886,12 @@ class ADB_Test(object):
                       '\napk包大小为：' + str(apk_size_result) + ' byte (' + str(apk_size) + 'MB)' +
                       '\napk md5值：' + apk_md5)
                 print('---------------------------------------------')
-                with open(apk_aapt_log,'w') as fp:
+                with open(apk_aapt_log, 'w') as fp:
                     if fp is not None:
                         fp.write('已获取当前apk所有信息：\napk包名：' + apk_package_result_finally
-                          + '\napk名称：' + apk_name_result_finally + '\napk版本号：' + apk_version_result_finally +
-                          '\napk包大小为：' + str(apk_size_result) + ' byte (' + str(apk_size) + 'MB)' +
-                          '\napk md5值：' + apk_md5)
+                                 + '\napk名称：' + apk_name_result_finally + '\napk版本号：' + apk_version_result_finally +
+                                 '\napk包大小为：' + str(apk_size_result) + ' byte (' + str(apk_size) + 'MB)' +
+                                 '\napk md5值：' + apk_md5)
                 fp.close()
                 s.uninstall_str.set('已获取到apk所有信息\n请点击下方的"一键复制apk信息"即可')
             s.apk_package_button_disable.place_forget()
@@ -2825,10 +2902,10 @@ class ADB_Test(object):
 
     def apk_package_copy_bind(s):
         def t_apk_package_copy():
-            s.apk_package_copy_button_disable.place(x=200,y=200)
-            apk_info_name = open(apk_aapt_log,'r').read()
+            s.apk_package_copy_button_disable.place(x=200, y=200)
+            apk_info_name = open(apk_aapt_log, 'r').read()
             if apk_info_name == '':
-                tkinter.messagebox.showinfo('空包名','你还没有获取任何apk信息哦~\n现在暂时无法复制粘贴！')
+                tkinter.messagebox.showinfo('空包名', '你还没有获取任何apk信息哦~\n现在暂时无法复制粘贴！')
             else:
                 public.pyperclip_copy_paste(apk_info_name)
             s.apk_package_copy_button_disable.place_forget()
@@ -2848,8 +2925,8 @@ class ADB_Test(object):
         def t_apk_install():
             # 安装apk逻辑
             global apk_install_flag
-            s.apk_button_disable.place(x=20,y=325)
-            s.apk_install_info_button_disable.place(x=200,y=325)
+            s.apk_button_disable.place(x=20, y=325)
+            s.apk_install_info_button_disable.place(x=200, y=325)
             apk_install_flag = True
             devices_state = public.device_connect()
             if not devices_state:
@@ -2873,7 +2950,7 @@ class ADB_Test(object):
                         install_error = install_result.split(' ')[1]
                         if install_error.strip() == 'failed':
                             s.install_str.set('apk安装失败！\n请点击下方“查看安装信息”分析原因吧~')
-                            with open(apk_install_log,'w') as fp:
+                            with open(apk_install_log, 'w') as fp:
                                 fp.write(install_result)
                             fp.close()
                             apk_install_flag = False
@@ -2883,7 +2960,7 @@ class ADB_Test(object):
                     except IndexError:
                         pass
 
-                    with open(apk_install_log,'w') as fp:
+                    with open(apk_install_log, 'w') as fp:
                         fp.write(install_result)
                     fp.close()
                     print('安装结果：' + install_result)
@@ -2901,12 +2978,12 @@ class ADB_Test(object):
     def apk_install_info_bind(s):
         def t_apk_install_info():
             # 查看apk安装信息
-            s.apk_install_info_button_disable.place(x=200,y=325)
+            s.apk_install_info_button_disable.place(x=200, y=325)
             if not os.path.exists(apk_install_log):
-                with open(apk_install_log,'w') as fp:
+                with open(apk_install_log, 'w') as fp:
                     fp.write('')
                 fp.close()
-            win32api.ShellExecute(0, 'open',apk_install_log, '', '', 1)
+            win32api.ShellExecute(0, 'open', apk_install_log, '', '', 1)
             s.apk_install_info_button_disable.place_forget()
 
         t_apk_install_info = threading.Thread(target=t_apk_install_info)
@@ -2924,10 +3001,10 @@ class ADB_Test(object):
                 pass
             else:
                 flow = customize_main.Flow_Screen()
-                flow.flow_form(s.flow_button, s.flow_button_disable,s.adb_test_close_disable)
+                flow.flow_form(s.flow_button, s.flow_button_disable, s.adb_test_close_disable)
 
         def t_flow_close():
-            global first_button_flag,tkinter_messagebox_flag
+            global first_button_flag, tkinter_messagebox_flag
             # 监听查询应用流量值页面的关闭状态
             first_button_flag = False
             tkinter_messagebox_flag = False
@@ -2948,7 +3025,7 @@ class ADB_Test(object):
                         检测到使用本功能时没有连接设备
                         请连接设备后再使用本功能
                         '''
-                        tkinter.messagebox.showerror(title='没有连接设备，启动功能失败',message=content)
+                        tkinter.messagebox.showerror(title='没有连接设备，启动功能失败', message=content)
                         tkinter_messagebox_flag = True
                     s.flow_button_disable.place_forget()
                     s.flow_button.place(x=20, y=20)
@@ -2984,7 +3061,7 @@ class ADB_Test(object):
                 fp.write('')
             fp.close()
             md5_size = customize_main.MD5_Screen()
-            md5_size.md5_size_form(s.md5_size_button, s.md5_size_button_disable,s.adb_test_close_disable)
+            md5_size.md5_size_form(s.md5_size_button, s.md5_size_button_disable, s.adb_test_close_disable)
 
         def t_md5_size_close():
             # 监听获取文件MD5和大小页面的关闭状态
@@ -3016,5 +3093,39 @@ class ADB_Test(object):
         t_md5_size_close.setDaemon(True)
         t_md5_size_close.start()
 
+    def linux_extra_bind(s):
+        def t_linux_extra():
+            # 初始化其他快捷功能页面的状态
+            with open(public.linux_extra_page(), 'w') as fp:
+                fp.write('')
+            fp.close()
+            linux_extra = linux_main.Linux_Quick()
+            device_SN = s.more_devices_value.get()
+            linux_extra.quick_form(s.init_str, s.linux_extra_Button, s.linux_extra_Button_disable, device_SN,
+                                   s.adb_test_close_disable)
 
+        def t_linux_extra_close():
+            # 监听其他快捷功能页面的关闭状态
+            with open(public.linux_extra_page(), 'w') as fp:
+                fp.write('')
+            fp.close()
+            s.adb_test_close_disable.place(x=400, y=370)
+            while True:
+                devices_connect = public.device_connect()
+                linux_extra_page_state = open(public.linux_extra_page(), 'r').read()
+                if not devices_connect:
+                    break
+                else:
+                    if linux_extra_page_state == '0':
+                        s.linux_extra_Button_disable.place_forget()
+                        s.linux_extra_Button.place(x=20, y=155)
+                        break
+                time.sleep(1)
 
+        t_linux_extra = threading.Thread(target=t_linux_extra)
+        t_linux_extra.setDaemon(True)
+        t_linux_extra.start()
+
+        t_linux_extra_close = threading.Thread(target=t_linux_extra_close)
+        t_linux_extra_close.setDaemon(True)
+        t_linux_extra_close.start()

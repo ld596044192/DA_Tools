@@ -71,8 +71,8 @@ function_status = main + 'function_status.log'
 # 调用ADB服务开关（ADB测试工具专门调用ADB服务的）
 adb_server_all_flag = True  # 默认True打开
 # 统一修改版本号
-version = 'V1.0.0'
-version_code = 100
+version = 'V1.0.1'
+version_code = 101
 # 统一root窗口总宽高
 main_width = 600
 main_height = 450
